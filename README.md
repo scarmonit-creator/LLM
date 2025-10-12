@@ -1,11 +1,12 @@
 # LLM Application
 
-A Node.js application for interacting with Anthropic's Claude LLM, optimized for Jules environment.
+A Node.js application integrating Anthropic Claude and Google Jules APIs for advanced LLM interactions.
 
 ## Features
 
-- **Simple API**: Easy-to-use Claude client wrapper
-- **Streaming Support**: Real-time streaming responses
+- **Claude Integration**: Direct integration with Anthropic's Claude API for conversational AI
+- **Jules Integration**: Google Jules API for automated coding sessions and repository analysis
+- **Streaming Support**: Real-time streaming responses from Claude
 - **Multi-turn Conversations**: Context-aware dialogue
 - **Environment Configuration**: Flexible setup via environment variables
 - **Jules Ready**: Pre-configured for Jules virtual machine environment
@@ -16,6 +17,7 @@ A Node.js application for interacting with Anthropic's Claude LLM, optimized for
 
 - Node.js v18.0.0 or higher
 - Anthropic API key
+- Google Jules API key
 
 ### Installation
 
@@ -30,16 +32,22 @@ npm install
 cp .env.example .env
 ```
 
-2. Add your Anthropic API key to `.env`:
+2. Add your API keys to `.env`:
 ```
 ANTHROPIC_API_KEY=your_api_key_here
+JULES_API_KEY=your_jules_api_key_here
 ```
 
 ### Usage
 
-Run the application:
+Run the Claude demo application:
 ```bash
 npm start
+```
+
+Run Jules API integration demo:
+```bash
+npm run jules
 ```
 
 Development mode with auto-reload:
@@ -48,6 +56,63 @@ npm run dev
 ```
 
 ## API Reference
+
+### JulesClient
+
+#### `listSources()`
+
+List all available GitHub sources.
+
+```javascript
+import { JulesClient } from './src/jules-client.js';
+
+const jules = new JulesClient();
+const sources = await jules.listSources();
+```
+
+#### `createSession({ prompt, sourceId?, title? })`
+
+Create a new Jules coding session.
+
+```javascript
+const session = await jules.createSession({
+  prompt: 'Analyze repository and suggest improvements',
+  sourceId: 'github/owner/repo',
+  title: 'Code Review Session'
+});
+```
+
+#### `listSessions({ pageSize?, pageToken? })`
+
+List all sessions with pagination.
+
+```javascript
+const sessions = await jules.listSessions({ pageSize: 10 });
+```
+
+#### `getSession(sessionId)`
+
+Get details of a specific session.
+
+```javascript
+const session = await jules.getSession('session-id');
+```
+
+#### `approvePlan(sessionId)`
+
+Approve a plan in a session.
+
+```javascript
+await jules.approvePlan('session-id');
+```
+
+#### `sendMessage(sessionId, message)`
+
+Send a message to a session.
+
+```javascript
+await jules.sendMessage('session-id', 'Please continue');
+```
 
 ### ClaudeClient
 
@@ -87,6 +152,7 @@ const response = await client.conversation(messages);
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ANTHROPIC_API_KEY` | Your Anthropic API key | *Required* |
+| `JULES_API_KEY` | Your Google Jules API key | *Required* |
 | `MODEL` | Claude model to use | `claude-sonnet-4-5-20250929` |
 | `MAX_TOKENS` | Maximum tokens in response | `4096` |
 | `TEMPERATURE` | Response randomness (0-1) | `1.0` |
@@ -133,18 +199,21 @@ The Jules environment will automatically:
 ```
 LLM/
 ├── .jules/
-│   └── setup.sh          # Jules environment setup script
+│   └── setup.sh               # Jules environment setup script
 ├── src/
-│   ├── index.js          # Application entry point
-│   └── claude-client.js  # Claude API client wrapper
+│   ├── index.js               # Application entry point
+│   ├── claude-client.js       # Claude API client wrapper
+│   ├── jules-client.js        # Jules API client
+│   └── jules-demo.js          # Jules integration demo
 ├── tests/
-│   └── claude-client.test.js  # Unit tests
-├── agents.md             # Jules environment hints
-├── package.json          # Project dependencies
-├── .env.example          # Environment template
-├── .gitignore            # Git ignore rules
-├── eslint.config.js      # ESLint configuration
-└── .prettierrc           # Prettier configuration
+│   ├── claude-client.test.js  # Claude client tests
+│   └── jules-client.test.js   # Jules client tests
+├── agents.md                  # Jules environment hints
+├── package.json               # Project dependencies
+├── .env.example               # Environment template
+├── .gitignore                 # Git ignore rules
+├── eslint.config.js           # ESLint configuration
+└── .prettierrc                # Prettier configuration
 ```
 
 ## License

@@ -7,15 +7,22 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "jules": "node src/jules-demo.js",
     "test": "node --test tests/claude-client.test.js",
     "lint": "eslint src/ tests/",
     "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\""
   },
-  "keywords": ["llm", "claude", "anthropic", "ai"],
+  "keywords": [
+    "llm",
+    "claude",
+    "anthropic",
+    "ai"
+  ],
   "author": "Parker Dunn <scarmonit@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
+    "axios": "^1.12.2",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
