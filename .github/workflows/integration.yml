@@ -17,6 +17,7 @@ on:
 jobs:
   integration:
     runs-on: ubuntu-latest
+    
     strategy:
       matrix:
         node-version: [20.x]
@@ -31,6 +32,9 @@ jobs:
         cache: 'npm'
     
     - run: npm ci
+    
+    - name: Build TypeScript files
+      run: npm run build
     
     - name: Run integration tests
       run: npm test
