@@ -14,8 +14,10 @@
       const resultEl = document.getElementById('result');
       resultEl.textContent = 'Creating account...';
       try {
-        // Use a deterministic but unique username to avoid collisions
-        const username = 'assistant' + Math.floor(Math.random() * 1000000);
+        // Use cryptographically secure random number generation
+        const randomValues = new Uint32Array(1);
+        window.crypto.getRandomValues(randomValues);
+        const username = 'assistant' + (randomValues[0] % 1000000);
         const address = `${username}@tiffincrane.com`;
         const password = 'AssistantDemo123!';
         const res = await fetch('https://api.mail.tm/accounts', {
