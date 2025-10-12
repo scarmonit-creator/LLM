@@ -12,7 +12,7 @@ describe('index.js', () => {
     it('should execute without errors', async () => {
       // Test that the module can be imported and executed
       try {
-        const { stdout: _stdout, stderr: _stderr } = await execAsync('node src/index.js', {
+        await execAsync('node src/index.js', {
           env: { ...process.env, ANTHROPIC_API_KEY: 'test-key' },
           timeout: 5000,
         });
