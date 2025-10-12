@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from 'crypto';
 
 /**
  * Mux takes a map of intent names to agent functions and returns a router.
@@ -10,20 +10,17 @@ type Agent = (env: any) => Promise<any>;
 
 export function mux(rules: Record<string, Agent>) {
   return async function route(env: any) {
-    const agentKey = env.intent in rules ? env.intent : "reflect";
+    const agentKey = env.intent in rules ? env.intent : 'reflect';
     const agent = rules[agentKey];
     const out = await agent(env);
     return {
       ...out,
-      protocol: "multiagent-1.0",
+      protocol: 'multiagent-1.0',
       trace: {
         ...(out.trace ?? {}),
-        parents: [
-          ...(env.trace?.parents ?? []),
-          env.trace?.id ?? env.trace ?? env.id ?? "unknown"
-        ],
-        id: randomUUID()
-      }
+        parents: [...(env.trace?.parents ?? []), env.trace?.id ?? env.trace ?? env.id ?? 'unknown'],
+        id: randomUUID(),
+      },
     };
   };
 }

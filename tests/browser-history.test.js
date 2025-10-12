@@ -99,10 +99,7 @@ test('BrowserHistoryTool - Tool Execution', async (t) => {
   });
 
   await t.test('should throw error for unknown action', async () => {
-    await assert.rejects(
-      async () => historyTool.execute({ action: 'invalid' }),
-      /Unknown action/
-    );
+    await assert.rejects(async () => historyTool.execute({ action: 'invalid' }), /Unknown action/);
   });
 
   await t.test('should throw error when query is missing for search', async () => {

@@ -26,7 +26,7 @@ describe('ollama-demo.js', () => {
       try {
         const { stdout, stderr } = await execAsync('node src/ollama-demo.js', {
           env: { ...process.env, OLLAMA_BASE_URL: 'http://localhost:11434' },
-          timeout: 5000
+          timeout: 5000,
         });
         // Successfully executed - Ollama might be available or demo handles gracefully
         assert.ok(true, 'Module executed successfully');
@@ -34,10 +34,10 @@ describe('ollama-demo.js', () => {
         // Expected to fail if Ollama is not running locally or times out
         assert.ok(
           error.message.includes('ECONNREFUSED') ||
-          error.message.includes('fetch') ||
-          error.message.includes('connect') ||
-          error.killed ||
-          error.code === 1,
+            error.message.includes('fetch') ||
+            error.message.includes('connect') ||
+            error.killed ||
+            error.code === 1,
           'Failed with expected connection error or timeout'
         );
       }
@@ -46,15 +46,18 @@ describe('ollama-demo.js', () => {
     it('should be importable as a module', () => {
       // Instead of importing (which causes async activity), just check file exists and is valid
       const modulePath = resolve(process.cwd(), 'src/ollama-demo.js');
-      
+
       // Check if module exists
       assert.ok(existsSync(modulePath), 'Module file exists');
-      
+
       // Check if file contains valid JavaScript (basic syntax check)
       try {
         const content = readFileSync(modulePath, 'utf-8');
         assert.ok(content.length > 0, 'Module has content');
-        assert.ok(content.includes('ollama') || content.includes('Ollama'), 'Module contains ollama references');
+        assert.ok(
+          content.includes('ollama') || content.includes('Ollama'),
+          'Module contains ollama references'
+        );
       } catch (error) {
         assert.fail(`Failed to read module: ${error.message}`);
       }
@@ -64,9 +67,9 @@ describe('ollama-demo.js', () => {
   describe('Ollama Connection', () => {
     it('should handle Ollama server unavailable or available', async () => {
       try {
-        await execAsync('node src/ollama-demo.js', { 
+        await execAsync('node src/ollama-demo.js', {
           env: { ...process.env, OLLAMA_BASE_URL: 'http://localhost:11434' },
-          timeout: 3000 
+          timeout: 3000,
         });
         // Test passes whether Ollama is available or not
         assert.ok(true, 'Demo executed');
@@ -74,10 +77,10 @@ describe('ollama-demo.js', () => {
         // Should fail gracefully when Ollama is not available
         assert.ok(
           error.message.includes('ECONNREFUSED') ||
-          error.message.includes('fetch') ||
-          error.message.includes('connect') ||
-          error.killed ||
-          error.code === 1,
+            error.message.includes('fetch') ||
+            error.message.includes('connect') ||
+            error.killed ||
+            error.code === 1,
           'Handles unavailable Ollama server'
         );
       }
@@ -87,17 +90,17 @@ describe('ollama-demo.js', () => {
       try {
         const { stdout, stderr } = await execAsync('node src/ollama-demo.js', {
           env: { ...process.env, OLLAMA_BASE_URL: 'http://localhost:11434' },
-          timeout: 3000
+          timeout: 3000,
         });
         // Either passes successfully or fails with connection error
         assert.ok(true, 'Handled execution');
       } catch (error) {
         assert.ok(
           error.message.includes('ECONNREFUSED') ||
-          error.message.includes('fetch') ||
-          error.message.includes('connect') ||
-          error.killed ||
-          error.code === 1,
+            error.message.includes('fetch') ||
+            error.message.includes('connect') ||
+            error.killed ||
+            error.code === 1,
           'Handled network error'
         );
       }

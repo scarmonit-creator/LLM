@@ -1,7 +1,7 @@
 /**
  * Enhanced Browser History Tool
  * Multi-browser, cross-platform history access with autonomous sync
- * Integrates capabilities from: HackBrowserData, browser-history, 1History, 
+ * Integrates capabilities from: HackBrowserData, browser-history, 1History,
  * AutoBrowse, ArchiveBox, stagehand, browser-use
  */
 
@@ -36,7 +36,7 @@ enum BrowserType {
   EDGE = 'edge',
   SAFARI = 'safari',
   OPERA = 'opera',
-  BRAVE = 'brave'
+  BRAVE = 'brave',
 }
 
 class BrowserPathResolver {
@@ -54,20 +54,96 @@ class BrowserPathResolver {
 
     const paths: Record<string, Record<BrowserType, string>> = {
       win32: {
-        [BrowserType.CHROME]: path.join(home, 'AppData', 'Local', 'Google', 'Chrome', 'User Data', profile, 'History'),
-        [BrowserType.FIREFOX]: path.join(home, 'AppData', 'Roaming', 'Mozilla', 'Firefox', 'Profiles'),
-        [BrowserType.EDGE]: path.join(home, 'AppData', 'Local', 'Microsoft', 'Edge', 'User Data', profile, 'History'),
+        [BrowserType.CHROME]: path.join(
+          home,
+          'AppData',
+          'Local',
+          'Google',
+          'Chrome',
+          'User Data',
+          profile,
+          'History'
+        ),
+        [BrowserType.FIREFOX]: path.join(
+          home,
+          'AppData',
+          'Roaming',
+          'Mozilla',
+          'Firefox',
+          'Profiles'
+        ),
+        [BrowserType.EDGE]: path.join(
+          home,
+          'AppData',
+          'Local',
+          'Microsoft',
+          'Edge',
+          'User Data',
+          profile,
+          'History'
+        ),
         [BrowserType.SAFARI]: '',
-        [BrowserType.OPERA]: path.join(home, 'AppData', 'Roaming', 'Opera Software', 'Opera Stable', 'History'),
-        [BrowserType.BRAVE]: path.join(home, 'AppData', 'Local', 'BraveSoftware', 'Brave-Browser', 'User Data', profile, 'History')
+        [BrowserType.OPERA]: path.join(
+          home,
+          'AppData',
+          'Roaming',
+          'Opera Software',
+          'Opera Stable',
+          'History'
+        ),
+        [BrowserType.BRAVE]: path.join(
+          home,
+          'AppData',
+          'Local',
+          'BraveSoftware',
+          'Brave-Browser',
+          'User Data',
+          profile,
+          'History'
+        ),
       },
       darwin: {
-        [BrowserType.CHROME]: path.join(home, 'Library', 'Application Support', 'Google', 'Chrome', profile, 'History'),
-        [BrowserType.FIREFOX]: path.join(home, 'Library', 'Application Support', 'Firefox', 'Profiles'),
-        [BrowserType.EDGE]: path.join(home, 'Library', 'Application Support', 'Microsoft Edge', profile, 'History'),
+        [BrowserType.CHROME]: path.join(
+          home,
+          'Library',
+          'Application Support',
+          'Google',
+          'Chrome',
+          profile,
+          'History'
+        ),
+        [BrowserType.FIREFOX]: path.join(
+          home,
+          'Library',
+          'Application Support',
+          'Firefox',
+          'Profiles'
+        ),
+        [BrowserType.EDGE]: path.join(
+          home,
+          'Library',
+          'Application Support',
+          'Microsoft Edge',
+          profile,
+          'History'
+        ),
         [BrowserType.SAFARI]: path.join(home, 'Library', 'Safari', 'History.db'),
-        [BrowserType.OPERA]: path.join(home, 'Library', 'Application Support', 'com.operasoftware.Opera', 'History'),
-        [BrowserType.BRAVE]: path.join(home, 'Library', 'Application Support', 'BraveSoftware', 'Brave-Browser', profile, 'History')
+        [BrowserType.OPERA]: path.join(
+          home,
+          'Library',
+          'Application Support',
+          'com.operasoftware.Opera',
+          'History'
+        ),
+        [BrowserType.BRAVE]: path.join(
+          home,
+          'Library',
+          'Application Support',
+          'BraveSoftware',
+          'Brave-Browser',
+          profile,
+          'History'
+        ),
       },
       linux: {
         [BrowserType.CHROME]: path.join(home, '.config', 'google-chrome', profile, 'History'),
@@ -75,8 +151,15 @@ class BrowserPathResolver {
         [BrowserType.EDGE]: path.join(home, '.config', 'microsoft-edge', profile, 'History'),
         [BrowserType.SAFARI]: '',
         [BrowserType.OPERA]: path.join(home, '.config', 'opera', 'History'),
-        [BrowserType.BRAVE]: path.join(home, '.config', 'BraveSoftware', 'Brave-Browser', profile, 'History')
-      }
+        [BrowserType.BRAVE]: path.join(
+          home,
+          '.config',
+          'BraveSoftware',
+          'Brave-Browser',
+          profile,
+          'History'
+        ),
+      },
     };
 
     return paths[platform]?.[browser] || null;
@@ -85,8 +168,9 @@ class BrowserPathResolver {
 
 export class BrowserHistoryTool implements Tool {
   name = 'browser_history';
-  description = 'Advanced multi-browser history access with autonomous sync, encryption support, and cross-platform compatibility';
-  
+  description =
+    'Advanced multi-browser history access with autonomous sync, encryption support, and cross-platform compatibility';
+
   private config: BrowserHistoryConfig;
   private syncTimer?: NodeJS.Timeout;
   private historyCache: HistoryEntry[] = [];
@@ -96,7 +180,7 @@ export class BrowserHistoryTool implements Tool {
     BrowserType.EDGE,
     BrowserType.SAFARI,
     BrowserType.OPERA,
-    BrowserType.BRAVE
+    BrowserType.BRAVE,
   ];
 
   constructor(config?: Partial<BrowserHistoryConfig>) {
@@ -108,7 +192,7 @@ export class BrowserHistoryTool implements Tool {
       enableEncryption: false,
       ...config,
     };
-    
+
     if (this.config.autoSync) {
       this.startAutoSync();
     }
@@ -136,19 +220,21 @@ export class BrowserHistoryTool implements Tool {
       console.log('[BrowserHistory] Syncing history from all browsers...');
       const newEntries = await this.fetchBrowserHistory();
       this.historyCache = newEntries.slice(0, this.config.maxEntries);
-      console.log(`[BrowserHistory] Synced ${this.historyCache.length} entries from ${this.getUniqueBrowsers().length} browsers`);
+      console.log(
+        `[BrowserHistory] Synced ${this.historyCache.length} entries from ${this.getUniqueBrowsers().length} browsers`
+      );
     } catch (error) {
       console.error('[BrowserHistory] Sync failed:', error);
     }
   }
 
   private getUniqueBrowsers(): string[] {
-    return [...new Set(this.historyCache.map(e => e.browser))];
+    return [...new Set(this.historyCache.map((e) => e.browser))];
   }
 
   private async fetchBrowserHistory(): Promise<HistoryEntry[]> {
     const allEntries: HistoryEntry[] = [];
-    
+
     for (const browser of this.supportedBrowsers) {
       try {
         const entries = await this.readBrowserHistory(browser);
@@ -157,13 +243,13 @@ export class BrowserHistoryTool implements Tool {
         console.warn(`[BrowserHistory] Failed to read ${browser}:`, error);
       }
     }
-    
+
     return allEntries.sort((a, b) => b.visitTime - a.visitTime);
   }
 
   private async readBrowserHistory(browser: BrowserType): Promise<HistoryEntry[]> {
     const historyPath = BrowserPathResolver.getHistoryPath(browser);
-    
+
     if (!historyPath || !fs.existsSync(historyPath)) {
       return [];
     }
@@ -180,24 +266,28 @@ export class BrowserHistoryTool implements Tool {
       const sqlite3 = require('better-sqlite3');
       const tempPath = path.join(os.tmpdir(), `history-${Date.now()}.db`);
       fs.copyFileSync(dbPath, tempPath);
-      
+
       const db = sqlite3(tempPath, { readonly: true });
-      const rows = db.prepare(`
+      const rows = db
+        .prepare(
+          `
         SELECT url, title, last_visit_time, visit_count
         FROM urls
         ORDER BY last_visit_time DESC
         LIMIT ?
-      `).all(this.config.maxEntries);
-      
+      `
+        )
+        .all(this.config.maxEntries);
+
       db.close();
       fs.unlinkSync(tempPath);
-      
+
       return rows.map((row: any) => ({
         url: row.url,
         title: row.title || '',
         visitTime: this.convertWebKitTime(row.last_visit_time),
         visitCount: row.visit_count,
-        browser: browser
+        browser: browser,
       }));
     } catch (error) {
       console.error(`[BrowserHistory] Error reading ${browser}:`, error);
@@ -208,38 +298,44 @@ export class BrowserHistoryTool implements Tool {
   private async readFirefoxHistory(profilesPath: string): Promise<HistoryEntry[]> {
     try {
       const allEntries: HistoryEntry[] = [];
-      const profiles = fs.readdirSync(profilesPath).filter(f => f.includes('.default'));
-      
+      const profiles = fs.readdirSync(profilesPath).filter((f) => f.includes('.default'));
+
       for (const profile of profiles) {
         const dbPath = path.join(profilesPath, profile, 'places.sqlite');
         if (!fs.existsSync(dbPath)) continue;
-        
+
         const sqlite3 = require('better-sqlite3');
         const tempPath = path.join(os.tmpdir(), `firefox-${Date.now()}.db`);
         fs.copyFileSync(dbPath, tempPath);
-        
+
         const db = sqlite3(tempPath, { readonly: true });
-        const rows = db.prepare(`
+        const rows = db
+          .prepare(
+            `
           SELECT url, title, last_visit_date, visit_count
           FROM moz_places
           WHERE url NOT LIKE 'place:%'
           ORDER BY last_visit_date DESC
           LIMIT ?
-        `).all(this.config.maxEntries);
-        
+        `
+          )
+          .all(this.config.maxEntries);
+
         db.close();
         fs.unlinkSync(tempPath);
-        
-        allEntries.push(...rows.map((row: any) => ({
-          url: row.url,
-          title: row.title || '',
-          visitTime: Math.floor(row.last_visit_date / 1000),
-          visitCount: row.visit_count,
-          browser: BrowserType.FIREFOX,
-          profile: profile
-        })));
+
+        allEntries.push(
+          ...rows.map((row: any) => ({
+            url: row.url,
+            title: row.title || '',
+            visitTime: Math.floor(row.last_visit_date / 1000),
+            visitCount: row.visit_count,
+            browser: BrowserType.FIREFOX,
+            profile: profile,
+          }))
+        );
       }
-      
+
       return allEntries;
     } catch (error) {
       console.error('[BrowserHistory] Error reading Firefox:', error);
@@ -250,7 +346,7 @@ export class BrowserHistoryTool implements Tool {
   private convertWebKitTime(webkitTime: number): number {
     // WebKit timestamp epoch is January 1, 1601
     const epoch = new Date('1601-01-01').getTime();
-    return Math.floor((webkitTime / 1000000) + epoch);
+    return Math.floor(webkitTime / 1000000 + epoch);
   }
 
   async getRecentHistory(limit: number = 100): Promise<HistoryEntry[]> {
@@ -281,32 +377,32 @@ export class BrowserHistoryTool implements Tool {
   async getHistoryStats(): Promise<{
     totalEntries: number;
     browsers: Record<string, number>;
-    topDomains: Array<{domain: string; count: number}>;
+    topDomains: Array<{ domain: string; count: number }>;
   }> {
     await this.syncHistory();
-    
+
     const browsers: Record<string, number> = {};
     const domains: Record<string, number> = {};
-    
+
     for (const entry of this.historyCache) {
       browsers[entry.browser] = (browsers[entry.browser] || 0) + 1;
-      
+
       try {
         const url = new URL(entry.url);
         const domain = url.hostname;
         domains[domain] = (domains[domain] || 0) + 1;
       } catch {}
     }
-    
+
     const topDomains = Object.entries(domains)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([domain, count]) => ({ domain, count }));
-    
+
     return {
       totalEntries: this.historyCache.length,
       browsers,
-      topDomains
+      topDomains,
     };
   }
 

@@ -5,15 +5,13 @@ dotenv.config();
 
 // Required configuration check
 function validateConfig() {
-  const requiredEnvVars = [
-    'ANTHROPIC_API_KEY'
-  ];
+  const requiredEnvVars = ['ANTHROPIC_API_KEY'];
 
-  const missing = requiredEnvVars.filter(varName => !process.env[varName]);
+  const missing = requiredEnvVars.filter((varName) => !process.env[varName]);
 
   if (missing.length > 0) {
     console.error('❌ Missing required environment variables:');
-    missing.forEach(varName => {
+    missing.forEach((varName) => {
       console.error(`   - ${varName}`);
     });
     console.error('\nPlease set these variables in your .env file.');

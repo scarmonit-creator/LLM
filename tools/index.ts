@@ -74,9 +74,7 @@ const wordCountTool: ToolDefinition = {
   },
   execute: ({ text }: { text: string }) => {
     const count =
-      typeof text === 'string'
-        ? (text.trim().length ? text.trim().split(/\s+/).length : 0)
-        : 0;
+      typeof text === 'string' ? (text.trim().length ? text.trim().split(/\s+/).length : 0) : 0;
     return { count };
   },
 };
@@ -97,22 +95,30 @@ const generatePasswordTool: ToolDefinition = {
         minimum: 4,
         maximum: 64,
         default: 12,
-        description: 'Desired password length (4–64 characters)'
+        description: 'Desired password length (4–64 characters)',
       },
       numbers: {
         type: 'boolean',
         default: true,
-        description: 'Include numeric characters'
+        description: 'Include numeric characters',
       },
       symbols: {
         type: 'boolean',
         default: true,
-        description: 'Include symbol characters'
-      }
+        description: 'Include symbol characters',
+      },
     },
     required: [],
   },
-  execute: ({ length = 12, numbers = true, symbols = true }: { length?: number; numbers?: boolean; symbols?: boolean }) => {
+  execute: ({
+    length = 12,
+    numbers = true,
+    symbols = true,
+  }: {
+    length?: number;
+    numbers?: boolean;
+    symbols?: boolean;
+  }) => {
     // Build a character set based on options
     const lower = 'abcdefghijklmnopqrstuvwxyz';
     const upper = lower.toUpperCase();
@@ -129,7 +135,7 @@ const generatePasswordTool: ToolDefinition = {
       password += charset.charAt(idx);
     }
     return { password };
-  }
+  },
 };
 
 /**
@@ -144,21 +150,26 @@ const browserHistoryTool: ToolDefinition = {
       action: {
         type: 'string',
         enum: ['recent', 'search', 'domain'],
-        description: 'The action to perform: recent (get recent history), search (search history), or domain (filter by domain)'
+        description:
+          'The action to perform: recent (get recent history), search (search history), or domain (filter by domain)',
       },
       query: {
         type: 'string',
-        description: 'Search query or domain name (required for search and domain actions)'
+        description: 'Search query or domain name (required for search and domain actions)',
       },
       limit: {
         type: 'integer',
         default: 100,
-        description: 'Maximum number of results to return'
-      }
+        description: 'Maximum number of results to return',
+      },
     },
     required: ['action'],
   },
-  execute: async (params: { action: 'recent' | 'search' | 'domain'; query?: string; limit?: number }) => {
+  execute: async (params: {
+    action: 'recent' | 'search' | 'domain';
+    query?: string;
+    limit?: number;
+  }) => {
     const historyTool = new BrowserHistoryTool({ autoSync: true, syncInterval: 60000 });
     try {
       const result = await historyTool.execute(params);

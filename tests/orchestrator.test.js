@@ -25,9 +25,9 @@ describe('orchestrator.ts', () => {
         // TypeScript files need compilation
         assert.ok(
           error.message.includes('Cannot find module') ||
-          error.message.includes('TypeScript') ||
-          error.code === 'ERR_UNKNOWN_FILE_EXTENSION' ||
-          error.code === 'MODULE_NOT_FOUND',
+            error.message.includes('TypeScript') ||
+            error.code === 'ERR_UNKNOWN_FILE_EXTENSION' ||
+            error.code === 'MODULE_NOT_FOUND',
           'Expected error for uncompiled TypeScript'
         );
       }
@@ -55,7 +55,10 @@ describe('orchestrator.ts', () => {
 
       try {
         // Test basic orchestrator functionality
-        assert.ok(typeof Orchestrator === 'function' || typeof Orchestrator === 'object', 'Orchestrator is defined');
+        assert.ok(
+          typeof Orchestrator === 'function' || typeof Orchestrator === 'object',
+          'Orchestrator is defined'
+        );
       } catch (error) {
         assert.fail(`Orchestrator instantiation failed: ${error.message}`);
       }
@@ -89,8 +92,7 @@ describe('orchestrator.ts', () => {
       } catch (error) {
         // Should handle gracefully
         assert.ok(
-          error.message.includes('configuration') ||
-          error.message.includes('invalid'),
+          error.message.includes('configuration') || error.message.includes('invalid'),
           'Error handled appropriately'
         );
       }
@@ -108,8 +110,8 @@ describe('orchestrator.ts', () => {
       } catch (error) {
         assert.ok(
           error.message.includes('communication') ||
-          error.message.includes('network') ||
-          error.message.includes('timeout'),
+            error.message.includes('network') ||
+            error.message.includes('timeout'),
           'Communication error handled'
         );
       }
@@ -141,10 +143,7 @@ describe('orchestrator.ts', () => {
         // Test agent dependency management
         assert.ok(true, 'Agent dependencies managed');
       } catch (error) {
-        assert.ok(
-          error.message.includes('dependency'),
-          'Dependency error handled'
-        );
+        assert.ok(error.message.includes('dependency'), 'Dependency error handled');
       }
     });
   });

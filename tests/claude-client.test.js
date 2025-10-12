@@ -15,10 +15,7 @@ test('ClaudeClient throws error without API key', () => {
   const originalKey = process.env.ANTHROPIC_API_KEY;
   delete process.env.ANTHROPIC_API_KEY;
 
-  assert.throws(
-    () => new ClaudeClient(),
-    /ANTHROPIC_API_KEY environment variable is required/
-  );
+  assert.throws(() => new ClaudeClient(), /ANTHROPIC_API_KEY environment variable is required/);
 
   process.env.ANTHROPIC_API_KEY = originalKey;
 });

@@ -25,7 +25,7 @@ async function main() {
         const models = await listModels();
         if (models.models && models.models.length > 0) {
           console.log(`✓ Found ${models.models.length} models:`);
-          models.models.slice(0, 5).forEach(m => {
+          models.models.slice(0, 5).forEach((m) => {
             console.log(`  - ${m.name}`);
           });
         } else {
@@ -47,15 +47,15 @@ async function main() {
       task: 'Test Ollama integration',
       content: {
         type: 'text',
-        text: 'What is 2+2? Answer in one sentence.'
+        text: 'What is 2+2? Answer in one sentence.',
       },
       inputs: {
         parameters: {
-          model: 'gemma3:latest',  // Use a smaller model that fits in memory
+          model: 'gemma3:latest', // Use a smaller model that fits in memory
           temperature: 0.3,
-          max_tokens: 100
-        }
-      }
+          max_tokens: 100,
+        },
+      },
     };
 
     const result = await agent(envelope);
