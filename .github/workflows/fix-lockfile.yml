@@ -1,17 +1,16 @@
 name: Fix package-lock.json
-
 on:
   workflow_dispatch:
-
 permissions:
   contents: write
-
 jobs:
   fix-lockfile:
     runs-on: ubuntu-latest
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     
     - name: Use Node.js
       uses: actions/setup-node@v4
@@ -24,10 +23,11 @@ jobs:
     - name: Generate new package-lock.json
       run: npm install
     
-    - name: Commit updated package-lock.json
+    - name: Commit and push updated package-lock.json
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add package-lock.json
-        git commit -m "fix: regenerate package-lock.json to sync with package.json" || echo "No changes to commit"
+        git commit -m "fix: regenerate package-lock.json to sync with package.json [skip ci]" || echo "No changes to commit"
+        git pull --rebase origin main
         git push
