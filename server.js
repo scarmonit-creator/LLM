@@ -12,14 +12,22 @@ app.use(express.json());
 
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     message: 'Browser History API Server',
     endpoints: [
       { path: '/history', method: 'GET', description: 'Get recent browser history' },
-      { path: '/history/:count', method: 'GET', description: 'Get recent browser history with custom count' },
-      { path: '/search', method: 'GET', description: 'Search browser history (use ?query=term parameter)' }
-    ]
+      {
+        path: '/history/:count',
+        method: 'GET',
+        description: 'Get recent browser history with custom count',
+      },
+      {
+        path: '/search',
+        method: 'GET',
+        description: 'Search browser history (use ?query=term parameter)',
+      },
+    ],
   });
 });
 
@@ -31,12 +39,12 @@ app.get('/history', async (req, res) => {
     res.json({
       success: true,
       count: history.length,
-      data: history
+      data: history,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -49,12 +57,12 @@ app.get('/history/:count', async (req, res) => {
     res.json({
       success: true,
       count: history.length,
-      data: history
+      data: history,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -66,29 +74,30 @@ app.get('/search', async (req, res) => {
     if (!query) {
       return res.status(400).json({
         success: false,
-        error: 'Query parameter is required'
+        error: 'Query parameter is required',
       });
     }
-    
+
     const count = parseInt(req.query.count) || 100;
     const history = await tool.getRecentHistory(count);
-    
+
     // Filter history based on query
-    const results = history.filter(item => 
-      item.title?.toLowerCase().includes(query.toLowerCase()) ||
-      item.url?.toLowerCase().includes(query.toLowerCase())
+    const results = history.filter(
+      (item) =>
+        item.title?.toLowerCase().includes(query.toLowerCase()) ||
+        item.url?.toLowerCase().includes(query.toLowerCase())
     );
-    
+
     res.json({
       success: true,
       query: query,
       count: results.length,
-      data: results
+      data: results,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
     });
   }
 });
