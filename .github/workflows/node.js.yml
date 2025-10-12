@@ -1,27 +1,20 @@
 # This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
-
 name: Node.js CI
-
 permissions:
-  contents: read
-
+  contents: write
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
     steps:
     - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
@@ -29,12 +22,28 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    - run: npm ci
+    - name: Install dependencies
+      run: npm ci
+    - name: Run lint with autofix
+      run: npm run lint
+      continue-on-error: true
+    - name: Run format
+      run: npm run format
+      continue-on-error: true
     - name: Build TypeScript files
       run: npm run build
-    - run: npm run build --if-present
+    - name: Run build (fallback)
+      run: npm run build --if-present
     - name: Run tests (without external integration tests)
       run: npm test
       env:
         # Gate external integration tests - only run when explicitly enabled
         RUN_INTEGRATION_TESTS: false
+    - name: Commit and push autofix changes
+      if: github.event_name == 'push' && matrix.node-version == '20.x'
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add -A
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-fix: Apply lint and format fixes [skip ci]" && git push)
+      continue-on-error: true
