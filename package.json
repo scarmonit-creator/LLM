@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "server": "node server.js",
     "jules": "node src/jules-demo.js",
     "ollama": "node src/ollama-demo.js",
     "multiagent": "tsx orchestrator.ts",
@@ -35,7 +36,7 @@
     "cross-platform",
     "sqlite"
   ],
-  "author": "Parker Dunn <scarmonit@gmail.com>",
+  "author": "Parker Dunn <scarmonit>",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
@@ -47,7 +48,8 @@
     "@langchain/community": "^0.3.0",
     "langchain": "^0.3.0",
     "commander": "^12.0.0",
-    "chalk": "^5.3.0"
+    "chalk": "^5.3.0",
+    "express": "^4.18.2"
   },
   "devDependencies": {
     "@types/node": "^24.7.2",
