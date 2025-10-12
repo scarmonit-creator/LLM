@@ -8,6 +8,7 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "jules": "node src/jules-demo.js",
+    "ollama": "node src/ollama-demo.js",
     "multiagent": "tsx orchestrator.ts",
     "build:ts": "tsc",
     "test": "node --test tests/claude-client.test.js",
