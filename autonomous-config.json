@@ -34,99 +34,6 @@
         "algorithm": "aes-256-gcm"
       }
     },
-    "sqliteAccess": {
-      "enabled": true,
-      "copyToTemp": true,
-      "readOnly": true
-    },
-    "analytics": {
-      "enabled": true,
-      "trackTopDomains": true,
-      "trackBrowserUsage": true,
-      "exportMetrics": true
-    }
-  },
-  "autonomous": {
-    "mode": "full",
-    "execution": {
-      "autoStart": true,
-      "continueOnError": true,
-      "logLevel": "info",
-      "maxConcurrentTasks": 10,
-      "timeout": 600000,
-      "executeEndToEnd": true
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthCheckInterval": 180000,
-      "alertOnFailure": true,
-      "metrics": {
-        "enabled": true,
-        "exportInterval": 60000,
-        "includeSystemMetrics": true
-      }
-    },
-    "recovery": {
-      "autoRestart": true,
-      "maxRestarts": 10,
-      "restartDelay": 10000,
-      "backoffMultiplier": 2,
-      "gracefulShutdown": true
-    }
-  },
-  "bugPatching": {
-    "enabled": true,
-    "autoDetect": true,
-    "autoFix": true,
-    "workflows": {
-      "lint": {
-        "enabled": true,
-        "autoFix": true,
-        "onSave": true,
-        "rules": "recommended"
-      },
-      "format": {
-        "enabled": true,
-        "autoFormat": true,
-        "onSave": true,
-        "style": "prettier"
-      },
-      "test": {
-        "enabled": true,
-        "runOnChange": false,
-        "runOnCommit": true,
-        "runE2E": true,
-        "coverage": {
-          "enabled": true,
-          "threshold": 80
-        }
-      },
-      "security": {
-        "enabled": true,
-        "scanDependencies": true,
-        "autoUpdate": false,
-        "alertOnVulnerabilities": true,
-        "auditOnCommit": true
-      },
-      "typeChecking": {
-        "enabled": true,
-        "strict": true,
-        "incremental": true
-      }
-    },
-    "preCommitHooks": {
-      "enabled": true,
-      "runLint": true,
-      "runFormat": true,
-      "runTests": true,
-      "runSecurity": true
-    }
-  },
-  "ci": {
-    "enabled": true,
-    "runTests": true,
-    "autoFix": true,
-    "autoDeploy": false,
     "pipeline": {
       "stages": ["install", "build", "lint", "format", "test", "e2e", "security"],
       "failFast": false,
@@ -175,7 +82,7 @@
   "integrations": {
     "hackBrowserData": {
       "enabled": true,
-      "features": ["multibroWSER", "sqlite", "encryption"]
+      "features": ["multiBrowser", "sqlite", "encryption"]
     },
     "browserHistory": {
       "enabled": true,
