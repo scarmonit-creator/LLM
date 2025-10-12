@@ -1,4 +1,4 @@
-import { describe, it, mock, beforeEach, afterEach } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -24,7 +24,7 @@ describe('ollama-demo.js', () => {
   describe('Module Execution', () => {
     it('should execute without syntax errors', async () => {
       try {
-        const { stdout, stderr } = await execAsync('node src/ollama-demo.js', {
+        await execAsync('node src/ollama-demo.js', {
           env: { ...process.env, OLLAMA_BASE_URL: 'http://localhost:11434' },
           timeout: 5000,
         });
@@ -88,7 +88,7 @@ describe('ollama-demo.js', () => {
 
     it('should handle network errors or success', async () => {
       try {
-        const { stdout, stderr } = await execAsync('node src/ollama-demo.js', {
+        await execAsync('node src/ollama-demo.js', {
           env: { ...process.env, OLLAMA_BASE_URL: 'http://localhost:11434' },
           timeout: 3000,
         });
