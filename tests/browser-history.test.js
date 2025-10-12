@@ -5,7 +5,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert';
-import BrowserHistoryTool from '../tools/browser-history.js';
+import BrowserHistoryTool from '../dist/tools/browser-history.js';
 
 test('BrowserHistoryTool - Initialization', async (t) => {
   await t.test('should create a browser history tool instance', () => {
