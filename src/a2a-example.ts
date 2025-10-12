@@ -1,6 +1,6 @@
 /**
  * Example usage of A2A Agent Server
- * 
+ *
  * This file demonstrates how to create and run an A2A (Agent-to-Agent) protocol server
  * with proper configuration and error handling.
  */
@@ -14,17 +14,17 @@ const agentConfig = {
   description: 'An example Agent-to-Agent protocol implementation',
   supportedTransports: ['http'], // Only advertise HTTP for now
   endpoints: {
-    http: 'http://localhost:3000'
+    http: 'http://localhost:3000',
     // Note: WebSocket endpoint is optional and only included if implemented
     // websocket: 'ws://localhost:3000'
-  }
+  },
 };
 
 // Server configuration
 const serverConfig = {
   port: 3000,
   agentConfig,
-  enableWebSocket: false // Set to true to enable WebSocket support
+  enableWebSocket: false, // Set to true to enable WebSocket support
 };
 
 // Create and start the A2A server
@@ -55,7 +55,6 @@ try {
       process.exit(0);
     });
   });
-
 } catch (error) {
   console.error('Failed to start A2A server:', error);
   process.exit(1);

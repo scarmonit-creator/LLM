@@ -1,6 +1,6 @@
 /**
  * Tests for A2A Agent Server
- * 
+ *
  * This test suite validates the A2A agent implementation including:
  * - Initialization with error handling
  * - Middleware functionality
@@ -21,7 +21,7 @@ import {
   capabilitiesHandler,
   clearAgentCache,
   A2AAgent,
-  agentCache
+  agentCache,
 } from '../src/a2a-agent-server';
 
 describe('A2A Agent Server', () => {
@@ -50,10 +50,10 @@ describe('A2A Agent Server', () => {
           description: 'Test A2A Agent',
           supportedTransports: ['http'],
           endpoints: {
-            http: 'http://localhost:3001'
-          }
+            http: 'http://localhost:3001',
+          },
         },
-        enableWebSocket: false
+        enableWebSocket: false,
       };
 
       const result = createA2AServer(config);
@@ -72,10 +72,10 @@ describe('A2A Agent Server', () => {
           supportedTransports: ['http', 'websocket'],
           endpoints: {
             http: 'http://localhost:3002',
-            websocket: 'ws://localhost:3002'
-          }
+            websocket: 'ws://localhost:3002',
+          },
         },
-        enableWebSocket: true
+        enableWebSocket: true,
       };
 
       const result = createA2AServer(config);
@@ -94,10 +94,10 @@ describe('A2A Agent Server', () => {
           version: '1.0.0',
           supportedTransports: ['http'],
           endpoints: {
-            http: 'http://localhost:3003'
-          }
+            http: 'http://localhost:3003',
+          },
         },
-        enableWebSocket: false
+        enableWebSocket: false,
       };
       const result = createA2AServer(config);
       app = result.app;
@@ -106,9 +106,7 @@ describe('A2A Agent Server', () => {
 
     it('should return 503 when agent not initialized', async () => {
       clearAgentCache();
-      const response = await request(app)
-        .get('/health')
-        .set('x-agent-id', 'not-initialized');
+      const response = await request(app).get('/health').set('x-agent-id', 'not-initialized');
 
       expect(response.status).toBe(503);
       expect(response.body.status).toBe('initializing');
@@ -117,14 +115,10 @@ describe('A2A Agent Server', () => {
 
     it('should return agent status after initialization', async () => {
       // Trigger initialization via middleware
-      await request(app)
-        .get('/health')
-        .set('x-agent-id', 'test-agent');
+      await request(app).get('/health').set('x-agent-id', 'test-agent');
 
       // Check health
-      const response = await request(app)
-        .get('/health')
-        .set('x-agent-id', 'test-agent');
+      const response = await request(app).get('/health').set('x-agent-id', 'test-agent');
 
       expect(response.status).toBe(200);
       expect(response.body.status).toBeDefined();
@@ -141,10 +135,10 @@ describe('A2A Agent Server', () => {
           version: '1.0.0',
           supportedTransports: ['http'],
           endpoints: {
-            http: 'http://localhost:3004'
-          }
+            http: 'http://localhost:3004',
+          },
         },
-        enableWebSocket: false
+        enableWebSocket: false,
       };
       const result = createA2AServer(config);
       app = result.app;
@@ -153,14 +147,10 @@ describe('A2A Agent Server', () => {
 
     it('should return detailed status information', async () => {
       // Initialize agent
-      await request(app)
-        .get('/status')
-        .set('x-agent-id', 'test-agent');
+      await request(app).get('/status').set('x-agent-id', 'test-agent');
 
       // Get status
-      const response = await request(app)
-        .get('/status')
-        .set('x-agent-id', 'test-agent');
+      const response = await request(app).get('/status').set('x-agent-id', 'test-agent');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('id');
@@ -171,9 +161,7 @@ describe('A2A Agent Server', () => {
 
     it('should return 503 when agent not initialized', async () => {
       clearAgentCache();
-      const response = await request(app)
-        .get('/status')
-        .set('x-agent-id', 'not-initialized');
+      const response = await request(app).get('/status').set('x-agent-id', 'not-initialized');
 
       expect(response.status).toBe(503);
       expect(response.body.status).toBe('initializing');
@@ -190,10 +178,10 @@ describe('A2A Agent Server', () => {
           description: 'Test capabilities',
           supportedTransports: ['http'],
           endpoints: {
-            http: 'http://localhost:3005'
-          }
+            http: 'http://localhost:3005',
+          },
         },
-        enableWebSocket: false
+        enableWebSocket: false,
       };
       const result = createA2AServer(config);
       app = result.app;
@@ -202,14 +190,10 @@ describe('A2A Agent Server', () => {
 
     it('should return only advertised transports', async () => {
       // Initialize agent
-      await request(app)
-        .get('/capabilities')
-        .set('x-agent-id', 'test-agent');
+      await request(app).get('/capabilities').set('x-agent-id', 'test-agent');
 
       // Get capabilities
-      const response = await request(app)
-        .get('/capabilities')
-        .set('x-agent-id', 'test-agent');
+      const response = await request(app).get('/capabilities').set('x-agent-id', 'test-agent');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('name');
@@ -232,23 +216,19 @@ describe('A2A Agent Server', () => {
           supportedTransports: ['http', 'websocket'],
           endpoints: {
             http: 'http://localhost:3006',
-            websocket: 'ws://localhost:3006'
-          }
+            websocket: 'ws://localhost:3006',
+          },
         },
-        enableWebSocket: true
+        enableWebSocket: true,
       };
       const result = createA2AServer(config);
       app = result.app;
       server = result.server;
 
       // Initialize and get capabilities
-      await request(app)
-        .get('/capabilities')
-        .set('x-agent-id', 'test-agent');
+      await request(app).get('/capabilities').set('x-agent-id', 'test-agent');
 
-      const response = await request(app)
-        .get('/capabilities')
-        .set('x-agent-id', 'test-agent');
+      const response = await request(app).get('/capabilities').set('x-agent-id', 'test-agent');
 
       expect(response.status).toBe(200);
       expect(response.body.supportedTransports).toContain('http');
@@ -268,14 +248,14 @@ describe('A2A Agent Server', () => {
       const invalidConfig = {
         port: 3007,
         agentConfig: {
-          name: '',  // Invalid: empty name
+          name: '', // Invalid: empty name
           version: '1.0.0',
           supportedTransports: ['http'],
           endpoints: {
-            http: 'http://localhost:3007'
-          }
+            http: 'http://localhost:3007',
+          },
         },
-        enableWebSocket: false
+        enableWebSocket: false,
       };
 
       try {
@@ -283,9 +263,7 @@ describe('A2A Agent Server', () => {
         server = result.server;
 
         // Try to access endpoint
-        const response = await request(result.app)
-          .get('/health')
-          .set('x-agent-id', 'test-agent');
+        const response = await request(result.app).get('/health').set('x-agent-id', 'test-agent');
 
         // Agent should be cleared from cache if initialization failed
         expect(response.status).toBe(500);
@@ -305,18 +283,16 @@ describe('A2A Agent Server', () => {
           version: '1.0.0',
           supportedTransports: ['http'],
           endpoints: {
-            http: 'http://localhost:3008'
-          }
+            http: 'http://localhost:3008',
+          },
         },
-        enableWebSocket: false
+        enableWebSocket: false,
       };
       const result = createA2AServer(config);
       app = result.app;
       server = result.server;
 
-      const response = await request(app)
-        .get('/health')
-        .set('x-agent-id', 'test-agent');
+      const response = await request(app).get('/health').set('x-agent-id', 'test-agent');
 
       // Agent should be initialized and available
       expect(response.status).toBe(200);
@@ -334,10 +310,10 @@ describe('A2A Agent Server', () => {
           version: '1.0.0',
           description: 'Test',
           supportedTransports: ['http'],
-          endpoints: { http: 'http://localhost:3000' }
+          endpoints: { http: 'http://localhost:3000' },
         },
         transports: ['http'],
-        lastHealthCheck: new Date()
+        lastHealthCheck: new Date(),
       };
       agentCache.set('test-1', testAgent);
 
@@ -356,10 +332,10 @@ describe('A2A Agent Server', () => {
           version: '1.0.0',
           description: 'Test',
           supportedTransports: ['http'],
-          endpoints: { http: 'http://localhost:3000' }
+          endpoints: { http: 'http://localhost:3000' },
         },
         transports: ['http'],
-        lastHealthCheck: new Date()
+        lastHealthCheck: new Date(),
       };
       const agent2 = {
         id: 'test-2',
@@ -369,10 +345,10 @@ describe('A2A Agent Server', () => {
           version: '1.0.0',
           description: 'Test',
           supportedTransports: ['http'],
-          endpoints: { http: 'http://localhost:3000' }
+          endpoints: { http: 'http://localhost:3000' },
         },
         transports: ['http'],
-        lastHealthCheck: new Date()
+        lastHealthCheck: new Date(),
       };
 
       agentCache.set('test-1', agent1);

@@ -47,36 +47,38 @@ class A2AAgent {
       version: config.version || '1.0.0',
       description: config.description || 'Agent-to-Agent Protocol Implementation',
       supportedTransports: config.supportedTransports || ['http'],
-      endpoints: config.endpoints || {}
+      endpoints: config.endpoints || {},
     };
   }
 
   async initialize(): Promise<void> {
     try {
       this.status = 'initializing';
-      
+
       // Simulate initialization logic
       await this.performInitialization();
-      
+
       this.status = 'ready';
       this.error = undefined;
       this.retryCount = 0;
     } catch (error) {
       this.status = 'error';
       this.error = error instanceof Error ? error.message : 'Unknown error';
-      
+
       // Clear from cache on error
       agentCache.delete(this.id);
-      
+
       // Retry logic
       if (this.retryCount < this.maxRetries) {
         this.retryCount++;
         console.log(`Initialization failed. Retrying... (${this.retryCount}/${this.maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * this.retryCount));
+        await new Promise((resolve) => setTimeout(resolve, 1000 * this.retryCount));
         return this.initialize();
       }
-      
-      throw new Error(`Failed to initialize agent after ${this.maxRetries} attempts: ${this.error}`);
+
+      throw new Error(
+        `Failed to initialize agent after ${this.maxRetries} attempts: ${this.error}`
+      );
     }
   }
 
@@ -95,19 +97,27 @@ class A2AAgent {
     }
 
     // Ensure endpoints match supported transports
-    if (this.capabilities.supportedTransports.includes('http') && !this.capabilities.endpoints.http) {
+    if (
+      this.capabilities.supportedTransports.includes('http') &&
+      !this.capabilities.endpoints.http
+    ) {
       throw new Error('HTTP transport enabled but no HTTP endpoint configured');
     }
 
-    if (this.capabilities.supportedTransports.includes('websocket') && !this.capabilities.endpoints.websocket) {
+    if (
+      this.capabilities.supportedTransports.includes('websocket') &&
+      !this.capabilities.endpoints.websocket
+    ) {
       // WebSocket is optional, only warn
       console.warn('WebSocket transport enabled but no WebSocket endpoint configured');
       // Remove websocket from supported transports if not configured
-      this.capabilities.supportedTransports = this.capabilities.supportedTransports.filter(t => t !== 'websocket');
+      this.capabilities.supportedTransports = this.capabilities.supportedTransports.filter(
+        (t) => t !== 'websocket'
+      );
     }
 
     // Additional initialization logic here
-    await new Promise(resolve => setTimeout(resolve, 100)); // Simulate async work
+    await new Promise((resolve) => setTimeout(resolve, 100)); // Simulate async work
   }
 
   getStatus(): AgentStatus {
@@ -134,7 +144,7 @@ class A2AAgent {
 // Express middleware for A2A agent
 export function createA2AMiddleware(config: Partial<AgentCapabilities>) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const agentId = req.headers['x-agent-id'] as string || 'default';
+    const agentId = (req.headers['x-agent-id'] as string) || 'default';
 
     try {
       let agent = agentCache.get(agentId);
@@ -142,19 +152,19 @@ export function createA2AMiddleware(config: Partial<AgentCapabilities>) {
       if (!agent || agent.status === 'error') {
         // Create new agent instance
         const newAgent = new A2AAgent(agentId, config);
-        
+
         try {
           await newAgent.initialize();
-          
+
           // Cache the agent
           agent = {
             id: agentId,
             status: newAgent.getStatus(),
             capabilities: newAgent.getCapabilities(),
             transports: newAgent.getTransports(),
-            lastHealthCheck: new Date()
+            lastHealthCheck: new Date(),
           };
-          
+
           agentCache.set(agentId, agent);
         } catch (error) {
           // Ensure agent is cleared from cache on failure
@@ -171,7 +181,7 @@ export function createA2AMiddleware(config: Partial<AgentCapabilities>) {
       res.status(500).json({
         error: 'Agent initialization failed',
         message: errorMessage,
-        status: 'error'
+        status: 'error',
       });
     }
   };
@@ -179,32 +189,32 @@ export function createA2AMiddleware(config: Partial<AgentCapabilities>) {
 
 // Health check endpoint
 export function healthCheckHandler(req: Request, res: Response) {
-  const agentId = req.headers['x-agent-id'] as string || 'default';
+  const agentId = (req.headers['x-agent-id'] as string) || 'default';
   const agent = agentCache.get(agentId);
 
   if (!agent) {
     return res.status(503).json({
       status: 'initializing',
-      message: 'Agent not initialized'
+      message: 'Agent not initialized',
     });
   }
 
   res.json({
     status: agent.status,
     lastHealthCheck: agent.lastHealthCheck,
-    error: agent.error
+    error: agent.error,
   });
 }
 
 // Status endpoint
 export function statusHandler(req: Request, res: Response) {
-  const agentId = req.headers['x-agent-id'] as string || 'default';
+  const agentId = (req.headers['x-agent-id'] as string) || 'default';
   const agent = agentCache.get(agentId);
 
   if (!agent) {
     return res.status(503).json({
       status: 'initializing',
-      message: 'Agent not initialized'
+      message: 'Agent not initialized',
     });
   }
 
@@ -213,18 +223,18 @@ export function statusHandler(req: Request, res: Response) {
     status: agent.status,
     lastHealthCheck: agent.lastHealthCheck,
     error: agent.error,
-    uptime: Date.now() - agent.lastHealthCheck.getTime()
+    uptime: Date.now() - agent.lastHealthCheck.getTime(),
   });
 }
 
 // Capabilities endpoint
 export function capabilitiesHandler(req: Request, res: Response) {
-  const agentId = req.headers['x-agent-id'] as string || 'default';
+  const agentId = (req.headers['x-agent-id'] as string) || 'default';
   const agent = agentCache.get(agentId);
 
   if (!agent) {
     return res.status(503).json({
-      error: 'Agent not initialized'
+      error: 'Agent not initialized',
     });
   }
 
@@ -233,9 +243,13 @@ export function capabilitiesHandler(req: Request, res: Response) {
     ...agent.capabilities,
     supportedTransports: agent.transports,
     endpoints: {
-      ...(agent.transports.includes('http') && agent.capabilities.endpoints.http ? { http: agent.capabilities.endpoints.http } : {}),
-      ...(agent.transports.includes('websocket') && agent.capabilities.endpoints.websocket ? { websocket: agent.capabilities.endpoints.websocket } : {})
-    }
+      ...(agent.transports.includes('http') && agent.capabilities.endpoints.http
+        ? { http: agent.capabilities.endpoints.http }
+        : {}),
+      ...(agent.transports.includes('websocket') && agent.capabilities.endpoints.websocket
+        ? { websocket: agent.capabilities.endpoints.websocket }
+        : {}),
+    },
   };
 
   res.json(capabilities);
