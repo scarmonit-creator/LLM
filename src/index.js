@@ -3,9 +3,30 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-async function main() {
-  const client = new ClaudeClient();
+// Required configuration check
+function validateConfig() {
+  const requiredEnvVars = [
+    'ANTHROPIC_API_KEY'
+  ];
 
+  const missing = requiredEnvVars.filter(varName => !process.env[varName]);
+
+  if (missing.length > 0) {
+    console.error('❌ Missing required environment variables:');
+    missing.forEach(varName => {
+      console.error(`   - ${varName}`);
+    });
+    console.error('\nPlease set these variables in your .env file.');
+    console.error('See .env.example for reference.\n');
+    process.exit(1);
+  }
+}
+
+async function main() {
+  // Validate configuration before starting
+  validateConfig();
+
+  const client = new ClaudeClient();
   console.log('🤖 LLM Application Starting...\n');
 
   try {
@@ -25,7 +46,6 @@ async function main() {
     // Example: Streaming response
     console.log('\nClaude (Streaming):');
     await client.streamMessage('Count from 1 to 5.');
-
   } catch (error) {
     console.error('Error:', error.message);
     process.exit(1);
