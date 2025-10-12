@@ -44,7 +44,9 @@ describe('A2A Agent Server', () => {
         port: 3000,
         agentConfig: {
           name: 'test-agent',
-          capabilities: ['browser_use', 'web_search'],
+          version: '1.0.0',
+          description: 'Test A2A Agent',
+          supportedTransports: ['http', 'websocket'],
         },
       });
       expect(result).toBeDefined();
@@ -59,7 +61,9 @@ describe('A2A Agent Server', () => {
         port: 8080,
         agentConfig: {
           name: 'test-agent',
-          capabilities: ['browser_use', 'web_search'],
+          version: '1.0.0',
+          description: 'Test A2A Agent',
+          supportedTransports: ['http', 'websocket'],
         },
       });
       expect(result).toBeDefined();
@@ -95,7 +99,9 @@ describe('A2A Agent Server', () => {
         port: 3000,
         agentConfig: {
           name: 'test-agent',
-          capabilities: ['browser_use', 'web_search'],
+          version: '1.0.0',
+          description: 'Test A2A Agent',
+          supportedTransports: ['http', 'websocket'],
         },
       });
       server = result.server;
@@ -116,7 +122,9 @@ describe('A2A Agent Server', () => {
         port: 3000,
         agentConfig: {
           name: 'test-agent',
-          capabilities: ['browser_use', 'web_search'],
+          version: '1.0.0',
+          description: 'Test A2A Agent',
+          supportedTransports: ['http', 'websocket'],
         },
       });
       server = result.server;
@@ -136,7 +144,9 @@ describe('A2A Agent Server', () => {
         port: 3000,
         agentConfig: {
           name: 'test-agent',
-          capabilities: ['browser_use', 'web_search'],
+          version: '1.0.0',
+          description: 'Test A2A Agent',
+          supportedTransports: ['http', 'websocket'],
         },
       });
       server = result.server;
