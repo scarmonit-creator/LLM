@@ -1,9 +1,8 @@
-import { describe, it, mock, beforeEach, afterEach } from 'node:test';
+import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 describe('orchestrator.ts', () => {
   let Orchestrator;
-  let orchestrator;
 
   beforeEach(async () => {
     // Import the orchestrator module
@@ -52,7 +51,6 @@ describe('orchestrator.ts', () => {
         assert.ok(true, 'Skipped: requires TypeScript compilation');
         return;
       }
-
       try {
         // Test basic orchestrator functionality
         assert.ok(
@@ -69,67 +67,11 @@ describe('orchestrator.ts', () => {
         assert.ok(true, 'Skipped: requires TypeScript compilation');
         return;
       }
-
       try {
         // Basic lifecycle test
         assert.ok(true, 'Agent lifecycle methods available');
       } catch (error) {
         assert.fail(`Agent lifecycle management failed: ${error.message}`);
-      }
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should handle invalid agent configurations', async () => {
-      if (!Orchestrator) {
-        assert.ok(true, 'Skipped: requires TypeScript compilation');
-        return;
-      }
-
-      try {
-        // Test error handling with invalid config
-        assert.ok(true, 'Invalid configuration handled');
-      } catch (error) {
-        // Should handle gracefully
-        assert.ok(
-          error.message.includes('configuration') || error.message.includes('invalid'),
-          'Error handled appropriately'
-        );
-      }
-    });
-
-    it('should handle agent communication failures', async () => {
-      if (!Orchestrator) {
-        assert.ok(true, 'Skipped: requires TypeScript compilation');
-        return;
-      }
-
-      try {
-        // Test communication error handling
-        assert.ok(true, 'Communication errors handled');
-      } catch (error) {
-        assert.ok(
-          error.message.includes('communication') ||
-            error.message.includes('network') ||
-            error.message.includes('timeout'),
-          'Communication error handled'
-        );
-      }
-    });
-  });
-
-  describe('Agent Integration', () => {
-    it('should coordinate multiple agents', async () => {
-      if (!Orchestrator) {
-        assert.ok(true, 'Skipped: requires TypeScript compilation');
-        return;
-      }
-
-      try {
-        // Test multi-agent coordination
-        assert.ok(true, 'Multiple agents coordinated');
-      } catch (error) {
-        assert.fail(`Multi-agent coordination failed: ${error.message}`);
       }
     });
 
@@ -138,7 +80,6 @@ describe('orchestrator.ts', () => {
         assert.ok(true, 'Skipped: requires TypeScript compilation');
         return;
       }
-
       try {
         // Test agent dependency management
         assert.ok(true, 'Agent dependencies managed');
@@ -154,7 +95,6 @@ describe('orchestrator.ts', () => {
         assert.ok(true, 'Skipped: requires TypeScript compilation');
         return;
       }
-
       try {
         // Test task distribution logic
         assert.ok(true, 'Tasks distributed to agents');
@@ -168,7 +108,6 @@ describe('orchestrator.ts', () => {
         assert.ok(true, 'Skipped: requires TypeScript compilation');
         return;
       }
-
       try {
         // Test task prioritization
         assert.ok(true, 'Task prioritization implemented');
@@ -184,7 +123,6 @@ describe('orchestrator.ts', () => {
         assert.ok(true, 'Skipped: requires TypeScript compilation');
         return;
       }
-
       try {
         // Test state management
         assert.ok(true, 'State maintained correctly');
@@ -198,7 +136,6 @@ describe('orchestrator.ts', () => {
         assert.ok(true, 'Skipped: requires TypeScript compilation');
         return;
       }
-
       try {
         // Test state transitions
         assert.ok(true, 'State transitions handled');
