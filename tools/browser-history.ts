@@ -20,13 +20,13 @@ interface HistoryEntry {
 }
 
 interface BrowserHistoryConfig {
-  autoSync: boolean;
-  syncInterval: number;
-  maxEntries: number;
+  autoSync?: boolean;
+  syncInterval?: number;
+  maxEntries?: number;
   browsers?: string[];
   filters?: string[];
-  crossPlatform: boolean;
-  enableEncryption: boolean;
+  crossPlatform?: boolean;
+  enableEncryption?: boolean;
 }
 
 enum BrowserType {
@@ -38,11 +38,17 @@ enum BrowserType {
   BRAVE = 'brave',
 }
 
-class BrowserHistoryManager {
+export default class BrowserHistoryTool implements Tool {
+  name = 'browser_history';
+  description =
+    'Access browser history across Chrome, Firefox, Safari, Edge, Brave, and Opera. ' +
+    'Supports multi-profile, cross-platform access with autonomous sync. ' +
+    'Can search, filter, and retrieve recent browsing history.';
+
   private config: BrowserHistoryConfig;
   private syncTimer?: NodeJS.Timeout;
 
-  constructor(config: Partial<BrowserHistoryConfig> = {}) {
+  constructor(config: BrowserHistoryConfig = {}) {
     this.config = {
       autoSync: config.autoSync ?? true,
       syncInterval: config.syncInterval ?? 300000,
@@ -52,6 +58,10 @@ class BrowserHistoryManager {
       crossPlatform: config.crossPlatform ?? true,
       enableEncryption: config.enableEncryption ?? false,
     };
+
+    if (this.config.autoSync) {
+      this.startAutoSync();
+    }
   }
 
   private getBrowserPaths(browserType: string): string[] {
@@ -62,9 +72,16 @@ class BrowserHistoryManager {
     switch (browserType) {
       case BrowserType.CHROME:
         if (platform === 'darwin') {
-          paths.push(path.join(home, 'Library/Application Support/Google/Chrome/Default/History'));
+          paths.push(
+            path.join(home, 'Library/Application Support/Google/Chrome/Default/History'),
+          );
         } else if (platform === 'win32') {
-          paths.push(path.join(home, 'AppData/Local/Google/Chrome/User Data/Default/History'));
+          paths.push(
+            path.join(
+              home,
+              'AppData/Local/Google/Chrome/User Data/Default/History',
+            ),
+          );
         } else {
           paths.push(path.join(home, '.config/google-chrome/Default/History'));
         }
@@ -72,10 +89,16 @@ class BrowserHistoryManager {
 
       case BrowserType.FIREFOX:
         if (platform === 'darwin') {
-          const profilesPath = path.join(home, 'Library/Application Support/Firefox/Profiles');
+          const profilesPath = path.join(
+            home,
+            'Library/Application Support/Firefox/Profiles',
+          );
           this.addFirefoxProfiles(profilesPath, paths);
         } else if (platform === 'win32') {
-          const profilesPath = path.join(home, 'AppData/Roaming/Mozilla/Firefox/Profiles');
+          const profilesPath = path.join(
+            home,
+            'AppData/Roaming/Mozilla/Firefox/Profiles',
+          );
           this.addFirefoxProfiles(profilesPath, paths);
         } else {
           const profilesPath = path.join(home, '.mozilla/firefox');
@@ -85,9 +108,19 @@ class BrowserHistoryManager {
 
       case BrowserType.EDGE:
         if (platform === 'darwin') {
-          paths.push(path.join(home, 'Library/Application Support/Microsoft Edge/Default/History'));
+          paths.push(
+            path.join(
+              home,
+              'Library/Application Support/Microsoft Edge/Default/History',
+            ),
+          );
         } else if (platform === 'win32') {
-          paths.push(path.join(home, 'AppData/Local/Microsoft/Edge/User Data/Default/History'));
+          paths.push(
+            path.join(
+              home,
+              'AppData/Local/Microsoft/Edge/User Data/Default/History',
+            ),
+          );
         }
         break;
 
@@ -102,15 +135,20 @@ class BrowserHistoryManager {
           paths.push(
             path.join(
               home,
-              'Library/Application Support/BraveSoftware/Brave-Browser/Default/History'
-            )
+              'Library/Application Support/BraveSoftware/Brave-Browser/Default/History',
+            ),
           );
         } else if (platform === 'win32') {
           paths.push(
-            path.join(home, 'AppData/Local/BraveSoftware/Brave-Browser/User Data/Default/History')
+            path.join(
+              home,
+              'AppData/Local/BraveSoftware/Brave-Browser/User Data/Default/History',
+            ),
           );
         } else {
-          paths.push(path.join(home, '.config/BraveSoftware/Brave-Browser/Default/History'));
+          paths.push(
+            path.join(home, '.config/BraveSoftware/Brave-Browser/Default/History'),
+          );
         }
         break;
     }
@@ -146,7 +184,10 @@ class BrowserHistoryManager {
 
       for (const dbPath of browserPaths) {
         try {
-          const browserEntries = await this.readBrowserHistory(dbPath, browserType);
+          const browserEntries = await this.readBrowserHistory(
+            dbPath,
+            browserType,
+          );
           entries.push(...browserEntries);
         } catch (error) {
           console.error(`Error reading ${browserType} history: ${error}`);
@@ -160,7 +201,10 @@ class BrowserHistoryManager {
     return sorted.slice(0, maxLimit);
   }
 
-  private async readBrowserHistory(dbPath: string, browserType: string): Promise<HistoryEntry[]> {
+  private async readBrowserHistory(
+    dbPath: string,
+    browserType: string,
+  ): Promise<HistoryEntry[]> {
     return new Promise((resolve, reject) => {
       try {
         // Create a temporary copy to avoid locks
@@ -218,11 +262,7 @@ class BrowserHistoryManager {
 
   private normalizeTimestamp(timestamp: number, browserType: string): number {
     // Chrome uses microseconds since 1601-01-01
-    if (
-      browserType === BrowserType.CHROME ||
-      browserType === BrowserType.EDGE ||
-      browserType === BrowserType.BRAVE
-    ) {
+    if (browserType === BrowserType.CHROME || browserType === BrowserType.EDGE || browserType === BrowserType.BRAVE) {
       const epochDelta = 11644473600000000; // microseconds between 1601 and 1970
       return Math.floor((timestamp - epochDelta) / 1000);
     }
@@ -256,13 +296,13 @@ class BrowserHistoryManager {
     const filtered = allHistory.filter(
       (entry) =>
         entry.url.toLowerCase().includes(searchLower) ||
-        entry.title.toLowerCase().includes(searchLower)
+        entry.title.toLowerCase().includes(searchLower),
     );
 
     return filtered.slice(0, limit || this.config.maxEntries);
   }
 
-  startAutoSync(): void {
+  private startAutoSync(): void {
     if (this.config.autoSync && !this.syncTimer) {
       this.syncTimer = setInterval(() => {
         this.getHistory().catch((error) => {
@@ -272,14 +312,14 @@ class BrowserHistoryManager {
     }
   }
 
-  stopAutoSync(): void {
+  private stopAutoSync(): void {
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
       this.syncTimer = undefined;
     }
   }
 
-  updateConfig(newConfig: Partial<BrowserHistoryConfig>): void {
+  private updateConfig(newConfig: BrowserHistoryConfig): void {
     this.config = { ...this.config, ...newConfig };
     if (this.config.autoSync) {
       this.stopAutoSync();
@@ -288,82 +328,43 @@ class BrowserHistoryManager {
       this.stopAutoSync();
     }
   }
-}
 
-// Export the tool
-export const browserHistoryTool: Tool = {
-  name: 'browser_history',
-  description:
-    'Access browser history across Chrome, Firefox, Safari, Edge, Brave, and Opera. ' +
-    'Supports multi-profile, cross-platform access with autonomous sync. ' +
-    'Can search, filter, and retrieve recent browsing history.',
-  parameters: {
-    type: 'object',
-    properties: {
-      action: {
-        type: 'string',
-        enum: ['get_history', 'search_history', 'start_sync', 'stop_sync', 'update_config'],
-        description: 'Action to perform',
-      },
-      browser: {
-        type: 'string',
-        enum: ['chrome', 'firefox', 'edge', 'safari', 'opera', 'brave'],
-        description: 'Specific browser to query (optional, defaults to all)',
-      },
-      query: {
-        type: 'string',
-        description: 'Search query for search_history action',
-      },
-      limit: {
-        type: 'number',
-        description: 'Maximum number of results to return',
-      },
-      config: {
-        type: 'object',
-        description: 'Configuration updates for update_config action',
-        properties: {
-          autoSync: { type: 'boolean' },
-          syncInterval: { type: 'number' },
-          maxEntries: { type: 'number' },
-          browsers: { type: 'array', items: { type: 'string' } },
-          filters: { type: 'array', items: { type: 'string' } },
-          crossPlatform: { type: 'boolean' },
-          enableEncryption: { type: 'boolean' },
-        },
-      },
-    },
-    required: ['action'],
-  },
-  execute: async (args: any): Promise<any> => {
-    const manager = new BrowserHistoryManager(args.config);
+  // Tool interface execute method
+  async execute(args: any): Promise<any> {
+    const action = args.action || 'get_history';
 
-    switch (args.action) {
+    switch (action) {
       case 'get_history':
-        return await manager.getHistory(args.browser, args.limit);
+        return await this.getHistory(args.browser, args.limit);
 
       case 'search_history':
         if (!args.query) {
           throw new Error('Query parameter required for search_history');
         }
-        return await manager.searchHistory(args.query, args.limit);
+        return await this.searchHistory(args.query, args.limit);
 
       case 'start_sync':
-        manager.startAutoSync();
+        this.startAutoSync();
         return { success: true, message: 'Auto-sync started' };
 
       case 'stop_sync':
-        manager.stopAutoSync();
+        this.stopAutoSync();
         return { success: true, message: 'Auto-sync stopped' };
 
       case 'update_config':
         if (!args.config) {
           throw new Error('Config parameter required for update_config');
         }
-        manager.updateConfig(args.config);
+        this.updateConfig(args.config);
         return { success: true, message: 'Configuration updated' };
 
       default:
-        throw new Error(`Unknown action: ${args.action}`);
+        throw new Error(`Unknown action: ${action}`);
     }
-  },
-};
+  }
+
+  // Cleanup method
+  destroy(): void {
+    this.stopAutoSync();
+  }
+}
