@@ -105,7 +105,7 @@ test('BrowserHistoryTool - Tool Execution', async (t) => {
       async () => {
         await historyTool.execute({ action: 'search_history' });
       },
-      { message: 'Query parameter required for search_history' },
+      { message: 'Query parameter required for search_history' }
     );
   });
 
@@ -114,7 +114,7 @@ test('BrowserHistoryTool - Tool Execution', async (t) => {
       async () => {
         await historyTool.execute({ action: 'invalid_action' });
       },
-      { message: /Unknown action/ },
+      { message: /Unknown action/ }
     );
   });
 });
