@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FormSubmit AJAX Demo</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>FormSubmit AJAX Demo</h1>
+  <p>This page sends a POST request to <code>formsubmit.co/ajax/assistant737396@tiffincrane.com</code> via <code>fetch</code>. According to the FormSubmit documentation, this endpoint supports cross‑origin AJAX requests. If this is the first submission, you'll receive a verification email; subsequent submissions will be delivered to the inbox.</p>
+  <button id="send">Send AJAX Message</button>
+  <pre id="output"></pre>
+  <script>
+  document.getElementById('send').addEventListener('click', async () => {
+    const output = document.getElementById('output');
+    output.textContent = 'Sending message via AJAX...';
+    try {
+      const data = new URLSearchParams();
+      data.append('name', 'Assistant');
+      data.append('email', 'sender@example.com');
+      data.append('message', 'Hello! This message was sent using the FormSubmit AJAX endpoint.');
+      data.append('_captcha', 'false');
+      const response = await fetch('https://formsubmit.co/ajax/assistant737396@tiffincrane.com', {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: data.toString()
+      });
+      // When mode is 'no-cors', the response is opaque and we can't read its body.
+      output.textContent = `Fetch completed with status: ${response.status} (opaque=${response.type === 'opaque'}). Check your inbox to confirm delivery.`;
+    } catch (err) {
+      output.textContent = `Error: ${err.message}`;
+    }
+  });
+  </script>
+</body>
+</html>

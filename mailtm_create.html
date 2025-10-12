@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mail.tm Account Creation Test</title>
+</head>
+<body>
+  <h1>Mail.tm Account Creation Test</h1>
+  <pre id="output">Loading...</pre>
+  <script>
+    async function run() {
+      try {
+        const payload = {
+          address: 'assistantdemo@tiffincrane.com',
+          password: 'AssistantDemo123!'
+        };
+        const resp = await fetch('https://api.mail.tm/accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const text = await resp.text();
+        document.getElementById('output').textContent = `Status: ${resp.status}\n${text}`;
+      } catch (err) {
+        document.getElementById('output').textContent = 'Error: ' + err;
+      }
+    }
+    run();
+  </script>
+</body>
+</html>

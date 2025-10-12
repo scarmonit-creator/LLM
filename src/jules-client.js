@@ -55,11 +55,18 @@ export class JulesClient {
    * @param {string} params.title - Session title
    * @returns {Promise<Object>} Created session
    */
-  async createSession({ prompt, sourceId, title }) {
+  async createSession({ prompt, sourceId, title, startingBranch = 'main' }) {
     if (!prompt) {
       return {
         success: false,
         error: 'Prompt is required',
+      };
+    }
+
+    if (!sourceId) {
+      return {
+        success: false,
+        error: 'sourceId is required (format: sources/github/owner/repo)',
       };
     }
 
@@ -68,13 +75,13 @@ export class JulesClient {
       const payload = {
         prompt,
         title: title || 'LLM Application Session',
-      };
-
-      if (sourceId) {
-        payload.sourceContext = {
+        sourceContext: {
           source: sourceId,
-        };
-      }
+          githubRepoContext: {
+            startingBranch: startingBranch,
+          },
+        },
+      };
 
       const response = await client.post('/sessions', payload);
       return {

@@ -8,6 +8,8 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "jules": "node src/jules-demo.js",
+    "multiagent": "tsx orchestrator.ts",
+    "build:ts": "tsc",
     "test": "node --test tests/claude-client.test.js",
     "lint": "eslint src/ tests/",
     "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\""
@@ -26,8 +28,11 @@
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
+    "@types/node": "^24.7.2",
     "eslint": "^9.15.0",
-    "prettier": "^3.4.2"
+    "prettier": "^3.4.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=18.0.0"
