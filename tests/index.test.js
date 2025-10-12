@@ -1,4 +1,4 @@
-import { describe, it, mock, beforeEach } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -12,7 +12,7 @@ describe('index.js', () => {
     it('should execute without errors', async () => {
       // Test that the module can be imported and executed
       try {
-        const { stdout, stderr } = await execAsync('node src/index.js', {
+        const { stdout: _stdout, stderr: _stderr } = await execAsync('node src/index.js', {
           env: { ...process.env, ANTHROPIC_API_KEY: 'test-key' },
           timeout: 5000,
         });
