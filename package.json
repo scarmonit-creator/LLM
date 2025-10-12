@@ -43,7 +43,7 @@
     "cross-platform",
     "sqlite"
   ],
-  "author": "Parker Dunn <scarmonit@gmail.com>",
+  "author": "Parker Dunn <scarmonit>",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.65.0",
@@ -67,6 +67,8 @@
     "@jest/globals": "^29.7.0",
     "supertest": "^6.3.3",
     "@types/supertest": "^2.0.16",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^9.15.0",
     "prettier": "^3.4.2",
     "tsx": "^4.20.6",
