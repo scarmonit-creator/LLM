@@ -1,7 +1,7 @@
 {
   "name": "llm-application",
   "version": "1.0.0",
-  "description": "LLM application with Anthropic Claude integration",
+  "description": "LLM application with Anthropic Claude integration and browser history automation",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
@@ -10,23 +10,36 @@
     "jules": "node src/jules-demo.js",
     "ollama": "node src/ollama-demo.js",
     "multiagent": "tsx orchestrator.ts",
+    "build": "tsc",
     "build:ts": "tsc",
     "test": "node --test tests/*.test.js",
-    "lint": "eslint src/ tests/",
-    "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\""
+    "test:full": "npm run lint && npm run format && npm test",
+    "lint": "eslint src/ tests/ --fix",
+    "format": "prettier --write \"src/**/*.{js,ts}\" \"tests/**/*.{js,ts}\" \"*.{js,ts,json}\"",
+    "autofix": "npm run lint && npm run format",
+    "verify": "npm run build && npm run test:full"
   },
   "keywords": [
     "llm",
     "claude",
     "anthropic",
-    "ai"
+    "ai",
+    "browser-history",
+    "automation",
+    "autonomous-agent"
   ],
-  "author": "Parker Dunn <scarmonit@gmail.com>",
+  "author": "Parker Dunn <scarmonit>",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
     "axios": "^1.12.2",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "node-browser-history": "^2.3.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/community": "^0.3.0",
+    "langchain": "^0.3.0",
+    "commander": "^12.0.0",
+    "chalk": "^5.3.0"
   },
   "devDependencies": {
     "@types/node": "^24.7.2",
@@ -34,8 +47,5 @@
     "prettier": "^3.4.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
-  },
-  "engines": {
-    "node": ">=18.0.0"
   }
 }
