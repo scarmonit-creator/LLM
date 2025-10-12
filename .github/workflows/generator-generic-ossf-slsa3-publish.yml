@@ -22,7 +22,7 @@ jobs:
     outputs:
       digests: ${{ steps.hash.outputs.digests }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # ========================================================
       #
       # Step 1: Build your artifacts.
