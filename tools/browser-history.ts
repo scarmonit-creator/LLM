@@ -62,16 +62,9 @@ class BrowserHistoryManager {
     switch (browserType) {
       case BrowserType.CHROME:
         if (platform === 'darwin') {
-          paths.push(
-            path.join(home, 'Library/Application Support/Google/Chrome/Default/History'),
-          );
+          paths.push(path.join(home, 'Library/Application Support/Google/Chrome/Default/History'));
         } else if (platform === 'win32') {
-          paths.push(
-            path.join(
-              home,
-              'AppData/Local/Google/Chrome/User Data/Default/History',
-            ),
-          );
+          paths.push(path.join(home, 'AppData/Local/Google/Chrome/User Data/Default/History'));
         } else {
           paths.push(path.join(home, '.config/google-chrome/Default/History'));
         }
@@ -79,16 +72,10 @@ class BrowserHistoryManager {
 
       case BrowserType.FIREFOX:
         if (platform === 'darwin') {
-          const profilesPath = path.join(
-            home,
-            'Library/Application Support/Firefox/Profiles',
-          );
+          const profilesPath = path.join(home, 'Library/Application Support/Firefox/Profiles');
           this.addFirefoxProfiles(profilesPath, paths);
         } else if (platform === 'win32') {
-          const profilesPath = path.join(
-            home,
-            'AppData/Roaming/Mozilla/Firefox/Profiles',
-          );
+          const profilesPath = path.join(home, 'AppData/Roaming/Mozilla/Firefox/Profiles');
           this.addFirefoxProfiles(profilesPath, paths);
         } else {
           const profilesPath = path.join(home, '.mozilla/firefox');
@@ -98,19 +85,9 @@ class BrowserHistoryManager {
 
       case BrowserType.EDGE:
         if (platform === 'darwin') {
-          paths.push(
-            path.join(
-              home,
-              'Library/Application Support/Microsoft Edge/Default/History',
-            ),
-          );
+          paths.push(path.join(home, 'Library/Application Support/Microsoft Edge/Default/History'));
         } else if (platform === 'win32') {
-          paths.push(
-            path.join(
-              home,
-              'AppData/Local/Microsoft/Edge/User Data/Default/History',
-            ),
-          );
+          paths.push(path.join(home, 'AppData/Local/Microsoft/Edge/User Data/Default/History'));
         }
         break;
 
@@ -125,20 +102,15 @@ class BrowserHistoryManager {
           paths.push(
             path.join(
               home,
-              'Library/Application Support/BraveSoftware/Brave-Browser/Default/History',
-            ),
+              'Library/Application Support/BraveSoftware/Brave-Browser/Default/History'
+            )
           );
         } else if (platform === 'win32') {
           paths.push(
-            path.join(
-              home,
-              'AppData/Local/BraveSoftware/Brave-Browser/User Data/Default/History',
-            ),
+            path.join(home, 'AppData/Local/BraveSoftware/Brave-Browser/User Data/Default/History')
           );
         } else {
-          paths.push(
-            path.join(home, '.config/BraveSoftware/Brave-Browser/Default/History'),
-          );
+          paths.push(path.join(home, '.config/BraveSoftware/Brave-Browser/Default/History'));
         }
         break;
     }
@@ -174,10 +146,7 @@ class BrowserHistoryManager {
 
       for (const dbPath of browserPaths) {
         try {
-          const browserEntries = await this.readBrowserHistory(
-            dbPath,
-            browserType,
-          );
+          const browserEntries = await this.readBrowserHistory(dbPath, browserType);
           entries.push(...browserEntries);
         } catch (error) {
           console.error(`Error reading ${browserType} history: ${error}`);
@@ -191,10 +160,7 @@ class BrowserHistoryManager {
     return sorted.slice(0, maxLimit);
   }
 
-  private async readBrowserHistory(
-    dbPath: string,
-    browserType: string,
-  ): Promise<HistoryEntry[]> {
+  private async readBrowserHistory(dbPath: string, browserType: string): Promise<HistoryEntry[]> {
     return new Promise((resolve, reject) => {
       try {
         // Create a temporary copy to avoid locks
@@ -252,7 +218,11 @@ class BrowserHistoryManager {
 
   private normalizeTimestamp(timestamp: number, browserType: string): number {
     // Chrome uses microseconds since 1601-01-01
-    if (browserType === BrowserType.CHROME || browserType === BrowserType.EDGE || browserType === BrowserType.BRAVE) {
+    if (
+      browserType === BrowserType.CHROME ||
+      browserType === BrowserType.EDGE ||
+      browserType === BrowserType.BRAVE
+    ) {
       const epochDelta = 11644473600000000; // microseconds between 1601 and 1970
       return Math.floor((timestamp - epochDelta) / 1000);
     }
@@ -286,7 +256,7 @@ class BrowserHistoryManager {
     const filtered = allHistory.filter(
       (entry) =>
         entry.url.toLowerCase().includes(searchLower) ||
-        entry.title.toLowerCase().includes(searchLower),
+        entry.title.toLowerCase().includes(searchLower)
     );
 
     return filtered.slice(0, limit || this.config.maxEntries);
