@@ -9,7 +9,7 @@ describe('orchestrator.ts', () => {
     try {
       const module = await import('../orchestrator.ts');
       Orchestrator = module.default || module.Orchestrator;
-    } catch (error) {
+    } catch {
       // TypeScript files may need compilation first
       console.log('Note: orchestrator.ts may need to be compiled first');
     }
@@ -37,7 +37,7 @@ describe('orchestrator.ts', () => {
         const module = await import('../orchestrator.ts');
         const hasExports = module.default || module.Orchestrator || Object.keys(module).length > 0;
         assert.ok(hasExports, 'Module has exports');
-      } catch (error) {
+      } catch {
         // Expected for TypeScript without compilation
         assert.ok(true, 'TypeScript module requires compilation');
       }
