@@ -115,7 +115,7 @@ describe('jules-demo.js', () => {
           timeout: 3000,
         });
         assert.ok(true, 'Handled network error');
-      } catch (error) {
+      } catch {
         // Should handle errors without crashing unexpectedly
         assert.ok(true, 'Error handled appropriately');
       }
