@@ -181,6 +181,7 @@ class BrowserHistoryManager {
           last_visit_time: number;
           visit_count: number;
         };
+
         entries.push({
           url: r.url,
           title: r.title || '',
@@ -236,6 +237,7 @@ class BrowserHistoryManager {
               visit_date: number;
               visit_count: number;
             };
+
             entries.push({
               url: r.url,
               title: r.title || '',
@@ -275,7 +277,6 @@ class BrowserHistoryManager {
     }
 
     allEntries.sort((a, b) => b.visitTime - a.visitTime);
-
     return allEntries.slice(0, this.config.maxEntries);
   }
 
