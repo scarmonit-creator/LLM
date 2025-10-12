@@ -1,4 +1,4 @@
-import { describe, it, mock, beforeEach, afterEach } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -19,7 +19,7 @@ describe('jules-demo.js', () => {
   describe('Module Execution', () => {
     it('should execute without errors when API key is provided', async () => {
       try {
-        const { stdout, stderr } = await execAsync('node src/jules-demo.js', {
+        const { stdout: _stdout, stderr: _stderr } = await execAsync('node src/jules-demo.js', {
           env: { ...process.env, JULES_API_KEY: 'test-key' },
           timeout: 5000,
         });
@@ -57,7 +57,6 @@ describe('jules-demo.js', () => {
   describe('Environment Configuration', () => {
     it('should handle missing JULES_API_KEY gracefully', async () => {
       delete process.env.JULES_API_KEY;
-
       try {
         await execAsync('node src/jules-demo.js', { timeout: 3000 });
       } catch (error) {
@@ -90,7 +89,7 @@ describe('jules-demo.js', () => {
     it('should attempt to connect to Jules API', async () => {
       // This test verifies the demo attempts API connection
       try {
-        const { stdout, stderr } = await execAsync('node src/jules-demo.js', {
+        const { stdout: _stdout, stderr: _stderr } = await execAsync('node src/jules-demo.js', {
           env: { ...process.env, JULES_API_KEY: 'test-api-key-12345' },
           timeout: 3000,
         });
