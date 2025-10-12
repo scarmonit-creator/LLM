@@ -155,7 +155,6 @@ class BrowserHistoryManager {
     browserType: string,
   ): Promise<HistoryEntry[]> {
     const entries: HistoryEntry[] = [];
-
     try {
       const tempPath = path.join(os.tmpdir(), `history-${Date.now()}.db`);
       fs.copyFileSync(historyPath, tempPath);
@@ -181,7 +180,6 @@ class BrowserHistoryManager {
           last_visit_time: number;
           visit_count: number;
         };
-
         entries.push({
           url: r.url,
           title: r.title || '',
@@ -196,7 +194,6 @@ class BrowserHistoryManager {
     } catch (error) {
       console.error(`Error reading ${browserType} history:`, error);
     }
-
     return entries;
   }
 
@@ -204,13 +201,10 @@ class BrowserHistoryManager {
     profilePath: string,
   ): Promise<HistoryEntry[]> {
     const entries: HistoryEntry[] = [];
-
     try {
       const profiles = fs.readdirSync(profilePath);
-
       for (const profile of profiles) {
         const placesPath = path.join(profilePath, profile, 'places.sqlite');
-
         if (fs.existsSync(placesPath)) {
           const tempPath = path.join(os.tmpdir(), `places-${Date.now()}.db`);
           fs.copyFileSync(placesPath, tempPath);
@@ -237,7 +231,6 @@ class BrowserHistoryManager {
               visit_date: number;
               visit_count: number;
             };
-
             entries.push({
               url: r.url,
               title: r.title || '',
@@ -255,7 +248,6 @@ class BrowserHistoryManager {
     } catch (error) {
       console.error('Error reading Firefox history:', error);
     }
-
     return entries;
   }
 
@@ -264,7 +256,6 @@ class BrowserHistoryManager {
 
     for (const browser of this.config.browsers || []) {
       const paths = this.getBrowserPaths(browser);
-
       for (const browserPath of paths) {
         if (browser === BrowserType.FIREFOX) {
           const entries = await this.readFirefoxHistory(browserPath);
@@ -330,13 +321,11 @@ export const browserHistoryTool: Tool = {
     };
 
     const manager = new BrowserHistoryManager(config);
-
     if (config.autoSync) {
       manager.startAutoSync();
     }
 
     const history = await manager.getAllHistory();
-
     return {
       success: true,
       data: history,
