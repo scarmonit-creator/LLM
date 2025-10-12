@@ -40,7 +40,13 @@ describe('A2A Agent Server', () => {
 
   describe('Server Initialization', () => {
     it('should create server with default port', () => {
-      const result = createA2AServer();
+      const result = createA2AServer({
+        port: 3000,
+        agentConfig: {
+          name: 'test-agent',
+          capabilities: ['browser_use', 'web_search'],
+        },
+      });
       expect(result).toBeDefined();
       expect(result.app).toBeDefined();
       expect(result.server).toBeDefined();
@@ -49,7 +55,13 @@ describe('A2A Agent Server', () => {
     });
 
     it('should create server with custom port', () => {
-      const result = createA2AServer(8080);
+      const result = createA2AServer({
+        port: 8080,
+        agentConfig: {
+          name: 'test-agent',
+          capabilities: ['browser_use', 'web_search'],
+        },
+      });
       expect(result).toBeDefined();
       expect(result.app).toBeDefined();
       expect(result.server).toBeDefined();
@@ -79,7 +91,13 @@ describe('A2A Agent Server', () => {
 
   describe('Health Check', () => {
     beforeEach(() => {
-      const result = createA2AServer();
+      const result = createA2AServer({
+        port: 3000,
+        agentConfig: {
+          name: 'test-agent',
+          capabilities: ['browser_use', 'web_search'],
+        },
+      });
       server = result.server;
       app = result.app;
     });
@@ -94,7 +112,13 @@ describe('A2A Agent Server', () => {
 
   describe('Status Endpoint', () => {
     beforeEach(() => {
-      const result = createA2AServer();
+      const result = createA2AServer({
+        port: 3000,
+        agentConfig: {
+          name: 'test-agent',
+          capabilities: ['browser_use', 'web_search'],
+        },
+      });
       server = result.server;
       app = result.app;
     });
@@ -108,7 +132,13 @@ describe('A2A Agent Server', () => {
 
   describe('Capabilities Endpoint', () => {
     beforeEach(() => {
-      const result = createA2AServer();
+      const result = createA2AServer({
+        port: 3000,
+        agentConfig: {
+          name: 'test-agent',
+          capabilities: ['browser_use', 'web_search'],
+        },
+      });
       server = result.server;
       app = result.app;
     });
