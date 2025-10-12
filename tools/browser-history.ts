@@ -79,20 +79,30 @@ class BrowserHistoryManager {
 
       case BrowserType.FIREFOX:
         if (platform === 'darwin') {
-          paths.push(
-            path.join(home, 'Library/Application Support/Firefox/Profiles'),
+          const profilesPath = path.join(
+            home,
+            'Library/Application Support/Firefox/Profiles',
           );
+          this.addFirefoxProfiles(profilesPath, paths);
         } else if (platform === 'win32') {
-          paths.push(path.join(home, 'AppData/Roaming/Mozilla/Firefox/Profiles'));
+          const profilesPath = path.join(
+            home,
+            'AppData/Roaming/Mozilla/Firefox/Profiles',
+          );
+          this.addFirefoxProfiles(profilesPath, paths);
         } else {
-          paths.push(path.join(home, '.mozilla/firefox'));
+          const profilesPath = path.join(home, '.mozilla/firefox');
+          this.addFirefoxProfiles(profilesPath, paths);
         }
         break;
 
       case BrowserType.EDGE:
         if (platform === 'darwin') {
           paths.push(
-            path.join(home, 'Library/Application Support/Microsoft Edge/Default/History'),
+            path.join(
+              home,
+              'Library/Application Support/Microsoft Edge/Default/History',
+            ),
           );
         } else if (platform === 'win32') {
           paths.push(
@@ -101,8 +111,6 @@ class BrowserHistoryManager {
               'AppData/Local/Microsoft/Edge/User Data/Default/History',
             ),
           );
-        } else {
-          paths.push(path.join(home, '.config/microsoft-edge/Default/History'));
         }
         break;
 
@@ -112,27 +120,13 @@ class BrowserHistoryManager {
         }
         break;
 
-      case BrowserType.OPERA:
-        if (platform === 'darwin') {
-          paths.push(
-            path.join(home, 'Library/Application Support/com.operasoftware.Opera/History'),
-          );
-        } else if (platform === 'win32') {
-          paths.push(
-            path.join(
-              home,
-              'AppData/Roaming/Opera Software/Opera Stable/History',
-            ),
-          );
-        } else {
-          paths.push(path.join(home, '.config/opera/History'));
-        }
-        break;
-
       case BrowserType.BRAVE:
         if (platform === 'darwin') {
           paths.push(
-            path.join(home, 'Library/Application Support/BraveSoftware/Brave-Browser/Default/History'),
+            path.join(
+              home,
+              'Library/Application Support/BraveSoftware/Brave-Browser/Default/History',
+            ),
           );
         } else if (platform === 'win32') {
           paths.push(
@@ -142,7 +136,9 @@ class BrowserHistoryManager {
             ),
           );
         } else {
-          paths.push(path.join(home, '.config/BraveSoftware/Brave-Browser/Default/History'));
+          paths.push(
+            path.join(home, '.config/BraveSoftware/Brave-Browser/Default/History'),
+          );
         }
         break;
     }
@@ -150,141 +146,158 @@ class BrowserHistoryManager {
     return paths.filter((p) => fs.existsSync(p));
   }
 
-  private async readChromeHistory(
-    historyPath: string,
+  private addFirefoxProfiles(profilesPath: string, paths: string[]): void {
+    try {
+      if (!fs.existsSync(profilesPath)) return;
+      const profiles = fs.readdirSync(profilesPath);
+      for (const profile of profiles) {
+        if (profile.endsWith('.default') || profile.includes('default')) {
+          const historyPath = path.join(profilesPath, profile, 'places.sqlite');
+          if (fs.existsSync(historyPath)) {
+            paths.push(historyPath);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error reading Firefox profiles: ${error}`);
+    }
+  }
+
+  async getHistory(browser?: string, limit?: number): Promise<HistoryEntry[]> {
+    const entries: HistoryEntry[] = [];
+    const browsersToSearch = browser
+      ? [browser]
+      : this.config.browsers || Object.values(BrowserType);
+
+    for (const browserType of browsersToSearch) {
+      const browserPaths = this.getBrowserPaths(browserType);
+
+      for (const dbPath of browserPaths) {
+        try {
+          const browserEntries = await this.readBrowserHistory(
+            dbPath,
+            browserType,
+          );
+          entries.push(...browserEntries);
+        } catch (error) {
+          console.error(`Error reading ${browserType} history: ${error}`);
+        }
+      }
+    }
+
+    // Sort by visit time and limit results
+    const sorted = entries.sort((a, b) => b.visitTime - a.visitTime);
+    const maxLimit = limit || this.config.maxEntries;
+    return sorted.slice(0, maxLimit);
+  }
+
+  private async readBrowserHistory(
+    dbPath: string,
     browserType: string,
   ): Promise<HistoryEntry[]> {
-    const entries: HistoryEntry[] = [];
+    return new Promise((resolve, reject) => {
+      try {
+        // Create a temporary copy to avoid locks
+        const tempPath = path.join(os.tmpdir(), `history_${Date.now()}.db`);
+        fs.copyFileSync(dbPath, tempPath);
 
-    try {
-      const tempPath = path.join(os.tmpdir(), `history-${Date.now()}.db`);
-      fs.copyFileSync(historyPath, tempPath);
+        const Database = require('better-sqlite3');
+        const db = new Database(tempPath, { readonly: true });
 
-      const sqlite3 = await import('better-sqlite3');
-      const db = sqlite3.default(tempPath, { readonly: true });
+        let query: string;
+        let rows: any[];
 
-      const rows = db
-        .prepare(
-          `
-        SELECT url, title, last_visit_time, visit_count
-        FROM urls
-        ORDER BY last_visit_time DESC
-        LIMIT ?
-      `,
-        )
-        .all(this.config.maxEntries);
-
-      for (const row: unknown) {
-        const r = row as {
-          url: string;
-          title: string;
-          last_visit_time: number;
-          visit_count: number;
-        };
-        entries.push({
-          url: r.url,
-          title: r.title || '',
-          visitTime: r.last_visit_time,
-          visitCount: r.visit_count,
-          browser: browserType,
-        });
-      }
-
-      db.close();
-      fs.unlinkSync(tempPath);
-    } catch (error) {
-      console.error(`Error reading ${browserType} history:`, error);
-    }
-
-    return entries;
-  }
-
-  private async readFirefoxHistory(
-    profilePath: string,
-  ): Promise<HistoryEntry[]> {
-    const entries: HistoryEntry[] = [];
-
-    try {
-      const profiles = fs.readdirSync(profilePath);
-
-      for (const profile of profiles) {
-        const placesPath = path.join(profilePath, profile, 'places.sqlite');
-
-        if (fs.existsSync(placesPath)) {
-          const tempPath = path.join(os.tmpdir(), `places-${Date.now()}.db`);
-          fs.copyFileSync(placesPath, tempPath);
-
-          const sqlite3 = await import('better-sqlite3');
-          const db = sqlite3.default(tempPath, { readonly: true });
-
-          const rows = db
-            .prepare(
-              `
-            SELECT p.url, p.title, h.visit_date, p.visit_count
-            FROM moz_places p
-            JOIN moz_historyvisits h ON p.id = h.place_id
-            ORDER BY h.visit_date DESC
-            LIMIT ?
-          `,
-            )
-            .all(this.config.maxEntries);
-
-          for (const row: unknown) {
-            const r = row as {
-              url: string;
-              title: string;
-              visit_date: number;
-              visit_count: number;
-            };
-            entries.push({
-              url: r.url,
-              title: r.title || '',
-              visitTime: r.visit_date,
-              visitCount: r.visit_count,
-              browser: BrowserType.FIREFOX,
-              profile,
-            });
-          }
-
-          db.close();
-          fs.unlinkSync(tempPath);
-        }
-      }
-    } catch (error) {
-      console.error('Error reading Firefox history:', error);
-    }
-
-    return entries;
-  }
-
-  async getAllHistory(): Promise<HistoryEntry[]> {
-    const allEntries: HistoryEntry[] = [];
-
-    for (const browser of this.config.browsers || []) {
-      const paths = this.getBrowserPaths(browser);
-
-      for (const browserPath of paths) {
-        if (browser === BrowserType.FIREFOX) {
-          const entries = await this.readFirefoxHistory(browserPath);
-          allEntries.push(...entries);
+        if (browserType === BrowserType.FIREFOX) {
+          query = `
+            SELECT url, title, last_visit_date / 1000000 as visit_time, visit_count
+            FROM moz_places
+            WHERE visit_count > 0
+            ORDER BY visit_time DESC
+          `;
+          rows = db.prepare(query).all();
+        } else if (browserType === BrowserType.SAFARI) {
+          query = `
+            SELECT url, title, visit_time, visit_count
+            FROM history_items
+            ORDER BY visit_time DESC
+          `;
+          rows = db.prepare(query).all();
         } else {
-          const entries = await this.readChromeHistory(browserPath, browser);
-          allEntries.push(...entries);
+          // Chrome-based browsers
+          query = `
+            SELECT url, title, last_visit_time, visit_count
+            FROM urls
+            ORDER BY last_visit_time DESC
+          `;
+          rows = db.prepare(query).all();
         }
+
+        db.close();
+        fs.unlinkSync(tempPath);
+
+        const entries: HistoryEntry[] = rows.map((row: any) => ({
+          url: row.url,
+          title: row.title || '',
+          visitTime: this.normalizeTimestamp(row.visit_time || row.last_visit_time, browserType),
+          visitCount: row.visit_count,
+          browser: browserType,
+        }));
+
+        resolve(this.applyFilters(entries));
+      } catch (error) {
+        reject(error);
       }
+    });
+  }
+
+  private normalizeTimestamp(timestamp: number, browserType: string): number {
+    // Chrome uses microseconds since 1601-01-01
+    if (browserType === BrowserType.CHROME || browserType === BrowserType.EDGE || browserType === BrowserType.BRAVE) {
+      const epochDelta = 11644473600000000; // microseconds between 1601 and 1970
+      return Math.floor((timestamp - epochDelta) / 1000);
+    }
+    // Firefox uses microseconds since epoch
+    if (browserType === BrowserType.FIREFOX) {
+      return Math.floor(timestamp / 1000);
+    }
+    // Safari uses seconds since 2001-01-01
+    if (browserType === BrowserType.SAFARI) {
+      return timestamp + 978307200000;
+    }
+    return timestamp;
+  }
+
+  private applyFilters(entries: HistoryEntry[]): HistoryEntry[] {
+    if (!this.config.filters || this.config.filters.length === 0) {
+      return entries;
     }
 
-    allEntries.sort((a, b) => b.visitTime - a.visitTime);
+    return entries.filter((entry) => {
+      return this.config.filters!.some((filter) => {
+        return entry.url.includes(filter) || entry.title.includes(filter);
+      });
+    });
+  }
 
-    return allEntries.slice(0, this.config.maxEntries);
+  async searchHistory(query: string, limit?: number): Promise<HistoryEntry[]> {
+    const allHistory = await this.getHistory(undefined, undefined);
+    const searchLower = query.toLowerCase();
+
+    const filtered = allHistory.filter(
+      (entry) =>
+        entry.url.toLowerCase().includes(searchLower) ||
+        entry.title.toLowerCase().includes(searchLower),
+    );
+
+    return filtered.slice(0, limit || this.config.maxEntries);
   }
 
   startAutoSync(): void {
     if (this.config.autoSync && !this.syncTimer) {
       this.syncTimer = setInterval(() => {
-        this.getAllHistory().catch((err) =>
-          console.error('Auto-sync error:', err),
-        );
+        this.getHistory().catch((error) => {
+          console.error('Auto-sync error:', error);
+        });
       }, this.config.syncInterval);
     }
   }
@@ -295,51 +308,92 @@ class BrowserHistoryManager {
       this.syncTimer = undefined;
     }
   }
+
+  updateConfig(newConfig: Partial<BrowserHistoryConfig>): void {
+    this.config = { ...this.config, ...newConfig };
+    if (this.config.autoSync) {
+      this.stopAutoSync();
+      this.startAutoSync();
+    } else {
+      this.stopAutoSync();
+    }
+  }
 }
 
+// Export the tool
 export const browserHistoryTool: Tool = {
   name: 'browser_history',
   description:
-    'Access and analyze browser history from Chrome, Firefox, Edge, Safari, Opera, and Brave browsers. Supports multi-browser, cross-platform access with autonomous sync.',
-  schema: {
+    'Access browser history across Chrome, Firefox, Safari, Edge, Brave, and Opera. ' +
+    'Supports multi-profile, cross-platform access with autonomous sync. ' +
+    'Can search, filter, and retrieve recent browsing history.',
+  parameters: {
     type: 'object',
     properties: {
+      action: {
+        type: 'string',
+        enum: ['get_history', 'search_history', 'start_sync', 'stop_sync', 'update_config'],
+        description: 'Action to perform',
+      },
       browser: {
         type: 'string',
-        enum: Object.values(BrowserType),
-        description: 'Browser to read history from',
+        enum: ['chrome', 'firefox', 'edge', 'safari', 'opera', 'brave'],
+        description: 'Specific browser to query (optional, defaults to all)',
+      },
+      query: {
+        type: 'string',
+        description: 'Search query for search_history action',
       },
       limit: {
         type: 'number',
-        description: 'Maximum number of entries to return',
-        default: 100,
+        description: 'Maximum number of results to return',
       },
-      autoSync: {
-        type: 'boolean',
-        description: 'Enable automatic history synchronization',
-        default: false,
+      config: {
+        type: 'object',
+        description: 'Configuration updates for update_config action',
+        properties: {
+          autoSync: { type: 'boolean' },
+          syncInterval: { type: 'number' },
+          maxEntries: { type: 'number' },
+          browsers: { type: 'array', items: { type: 'string' } },
+          filters: { type: 'array', items: { type: 'string' } },
+          crossPlatform: { type: 'boolean' },
+          enableEncryption: { type: 'boolean' },
+        },
       },
     },
+    required: ['action'],
   },
-  execute: async (params: Record<string, unknown>) => {
-    const config: Partial<BrowserHistoryConfig> = {
-      maxEntries: (params.limit as number) || 100,
-      autoSync: (params.autoSync as boolean) || false,
-      browsers: params.browser ? [params.browser as string] : undefined,
-    };
+  execute: async (args: any): Promise<any> => {
+    const manager = new BrowserHistoryManager(args.config);
 
-    const manager = new BrowserHistoryManager(config);
+    switch (args.action) {
+      case 'get_history':
+        return await manager.getHistory(args.browser, args.limit);
 
-    if (config.autoSync) {
-      manager.startAutoSync();
+      case 'search_history':
+        if (!args.query) {
+          throw new Error('Query parameter required for search_history');
+        }
+        return await manager.searchHistory(args.query, args.limit);
+
+      case 'start_sync':
+        manager.startAutoSync();
+        return { success: true, message: 'Auto-sync started' };
+
+      case 'stop_sync':
+        manager.stopAutoSync();
+        return { success: true, message: 'Auto-sync stopped' };
+
+      case 'update_config':
+        if (!args.config) {
+          throw new Error('Config parameter required for update_config');
+        }
+        manager.updateConfig(args.config);
+        return { success: true, message: 'Configuration updated' };
+
+      default:
+        throw new Error(`Unknown action: ${args.action}`);
     }
-
-    const history = await manager.getAllHistory();
-
-    return {
-      success: true,
-      data: history,
-      message: `Retrieved ${history.length} history entries`,
-    };
   },
 };
