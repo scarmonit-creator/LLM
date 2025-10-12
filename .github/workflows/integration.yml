@@ -1,0 +1,38 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Integration test suite to run'
+        required: false
+        default: 'all'
+  schedule:
+    # Run integration tests weekly on Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - run: npm ci
+    
+    - name: Run integration tests
+      run: npm test
+      env:
+        RUN_INTEGRATION_TESTS: true
+        OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+        JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

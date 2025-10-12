@@ -38,17 +38,20 @@ test('JulesClient - should validate parameters for sendMessage', async () => {
   assert.strictEqual(result.error, 'Session ID and message are required');
 });
 
-test('JulesClient - should list sources successfully', async () => {
-  const client = new JulesClient(process.env.JULES_API_KEY);
-  const result = await client.listSources();
-
-  if (result.success) {
-    assert.ok(result.data);
-    assert.ok(result.data.sources);
-    assert.ok(Array.isArray(result.data.sources));
-  } else {
-    // If API key is invalid or API is down, should handle error gracefully
-    assert.strictEqual(result.success, false);
-    assert.ok(result.error);
+// Integration test - only runs when RUN_INTEGRATION_TESTS=true
+(process.env.RUN_INTEGRATION_TESTS === 'true' ? test : test.skip)(
+  'JulesClient - should list sources successfully',
+  async () => {
+    const client = new JulesClient(process.env.JULES_API_KEY);
+    const result = await client.listSources();
+    if (result.success) {
+      assert.ok(result.data);
+      assert.ok(result.data.sources);
+      assert.ok(Array.isArray(result.data.sources));
+    } else {
+      // If API key is invalid or API is down, should handle error gracefully
+      assert.strictEqual(result.success, false);
+      assert.ok(result.error);
+    }
   }
-});
+);
