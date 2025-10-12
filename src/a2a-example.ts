@@ -29,7 +29,7 @@ const serverConfig = {
 
 // Create and start the A2A server
 try {
-  const { app, server } = createA2AServer(serverConfig);
+  const { server } = createA2AServer(serverConfig);
 
   console.log('\n=== A2A Agent Server Started ===');
   console.log('Server is running with the following endpoints:');
