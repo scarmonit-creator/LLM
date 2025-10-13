@@ -123,9 +123,16 @@ export default class BrowserHistoryTool implements Tool {
 
       case BrowserType.BRAVE:
         if (platform === 'darwin') {
-          paths.push(path.join(home, 'Library/Application Support/BraveSoftware/Brave-Browser/Default/History'));
+          paths.push(
+            path.join(
+              home,
+              'Library/Application Support/BraveSoftware/Brave-Browser/Default/History'
+            )
+          );
         } else if (platform === 'win32') {
-          paths.push(path.join(home, 'AppData/Local/BraveSoftware/Brave-Browser/User Data/Default/History'));
+          paths.push(
+            path.join(home, 'AppData/Local/BraveSoftware/Brave-Browser/User Data/Default/History')
+          );
         } else {
           paths.push(path.join(home, '.config/BraveSoftware/Brave-Browser/Default/History'));
         }
@@ -133,7 +140,9 @@ export default class BrowserHistoryTool implements Tool {
 
       case BrowserType.OPERA:
         if (platform === 'darwin') {
-          paths.push(path.join(home, 'Library/Application Support/com.operasoftware.Opera/History'));
+          paths.push(
+            path.join(home, 'Library/Application Support/com.operasoftware.Opera/History')
+          );
         } else if (platform === 'win32') {
           paths.push(path.join(home, 'AppData/Roaming/Opera Software/Opera Stable/History'));
         } else {
