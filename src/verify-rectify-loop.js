@@ -41,14 +41,14 @@ class ClaimVerifier {
     // Check for intrinsic errors (contradictions with sources)
     const intrinsicErrors = await this.detectIntrinsicErrors(claims, evidence);
     if (intrinsicErrors.length > 0) {
-      issues.push(...intrinsicErrors.map(e => `Intrinsic error: ${e}`));
+      issues.push(...intrinsicErrors.map((e) => `Intrinsic error: ${e}`));
       confidence *= 0.5;
     }
 
     // Check for extrinsic errors (unsupported claims)
     const extrinsicErrors = await this.detectExtrinsicErrors(claims, evidence);
     if (extrinsicErrors.length > 0) {
-      issues.push(...extrinsicErrors.map(e => `Extrinsic error: ${e}`));
+      issues.push(...extrinsicErrors.map((e) => `Extrinsic error: ${e}`));
       confidence *= 0.6;
     }
 
@@ -57,7 +57,7 @@ class ClaimVerifier {
       try {
         const hallucinationResult = await this.hallucinationDetector.detect(output, {
           samples: 3,
-          threshold: 0.7
+          threshold: 0.7,
         });
         if (hallucinationResult.isHallucination) {
           issues.push('Potential hallucination detected');
@@ -82,7 +82,7 @@ class ClaimVerifier {
       issues,
       confidence,
       shouldAbstain: !isVerifiable && confidence < 0.5,
-      evidence: evidence.slice(0, 3) // Include top evidence
+      evidence: evidence.slice(0, 3), // Include top evidence
     };
   }
 
@@ -92,7 +92,7 @@ class ClaimVerifier {
   extractClaims(text) {
     // Simple extraction: split into sentences
     // In production, use NLP to extract actual factual claims
-    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 10);
     return sentences;
   }
 
@@ -124,7 +124,7 @@ class ClaimVerifier {
     const errors = [];
     if (evidence.length === 0) {
       // All claims are unsupported if no evidence
-      return claims.map(c => `Unsupported claim: "${c.substring(0, 50)}..."`);
+      return claims.map((c) => `Unsupported claim: "${c.substring(0, 50)}..."`);
     }
 
     for (const claim of claims) {
@@ -190,13 +190,49 @@ class ClaimVerifier {
    * Extract keywords from text (simple implementation)
    */
   extractKeywords(text) {
-    const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'could', 'may', 'might', 'can']);
-    
+    const stopWords = new Set([
+      'the',
+      'a',
+      'an',
+      'and',
+      'or',
+      'but',
+      'in',
+      'on',
+      'at',
+      'to',
+      'for',
+      'of',
+      'with',
+      'by',
+      'from',
+      'as',
+      'is',
+      'was',
+      'are',
+      'were',
+      'been',
+      'be',
+      'have',
+      'has',
+      'had',
+      'do',
+      'does',
+      'did',
+      'will',
+      'would',
+      'should',
+      'could',
+      'may',
+      'might',
+      'can',
+    ]);
+
     return text
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, '')
       .split(/\s+/)
-      .filter(word => word.length > 3 && !stopWords.has(word))
+      .filter((word) => word.length > 3 && !stopWords.has(word))
       .slice(0, 10); // Top 10 keywords
   }
 
@@ -206,7 +242,7 @@ class ClaimVerifier {
   findCommonKeywords(text1, text2) {
     const keywords1 = new Set(this.extractKeywords(text1));
     const keywords2 = new Set(this.extractKeywords(text2));
-    return [...keywords1].filter(k => keywords2.has(k));
+    return [...keywords1].filter((k) => keywords2.has(k));
   }
 }
 
@@ -221,7 +257,7 @@ class VerifyRectifyLoop {
     maxIterations = 3,
     confidenceTarget = 0.9,
     ragPipeline = null,
-    hallucinationDetector = null
+    hallucinationDetector = null,
   }) {
     // Use provided verifier or create default ClaimVerifier
     if (verifier) {
@@ -229,10 +265,10 @@ class VerifyRectifyLoop {
     } else {
       this.verifier = new ClaimVerifier({
         ragPipeline,
-        hallucinationDetector
+        hallucinationDetector,
       });
     }
-    
+
     this.generator = generator; // function(prompt, context) => output
     this.maxIterations = maxIterations;
     this.confidenceTarget = confidenceTarget;
@@ -255,7 +291,7 @@ class VerifyRectifyLoop {
           reason: 'Content cannot be verified with sufficient confidence',
           verdict,
           iterations: attempt + 1,
-          history
+          history,
         };
       }
 
@@ -267,7 +303,7 @@ class VerifyRectifyLoop {
           verdict,
           iterations: attempt + 1,
           rectified: attempt > 0,
-          history
+          history,
         };
       }
 
@@ -281,7 +317,7 @@ class VerifyRectifyLoop {
           ...context,
           previousOutput: output,
           lastVerdict: verdict,
-          evidence: verdict.evidence
+          evidence: verdict.evidence,
         }
       );
 
@@ -290,7 +326,7 @@ class VerifyRectifyLoop {
 
     // Final verification after max iterations
     const finalVerdict = await this.verifier.verify(output, context);
-    
+
     // If still not valid after max iterations, consider abstaining
     if (!finalVerdict.valid && finalVerdict.confidence < 0.5) {
       return {
@@ -299,7 +335,7 @@ class VerifyRectifyLoop {
         reason: 'Unable to generate verified output within iteration limit',
         verdict: finalVerdict,
         iterations: attempt,
-        history
+        history,
       };
     }
 
@@ -310,41 +346,43 @@ class VerifyRectifyLoop {
       iterations: attempt,
       rectified: attempt > 0,
       maxIterationsReached: true,
-      history
+      history,
     };
   }
 
   buildRectifyInstructions(verdict) {
     const parts = [];
-    
+
     if (verdict.issues?.length) {
       parts.push(
         'Fix the following issues:\n' +
-        verdict.issues.map((i, idx) => `${idx + 1}. ${i}`).join('\n')
+          verdict.issues.map((i, idx) => `${idx + 1}. ${i}`).join('\n')
       );
     }
-    
+
     if (verdict.evidence?.length) {
       parts.push(
         'Use these verified sources:\n' +
-        verdict.evidence.map((e, idx) => {
-          const text = e.content || e.text || String(e);
-          return `${idx + 1}. ${text.substring(0, 100)}...`;
-        }).join('\n')
+          verdict.evidence
+            .map((e, idx) => {
+              const text = e.content || e.text || String(e);
+              return `${idx + 1}. ${text.substring(0, 100)}...`;
+            })
+            .join('\n')
       );
     }
-    
+
     if (verdict.missing?.length) {
       parts.push('Add missing elements: ' + verdict.missing.join(', '));
     }
-    
+
     if (typeof verdict.confidence === 'number' && verdict.confidence < this.confidenceTarget) {
       parts.push(
         `Increase factual accuracy and confidence to at least ${this.confidenceTarget}. ` +
-        `Current confidence: ${verdict.confidence.toFixed(2)}`
+          `Current confidence: ${verdict.confidence.toFixed(2)}`
       );
     }
-    
+
     return parts.join('\n\n');
   }
 }
