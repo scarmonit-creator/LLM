@@ -45,6 +45,7 @@ export interface CoverallsBuildData {
   badge_url: string;
   coverage_change: number;
   covered_percent: number;
+  // Optional fields when using paths parameter
   paths?: string;
   selected_source_files_count?: number;
   paths_covered_percent?: number;
@@ -57,215 +58,322 @@ export interface CoverallsJobData {
   full_number: string;
   timestamp: string;
   covered_percent: number;
+  // Optional fields when using paths parameter
+  paths?: string;
+  selected_source_files_count?: number;
+  paths_covered_percent?: number;
+  paths_previous_covered_percent?: number;
+  paths_covered_percent_change?: number;
 }
 
-export type CoverallsSourceFileData = (number | null)[];
-
-export interface CoverallsApiOptions {
-  baseUrl?: string;
-  timeout?: number;
-  retryAttempts?: number;
+export interface CoverallsSourceFileData {
+  coverage: (number | null)[];
 }
 
-export class CoverallsApiClient {
-  private baseUrl: string;
-  private timeout: number;
-  private retryAttempts: number;
+export interface SourceFileStats {
+  totalLines: number;
+  relevantLines: number;
+  coveredLines: number;
+  uncoveredLines: number;
+  coveragePercent: number;
+  linesByHitCount: Map<number, number[]>;
+}
 
-  constructor(options: CoverallsApiOptions = {}) {
-    this.baseUrl = options.baseUrl || 'https://coveralls.io';
-    this.timeout = options.timeout || 30000;
-    this.retryAttempts = options.retryAttempts || 3;
+/**
+ * Fetch repository data from Coveralls
+ * @param owner - Repository owner (e.g., 'lemurheavy')
+ * @param repo - Repository name (e.g., 'coveralls-ruby')
+ * @param service - Git hosting service (default: 'github')
+ * @returns Repository data including latest build coverage
+ */
+export async function getRepo(
+  owner: string,
+  repo: string,
+  service: string = 'github'
+): Promise<CoverallsRepoData> {
+  const url = `https://coveralls.io/${service}/${owner}/${repo}.json`;
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch repo data: ${response.status} ${response.statusText}`
+    );
   }
 
-  /**
-   * Fetch JSON data from a Coveralls URL
-   */
-  private async fetchWithRetry(url: string, attempt = 1): Promise<any> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+  return await response.json();
+}
 
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          Accept: 'application/json',
-        },
-      });
+/**
+ * Fetch paginated builds for a repository
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param page - Page number (1-indexed)
+ * @param service - Git hosting service (default: 'github')
+ * @returns Paginated list of builds
+ */
+export async function getRepoBuilds(
+  owner: string,
+  repo: string,
+  page: number = 1,
+  service: string = 'github'
+): Promise<CoverallsRepoBuildsData> {
+  const url = `https://coveralls.io/${service}/${owner}/${repo}.json?page=${page}`;
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
 
-      clearTimeout(timeoutId);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch repo builds: ${response.status} ${response.statusText}`
+    );
+  }
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+  return await response.json();
+}
 
-      return await response.json();
-    } catch (error) {
-      if (attempt < this.retryAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-        return this.fetchWithRetry(url, attempt + 1);
-      }
-      throw error;
+/**
+ * Fetch all builds for a repository (across all pages)
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param service - Git hosting service (default: 'github')
+ * @returns All builds from all pages
+ */
+export async function getAllRepoBuilds(
+  owner: string,
+  repo: string,
+  service: string = 'github'
+): Promise<CoverallsRepoData[]> {
+  const firstPage = await getRepoBuilds(owner, repo, 1, service);
+  const allBuilds = [...firstPage.builds];
+
+  // Fetch remaining pages in parallel
+  if (firstPage.pages > 1) {
+    const pagePromises = [];
+    for (let page = 2; page <= firstPage.pages; page++) {
+      pagePromises.push(getRepoBuilds(owner, repo, page, service));
+    }
+
+    const remainingPages = await Promise.all(pagePromises);
+    for (const pageData of remainingPages) {
+      allBuilds.push(...pageData.builds);
     }
   }
 
-  /**
-   * Fetch repository data
-   * @param service - git service (e.g., 'github', 'gitlab')
-   * @param owner - repository owner
-   * @param repo - repository name
-   */
-  async getRepo(service: string, owner: string, repo: string): Promise<CoverallsRepoData> {
-    const url = `${this.baseUrl}/${service}/${owner}/${repo}.json`;
-    return this.fetchWithRetry(url);
-  }
-
-  /**
-   * Fetch paginated builds for a repository
-   * @param service - git service (e.g., 'github', 'gitlab')
-   * @param owner - repository owner
-   * @param repo - repository name
-   * @param page - page number (default: 1)
-   */
-  async getRepoBuilds(
-    service: string,
-    owner: string,
-    repo: string,
-    page = 1
-  ): Promise<CoverallsRepoBuildsData> {
-    const url = `${this.baseUrl}/${service}/${owner}/${repo}.json?page=${page}`;
-    return this.fetchWithRetry(url);
-  }
-
-  /**
-   * Fetch build data by build ID
-   * @param buildId - numeric build ID
-   */
-  async getBuildById(buildId: number): Promise<CoverallsBuildData> {
-    const url = `${this.baseUrl}/builds/${buildId}.json`;
-    return this.fetchWithRetry(url);
-  }
-
-  /**
-   * Fetch build data by commit SHA
-   * @param commitSha - git commit SHA
-   */
-  async getBuildByCommitSha(commitSha: string): Promise<CoverallsBuildData> {
-    const url = `${this.baseUrl}/builds/${commitSha}.json`;
-    return this.fetchWithRetry(url);
-  }
-
-  /**
-   * Fetch build data with path filters
-   * @param buildId - numeric build ID or commit SHA
-   * @param paths - comma-separated paths or glob patterns
-   */
-  async getBuildWithPaths(buildId: number | string, paths: string): Promise<CoverallsBuildData> {
-    const url = `${this.baseUrl}/builds/${buildId}.json?paths=${encodeURIComponent(paths)}`;
-    return this.fetchWithRetry(url);
-  }
-
-  /**
-   * Fetch job data
-   * @param jobId - numeric job ID
-   */
-  async getJob(jobId: number): Promise<CoverallsJobData> {
-    const url = `${this.baseUrl}/jobs/${jobId}.json`;
-    return this.fetchWithRetry(url);
-  }
-
-  /**
-   * Fetch source file coverage data by file ID
-   * @param fileId - numeric file ID
-   */
-  async getSourceFile(fileId: number): Promise<CoverallsSourceFileData> {
-    const url = `${this.baseUrl}/files/${fileId}.json`;
-    return this.fetchWithRetry(url);
-  }
-
-  /**
-   * Fetch source file coverage data by build ID and filename
-   * @param buildId - numeric build ID or commit SHA
-   * @param filename - URL-encoded filename
-   */
-  async getSourceFileByName(
-    buildId: number | string,
-    filename: string
-  ): Promise<CoverallsSourceFileData> {
-    const url = `${this.baseUrl}/builds/${buildId}/source.json?filename=${encodeURIComponent(filename)}`;
-    return this.fetchWithRetry(url);
-  }
-
-  /**
-   * Fetch all builds for a repository across all pages
-   * @param service - git service (e.g., 'github', 'gitlab')
-   * @param owner - repository owner
-   * @param repo - repository name
-   * @param maxPages - maximum number of pages to fetch (default: Infinity)
-   */
-  async getAllRepoBuilds(
-    service: string,
-    owner: string,
-    repo: string,
-    maxPages = Infinity
-  ): Promise<CoverallsRepoData[]> {
-    const allBuilds: CoverallsRepoData[] = [];
-    let currentPage = 1;
-    let totalPages = 1;
-
-    while (currentPage <= totalPages && currentPage <= maxPages) {
-      const data = await this.getRepoBuilds(service, owner, repo, currentPage);
-      allBuilds.push(...data.builds);
-      totalPages = data.pages;
-      currentPage++;
-    }
-
-    return allBuilds;
-  }
-
-  /**
-   * Analyze source file coverage data
-   * Returns coverage statistics for a source file
-   */
-  analyzeSourceFile(coverage: CoverallsSourceFileData): {
-    totalLines: number;
-    relevantLines: number;
-    coveredLines: number;
-    uncoveredLines: number;
-    coveragePercent: number;
-    lineCoverage: Map<number, number | null>;
-  } {
-    const lineCoverage = new Map<number, number | null>();
-    let relevantLines = 0;
-    let coveredLines = 0;
-    let uncoveredLines = 0;
-
-    coverage.forEach((hits, index) => {
-      const lineNumber = index + 1;
-      lineCoverage.set(lineNumber, hits);
-
-      if (hits !== null) {
-        relevantLines++;
-        if (hits > 0) {
-          coveredLines++;
-        } else {
-          uncoveredLines++;
-        }
-      }
-    });
-
-    const coveragePercent = relevantLines > 0 ? (coveredLines / relevantLines) * 100 : 0;
-
-    return {
-      totalLines: coverage.length,
-      relevantLines,
-      coveredLines,
-      uncoveredLines,
-      coveragePercent,
-      lineCoverage,
-    };
-  }
+  return allBuilds;
 }
 
-// Export a default instance
-export const coverallsApi = new CoverallsApiClient();
+/**
+ * Fetch build data by build ID
+ * @param buildId - Numeric build ID
+ * @returns Build data
+ */
+export async function getBuildById(
+  buildId: number
+): Promise<CoverallsBuildData> {
+  const url = `https://coveralls.io/builds/${buildId}.json`;
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch build: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return await response.json();
+}
+
+/**
+ * Fetch build data by commit SHA
+ * @param commitSha - Full commit SHA
+ * @returns Build data
+ */
+export async function getBuildByCommitSha(
+  commitSha: string
+): Promise<CoverallsBuildData> {
+  const url = `https://coveralls.io/builds/${commitSha}.json`;
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch build by commit SHA: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return await response.json();
+}
+
+/**
+ * Fetch build data with aggregated coverage for specific paths
+ * @param buildIdOrSha - Build ID or commit SHA
+ * @param paths - Comma-separated list of file paths or glob pattern (e.g., 'lib/coveralls/*')
+ * @returns Build data with path-specific coverage stats
+ */
+export async function getBuildWithPaths(
+  buildIdOrSha: string | number,
+  paths: string
+): Promise<CoverallsBuildData> {
+  const url = `https://coveralls.io/builds/${buildIdOrSha}.json?paths=${encodeURIComponent(paths)}`;
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch build with paths: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return await response.json();
+}
+
+/**
+ * Fetch job data
+ * @param jobId - Numeric job ID
+ * @returns Job data
+ */
+export async function getJob(jobId: number): Promise<CoverallsJobData> {
+  const url = `https://coveralls.io/jobs/${jobId}.json`;
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch job: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return await response.json();
+}
+
+/**
+ * Fetch job data with aggregated coverage for specific paths
+ * @param jobId - Numeric job ID
+ * @param paths - Comma-separated list of file paths or glob pattern (e.g., 'lib/coveralls/*')
+ * @returns Job data with path-specific coverage stats
+ */
+export async function getJobWithPaths(
+  jobId: number,
+  paths: string
+): Promise<CoverallsJobData> {
+  const url = `https://coveralls.io/jobs/${jobId}.json?paths=${encodeURIComponent(paths)}`;
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch job with paths: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return await response.json();
+}
+
+/**
+ * Fetch source file coverage data by file ID
+ * @param fileId - Numeric file ID
+ * @returns Array of coverage data (index = line number, value = hit count or null)
+ */
+export async function getSourceFile(
+  fileId: number
+): Promise<CoverallsSourceFileData> {
+  const url = `https://coveralls.io/files/${fileId}.json`;
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch source file: ${response.status} ${response.statusText}`
+    );
+  }
+
+  const coverage = await response.json();
+  return { coverage };
+}
+
+/**
+ * Fetch source file coverage data by filename
+ * @param buildIdOrSha - Build ID or commit SHA
+ * @param filename - URL-encoded filename (e.g., 'lib%2Fcoveralls%2Fsimplecov.rb')
+ * @returns Array of coverage data
+ */
+export async function getSourceFileByName(
+  buildIdOrSha: string | number,
+  filename: string
+): Promise<CoverallsSourceFileData> {
+  const url = `https://coveralls.io/builds/${buildIdOrSha}/source.json?filename=${encodeURIComponent(filename)}`;
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch source file by name: ${response.status} ${response.statusText}`
+    );
+  }
+
+  const coverage = await response.json();
+  return { coverage };
+}
+
+/**
+ * Analyze source file coverage data and return statistics
+ * @param coverage - Coverage array from getSourceFile or getSourceFileByName
+ * @returns Statistics about the file's coverage
+ */
+export function analyzeSourceFile(
+  coverage: (number | null)[]
+): SourceFileStats {
+  const totalLines = coverage.length;
+  const relevantLines = coverage.filter((v) => v !== null).length;
+  const coveredLines = coverage.filter((v) => v !== null && v > 0).length;
+  const uncoveredLines = relevantLines - coveredLines;
+  const coveragePercent =
+    relevantLines > 0 ? (coveredLines / relevantLines) * 100 : 0;
+
+  // Group lines by hit count
+  const linesByHitCount = new Map<number, number[]>();
+  coverage.forEach((hitCount, lineNumber) => {
+    if (hitCount !== null) {
+      if (!linesByHitCount.has(hitCount)) {
+        linesByHitCount.set(hitCount, []);
+      }
+      linesByHitCount.get(hitCount)!.push(lineNumber + 1); // Line numbers are 1-indexed
+    }
+  });
+
+  return {
+    totalLines,
+    relevantLines,
+    coveredLines,
+    uncoveredLines,
+    coveragePercent,
+    linesByHitCount,
+  };
+}
