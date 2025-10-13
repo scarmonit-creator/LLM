@@ -139,6 +139,16 @@ Commands:
 - `:clear` - Clear history
 - `:quit` - Exit
 
+### Packaging the Windows Launcher
+
+To create a standalone Windows executable for the chat launcher, use the following command:
+
+```bash
+npm run build:chat-exe
+```
+
+This command bundles the chat launcher and uses `pkg` to produce `release/LLMChat.exe`. Ensure the `pkg` CLI is available (e.g., by running `npm install --save-dev pkg` or using `npx pkg`). The resulting executable will be located in the `release/` directory.
+
 ---
 
 ## Testing
