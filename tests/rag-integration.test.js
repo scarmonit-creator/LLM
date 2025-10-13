@@ -1,3 +1,40 @@
+/**
+ * RAG Integration Tests
+ * 
+ * ⚠️ IMPORTANT: ChromaDB Requirements
+ * 
+ * These tests require ChromaDB to be properly initialized before running.
+ * Tests will fail if ChromaDB is not available or not properly configured.
+ * 
+ * Setup Options:
+ * 
+ * Option 1: Local ChromaDB Instance (Recommended for Development)
+ *   1. Install ChromaDB: pip install chromadb
+ *   2. Start ChromaDB server: chroma run --host localhost --port 8000
+ *   3. Set environment variables:
+ *      CHROMADB_HOST=localhost
+ *      CHROMADB_PORT=8000
+ *   4. Run tests: npm run test:rag
+ * 
+ * Option 2: Mock Database Configuration (For CI/CD)
+ *   1. Set environment variable: USE_MOCK_CHROMADB=true
+ *   2. Run tests: USE_MOCK_CHROMADB=true npm run test:rag
+ *   This option uses an in-memory mock database for testing without
+ *   requiring a full ChromaDB installation.
+ * 
+ * CI/CD Usage:
+ *   The CI pipeline automatically sets USE_MOCK_CHROMADB=true for
+ *   integration tests. See .github/workflows/integration.yml for details.
+ * 
+ * Troubleshooting:
+ *   - If tests fail with "ChromaDB connection failed", ensure ChromaDB
+ *     server is running OR mock mode is enabled
+ *   - Check environment variables are properly set
+ *   - For quick local testing, use: USE_MOCK_CHROMADB=true npm test
+ * 
+ * For more information, see README.md § RAG Integration Tests
+ */
+
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 
