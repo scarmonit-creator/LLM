@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 /**
  * Proxy Server - XX-Net Inspired Obfuscation Proxy
  * Integrated with LLM application for secure API requests
@@ -22,10 +21,8 @@
  *   --no-obfuscation      Disable traffic obfuscation
  *   --no-chrome           Disable Chrome simulation
  */
-
 const ObfuscationProxy = require('./obfuscation-proxy');
 const ProxyConfig = require('./proxy-config');
-const path = require('path');
 const fs = require('fs');
 
 class ProxyServer {
@@ -74,180 +71,170 @@ class ProxyServer {
 
       // Display statistics periodically
       if (this.config.enableLogging) {
-        this.startStatsMonitor();
+        this.startStatsDisplay();
       }
     } catch (error) {
-      console.error('\n❌ Failed to start proxy server:', error);
+      console.error('❌ Failed to start proxy server:', error);
       process.exit(1);
     }
   }
 
   /**
-   * Load configuration from file or use defaults
+   * Load configuration from options and files
    */
   loadConfiguration() {
-    let config;
+    let config = {};
 
-    // Check if preset is specified
-    if (this.options.preset) {
-      console.log(`📋 Using preset configuration: ${this.options.preset}`);
-      config = this.proxyConfig.getPresetConfig(this.options.preset);
-    }
-    // Check if config file is specified
-    else if (this.options.config) {
-      console.log(`📋 Loading configuration from: ${this.options.config}`);
+    // Check for config file
+    if (this.options.config) {
       try {
-        const configFile = fs.readFileSync(this.options.config, 'utf8');
-        const userConfig = JSON.parse(configFile);
-        config = this.proxyConfig.mergeConfig(userConfig);
+        const configContent = fs.readFileSync(this.options.config, 'utf8');
+        config = JSON.parse(configContent);
       } catch (error) {
         console.warn(`⚠️  Failed to load config file: ${error.message}`);
-        console.log('📋 Using default configuration');
-        config = this.proxyConfig.getPlatformConfig();
       }
     }
-    // Use platform-specific defaults
-    else {
-      console.log('📋 Using platform-specific default configuration');
-      config = this.proxyConfig.getPlatformConfig();
+
+    // Apply preset if specified
+    if (this.options.preset) {
+      const preset = this.proxyConfig.getPreset(this.options.preset);
+      if (preset) {
+        config = { ...preset, ...config };
+      }
     }
 
-    // Override with command-line options
-    if (this.options.port) {
-      config.port = parseInt(this.options.port);
-    }
-    if (this.options.host) {
-      config.host = this.options.host;
-    }
-    if (this.options.noObfuscation) {
-      config.obfuscation = { ...config.obfuscation, enabled: false };
-    }
-    if (this.options.noChrome) {
-      config.simulateChrome = false;
-    }
+    // Apply command line options (highest priority)
+    config = {
+      ...config,
+      port: this.options.port || config.port || 8080,
+      host: this.options.host || config.host || '0.0.0.0',
+      obfuscation: {
+        enabled: this.options.obfuscation !== false,
+        ...(config.obfuscation || {}),
+      },
+      simulateChrome: this.options.chrome !== false,
+    };
 
-    // Validate configuration
-    const validation = this.proxyConfig.validateConfig(config);
-    if (!validation.valid) {
-      console.error('\n❌ Invalid configuration:');
-      validation.errors.forEach((err) => console.error(`  • ${err}`));
-      process.exit(1);
-    }
-
-    return config;
+    return this.proxyConfig.validate(config);
   }
 
   /**
-   * Display proxy configuration instructions
+   * Display configuration instructions for different platforms
    */
   displayInstructions() {
-    console.log('\n📖 Configuration Instructions:');
+    console.log('\n📋 Configuration Instructions:');
     console.log('━'.repeat(60));
-    console.log('\n1. Configure your browser or application to use this proxy:');
-    console.log(`   • HTTP Proxy: ${this.config.host}:${this.config.port}`);
-    console.log(`   • HTTPS Proxy: ${this.config.host}:${this.config.port}`);
 
-    console.log('\n2. For system-wide proxy (optional):');
+    // Windows
+    console.log('\n🪟 Windows:');
+    console.log(`   Internet Options → Connections → LAN Settings`);
+    console.log(`   Proxy server: ${this.config.host}:${this.config.port}`);
 
-    switch (process.platform) {
-      case 'win32':
-        console.log('   Windows:');
-        console.log('   • Settings > Network & Internet > Proxy');
-        console.log('   • Set manual proxy: localhost:' + this.config.port);
-        break;
+    // macOS
+    console.log('\n🍎 macOS:');
+    console.log(`   System Preferences → Network → Advanced → Proxies`);
+    console.log(`   Web Proxy (HTTP): ${this.config.host}:${this.config.port}`);
+    console.log(`   Secure Web Proxy (HTTPS): ${this.config.host}:${this.config.port}`);
 
-      case 'darwin':
-        console.log('   macOS:');
-        console.log('   • System Preferences > Network > Advanced > Proxies');
-        console.log('   • Enable Web Proxy (HTTP) and Secure Web Proxy (HTTPS)');
-        console.log('   • Set server: localhost, port: ' + this.config.port);
-        break;
+    // Linux
+    console.log('\n🐧 Linux:');
+    console.log(`   export http_proxy="http://${this.config.host}:${this.config.port}"`);
+    console.log(`   export https_proxy="http://${this.config.host}:${this.config.port}"`);
 
-      case 'linux':
-        console.log('   Linux:');
-        console.log('   • export http_proxy=http://localhost:' + this.config.port);
-        console.log('   • export https_proxy=http://localhost:' + this.config.port);
-        break;
+    // Mobile
+    console.log('\n📱 Mobile (Android/iOS):');
+    console.log(`   WiFi Settings → Proxy → Manual`);
+    console.log(`   Server: ${this.getLocalIP()}`);
+    console.log(`   Port: ${this.config.port}`);
+
+    console.log('\n━'.repeat(60));
+  }
+
+  /**
+   * Get local IP address for mobile configuration
+   */
+  getLocalIP() {
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
+
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        // Skip internal and non-IPv4 addresses
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
+      }
     }
 
-    console.log('\n3. For LLM API integration:');
-    console.log('   • Set HTTP_PROXY and HTTPS_PROXY environment variables');
-    console.log('   • Or configure proxy in your API client');
+    return this.config.host;
+  }
 
-    console.log('\n4. Test the proxy:');
-    console.log('   • curl -x http://localhost:' + this.config.port + ' https://api.openai.com');
-    console.log('━'.repeat(60));
+  /**
+   * Display periodic statistics
+   */
+  startStatsDisplay() {
+    setInterval(() => {
+      const stats = this.proxy.getStats();
+      console.log('\n📊 Proxy Statistics:');
+      console.log(`   Requests: ${stats.totalRequests}`);
+      console.log(`   Active Connections: ${stats.activeConnections}`);
+      console.log(`   Data Transferred: ${this.formatBytes(stats.bytesTransferred)}`);
+      console.log(`   Uptime: ${this.formatUptime(stats.uptime)}`);
+    }, 60000); // Display every minute
+  }
+
+  /**
+   * Format bytes to human readable format
+   */
+  formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  /**
+   * Format uptime to human readable format
+   */
+  formatUptime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours}h ${minutes}m ${secs}s`;
   }
 
   /**
    * Setup signal handlers for graceful shutdown
    */
   setupSignalHandlers() {
-    const shutdown = async (signal) => {
-      console.log(`\n\n⚠️  Received ${signal}, shutting down gracefully...`);
-
+    const shutdown = async () => {
+      console.log('\n\n🛑 Shutting down proxy server...');
       if (this.proxy) {
         await this.proxy.stop();
       }
-
-      console.log('✅ Proxy server stopped successfully');
+      console.log('👋 Proxy server stopped gracefully.');
       process.exit(0);
     };
 
-    process.on('SIGINT', () => shutdown('SIGINT'));
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-  }
-
-  /**
-   * Start statistics monitor
-   */
-  startStatsMonitor() {
-    setInterval(() => {
-      if (this.proxy) {
-        const stats = this.proxy.getStats();
-        console.log('\n📊 Statistics:');
-        console.log(`   • Total Requests: ${stats.requests}`);
-        console.log(`   • Active Connections: ${stats.activeConnections}`);
-        console.log(`   • Bytes Transferred: ${this.formatBytes(stats.bytesTransferred)}`);
-        console.log(`   • Uptime: ${this.formatUptime(stats.uptime)}`);
-      }
-    }, 60000); // Display stats every minute
-  }
-
-  /**
-   * Format bytes for display
-   */
-  formatBytes(bytes) {
-    if (bytes === 0) return '0 Bytes';
-
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
-  /**
-   * Format uptime for display
-   */
-  formatUptime(seconds) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-
-    return `${hours}h ${minutes}m ${secs}s`;
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
   }
 }
 
-// Parse command-line arguments
+/**
+ * Parse command line arguments
+ */
 function parseArgs() {
   const args = process.argv.slice(2);
   const options = {};
 
   for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
+    const arg = args[i];
+
+    switch (arg) {
       case '--port':
-        options.port = args[++i];
+        options.port = parseInt(args[++i], 10);
         break;
       case '--host':
         options.host = args[++i];
@@ -259,14 +246,29 @@ function parseArgs() {
         options.preset = args[++i];
         break;
       case '--no-obfuscation':
-        options.noObfuscation = true;
+        options.obfuscation = false;
         break;
       case '--no-chrome':
-        options.noChrome = true;
+        options.chrome = false;
         break;
       case '--help':
       case '-h':
-        console.log(`
+        displayHelp();
+        process.exit(0);
+        break;
+      default:
+        console.warn(`⚠️  Unknown option: ${arg}`);
+    }
+  }
+
+  return options;
+}
+
+/**
+ * Display help message
+ */
+function displayHelp() {
+  console.log(`
 XX-Net Inspired Obfuscation Proxy Server
 
 Usage: node proxy-server.js [options]
@@ -278,26 +280,31 @@ Options:
   --preset <preset>     Use preset config: stealth, performance, development
   --no-obfuscation      Disable traffic obfuscation
   --no-chrome           Disable Chrome simulation
-  --help, -h            Show this help message
+  --help, -h            Display this help message
 
 Examples:
   node proxy-server.js
-  node proxy-server.js --port 9090
+  node proxy-server.js --port 3128
   node proxy-server.js --preset stealth
-  node proxy-server.js --config ./my-config.json
+  node proxy-server.js --config ./my-config.json --no-chrome
 `);
-        process.exit(0);
-    }
-  }
-
-  return options;
 }
 
-// Main entry point
-if (require.main === module) {
+/**
+ * Main entry point
+ */
+async function main() {
   const options = parseArgs();
   const server = new ProxyServer(options);
-  server.start();
+  await server.start();
+}
+
+// Start server if run directly
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('❌ Fatal error:', error);
+    process.exit(1);
+  });
 }
 
 module.exports = ProxyServer;
