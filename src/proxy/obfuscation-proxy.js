@@ -8,11 +8,11 @@
  * - Cross-device connection support
  */
 
-const http = require('http');
-const https = require('https');
-const net = require('net');
-const crypto = require('crypto');
-const { URL } = require('url');
+import http from 'http';
+import https from 'https';
+import net from 'net';
+import crypto from 'crypto';
+import { URL } from 'url';
 
 class ObfuscationProxy {
   constructor(config = {}) {
@@ -268,4 +268,4 @@ class ObfuscationProxy {
   }
 }
 
-module.exports = ObfuscationProxy;
+export default ObfuscationProxy;

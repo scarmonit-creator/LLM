@@ -4,8 +4,8 @@
  * Inspired by XX-Net's multi-platform support
  */
 
-const os = require('os');
-const path = require('path');
+import os from 'os';
+import path from 'path';
 
 class ProxyConfig {
   constructor() {
@@ -247,4 +247,4 @@ class ProxyConfig {
   }
 }
 
-module.exports = ProxyConfig;
+export default ProxyConfig;

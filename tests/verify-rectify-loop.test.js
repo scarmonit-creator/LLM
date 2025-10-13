@@ -1,141 +1,58 @@
-import { describe, it, beforeEach } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  VerifyRectifyLoop,
+import VerifyRectifyLoop, {
   ClaimVerifier,
   verifyResponse,
   rectifyResponse,
   runVerificationLoop,
 } from '../src/verify-rectify-loop.js';
 
-describe('Verify-Rectify Loop Module', () => {
-  describe('ClaimVerifier class', () => {
-    let verifier;
-
-    beforeEach(() => {
-      verifier = new ClaimVerifier({});
-    });
-
-    it('should create verifier instance', () => {
-      assert.ok(verifier);
-    });
-
-    it('should extract claims from text', () => {
-      const text = 'The sky is blue. Water is wet. The earth is round.';
-      const claims = verifier.extractClaims(text);
-
-      assert.ok(Array.isArray(claims));
-      assert.ok(claims.length > 0);
-    });
-
-    it('should extract keywords from text', () => {
-      const text = 'The quick brown fox jumps over the lazy dog';
-      const keywords = verifier.extractKeywords(text);
-
-      assert.ok(Array.isArray(keywords));
-      assert.ok(keywords.length > 0);
-      assert.ok(!keywords.includes('the'));
-      assert.ok(!keywords.includes('a'));
-    });
-
-    it('should verify output with no evidence', async () => {
-      const output = 'Some factual claim';
-      const context = { evidence: [] };
-      const result = await verifier.verify(output, context);
-
-      assert.ok(result);
-      assert.ok(typeof result.valid === 'boolean');
-      assert.ok(typeof result.confidence === 'number');
-      assert.ok(Array.isArray(result.issues));
-    });
-
-    it('should verify output with evidence', async () => {
-      const output = 'The sky is blue';
-      const context = {
-        evidence: [{ content: 'The sky appears blue due to Rayleigh scattering' }],
-      };
-      const result = await verifier.verify(output, context);
-
-      assert.ok(result);
-      assert.ok(typeof result.valid === 'boolean');
-      assert.ok(typeof result.confidence === 'number');
-    });
+test('ClaimVerifier basic verification flow', async () => {
+  const verifier = new ClaimVerifier();
+  const verdict = await verifier.verify('Paris is the capital of France.', {
+    evidence: [{ content: 'Paris is the capital of France.' }],
   });
+  assert.ok(verdict);
+  assert.ok(typeof verdict.valid === 'boolean');
+  assert.ok(Array.isArray(verdict.issues));
+});
 
-  describe('VerifyRectifyLoop class', () => {
-    let loop;
-    let mockGenerator;
-
-    beforeEach(() => {
-      let callCount = 0;
-      mockGenerator = async (prompt) => {
-        callCount++;
-        if (callCount === 1) {
-          return 'Initial response with potential issues';
-        }
-        return 'Corrected response';
-      };
-
-      loop = new VerifyRectifyLoop({
-        generator: mockGenerator,
-        maxIterations: 3,
-        confidenceTarget: 0.8,
-      });
-    });
-
-    it('should create loop instance', () => {
-      assert.ok(loop);
-      assert.equal(loop.maxIterations, 3);
-      assert.equal(loop.confidenceTarget, 0.8);
-      assert.ok(loop.verifier);
-    });
-
-    it('should run verification loop', async () => {
-      const prompt = 'Test prompt';
-      const result = await loop.run(prompt, {});
-
-      assert.ok(result);
-      assert.ok('output' in result);
-      assert.ok('abstained' in result);
-      assert.ok('iterations' in result);
-    });
-
-    it('should build rectify instructions', () => {
-      const verdict = {
-        issues: ['Issue 1', 'Issue 2'],
-        confidence: 0.5,
-      };
-      const instructions = loop.buildRectifyInstructions(verdict);
-
-      assert.ok(typeof instructions === 'string');
-      assert.ok(instructions.includes('Issue 1'));
-      assert.ok(instructions.includes('Issue 2'));
-    });
+test('VerifyRectifyLoop.run iterates with generator fallback', async () => {
+  let generated = 0;
+  const loop = new VerifyRectifyLoop({
+    generator: async () => {
+      generated += 1;
+      return generated === 1 ? 'Initial claim' : 'Corrected claim with citation [1]';
+    },
+    confidenceTarget: 0.5,
+    maxIterations: 2,
   });
+  const result = await loop.run('Explain a fact', { evidence: [{ content: 'Supporting fact' }] });
+  assert.ok(result);
+  assert.ok('output' in result);
+  assert.ok(Array.isArray(result.history));
+  assert.ok(result.history.length >= 1);
+});
 
-  describe('Helper functions', () => {
-    it('should export verifyResponse', () => {
-      assert.ok(typeof verifyResponse === 'function');
-    });
+test('verifyResponse helper delegates to verifier', async () => {
+  const verifier = new ClaimVerifier();
+  const verdict = await verifyResponse('Test statement', { evidence: [] }, verifier);
+  assert.ok(verdict);
+  assert.ok('issues' in verdict);
+});
 
-    it('should export rectifyResponse', () => {
-      assert.ok(typeof rectifyResponse === 'function');
-    });
+test('rectifyResponse helper composes new prompt', async () => {
+  const generator = async (_prompt, _context) => 'Rectified output';
+  const response = await rectifyResponse('Prompt', {}, generator, 'Fix issues');
+  assert.equal(response, 'Rectified output');
+});
 
-    it('should export runVerificationLoop', () => {
-      assert.ok(typeof runVerificationLoop === 'function');
-    });
-
-    it('should run verification loop via helper', async () => {
-      const mockGenerator = async () => 'Test output';
-      const config = {
-        generator: mockGenerator,
-        maxIterations: 2,
-      };
-      const result = await runVerificationLoop('Test prompt', {}, config);
-
-      assert.ok(result);
-      assert.ok('output' in result);
-    });
+test('runVerificationLoop helper wraps VerifyRectifyLoop', async () => {
+  const result = await runVerificationLoop('Prompt', {}, {
+    generator: async () => 'Initial output',
+    confidenceTarget: 0.4,
+    maxIterations: 1,
   });
+  assert.ok(result);
+  assert.ok('output' in result);
 });

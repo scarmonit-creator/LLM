@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import test from 'node:test';
+import assert from 'node:assert/strict';
 import {
   detectHallucination,
   calculateSemanticEntropy,
@@ -6,139 +7,126 @@ import {
   getHallucinationScore,
 } from '../src/hallucination-detection.js';
 
-describe('Hallucination Detection Module', () => {
-  describe('detectHallucination', () => {
-    it('should detect high confidence responses as non-hallucination', async () => {
-      const response = 'The capital of France is Paris.';
-      const context = 'France is a country in Europe.';
+test('detectHallucination identifies high confidence responses', async () => {
+  const response = 'The capital of France is Paris.';
+  const context = 'France is a country in Europe.';
 
-      const result = await detectHallucination(response, context);
+  const result = await detectHallucination(response, context);
 
-      expect(result).toBeDefined();
-      expect(result.isHallucination).toBe(false);
-      expect(result.confidence).toBeGreaterThan(0.7);
-    });
+  assert.ok(result);
+  assert.equal(result.isHallucination, false);
+  assert.ok(result.confidence > 0.7);
+});
 
-    it('should detect low confidence responses as potential hallucination', async () => {
-      const response = 'The capital of Mars is New York.';
-      const context = 'Mars is a planet.';
+test('detectHallucination flags low confidence responses', async () => {
+  const response = 'The capital of Mars is New York.';
+  const context = 'Mars is a planet.';
 
-      const result = await detectHallucination(response, context);
+  const result = await detectHallucination(response, context);
 
-      expect(result).toBeDefined();
-      expect(result.isHallucination).toBe(true);
-      expect(result.confidence).toBeLessThan(0.5);
-    });
+  assert.ok(result);
+  assert.equal(result.isHallucination, true);
+  assert.ok(result.confidence < 0.5);
+});
 
-    it('should handle empty responses gracefully', async () => {
-      const response = '';
-      const context = 'Some context';
+test('detectHallucination handles empty responses', async () => {
+  const response = '';
+  const context = 'Some context';
 
-      const result = await detectHallucination(response, context);
+  const result = await detectHallucination(response, context);
 
-      expect(result).toBeDefined();
-      expect(result.isHallucination).toBe(true);
-    });
-  });
+  assert.ok(result);
+  assert.equal(result.isHallucination, true);
+});
 
-  describe('calculateSemanticEntropy', () => {
-    it('should calculate entropy for consistent responses', async () => {
-      const responses = [
-        'Paris is the capital of France',
-        'The capital of France is Paris',
-        'Paris, the capital city of France',
-      ];
+test('calculateSemanticEntropy returns low entropy for consistent responses', async () => {
+  const responses = [
+    'Paris is the capital of France',
+    'The capital of France is Paris',
+    'Paris, the capital city of France',
+  ];
 
-      const entropy = await calculateSemanticEntropy(responses);
+  const entropy = await calculateSemanticEntropy(responses);
 
-      expect(entropy).toBeDefined();
-      expect(entropy).toBeGreaterThanOrEqual(0);
-      expect(entropy).toBeLessThan(1);
-    });
+  assert.ok(entropy >= 0);
+  assert.ok(entropy < 1);
+});
 
-    it('should calculate higher entropy for inconsistent responses', async () => {
-      const responses = ['Paris is the capital', 'London is the capital', 'Berlin is the capital'];
+test('calculateSemanticEntropy returns high entropy for inconsistent responses', async () => {
+  const responses = ['Paris is the capital', 'London is the capital', 'Berlin is the capital'];
 
-      const entropy = await calculateSemanticEntropy(responses);
+  const entropy = await calculateSemanticEntropy(responses);
 
-      expect(entropy).toBeDefined();
-      expect(entropy).toBeGreaterThan(0.5);
-    });
+  assert.ok(entropy);
+  assert.ok(entropy > 0.5);
+});
 
-    it('should handle single response', async () => {
-      const responses = ['Single response'];
+test('calculateSemanticEntropy handles single response', async () => {
+  const responses = ['Single response'];
 
-      const entropy = await calculateSemanticEntropy(responses);
+  const entropy = await calculateSemanticEntropy(responses);
 
-      expect(entropy).toBeDefined();
-      expect(entropy).toBe(0);
-    });
-  });
+  assert.ok(typeof entropy === 'number');
+  assert.equal(entropy, 0);
+});
 
-  describe('performSelfCheckGPT', () => {
-    it('should perform self-check on generated response', async () => {
-      const response = 'The Earth orbits around the Sun.';
-      const samples = [
-        'Earth revolves around the Sun',
-        'The Sun is at the center with Earth orbiting it',
-        'Earth has an orbital path around the Sun',
-      ];
+test('performSelfCheckGPT validates consistent samples', async () => {
+  const response = 'The Earth orbits around the Sun.';
+  const samples = [
+    'Earth revolves around the Sun',
+    'The Sun is at the center with Earth orbiting it',
+    'Earth has an orbital path around the Sun',
+  ];
 
-      const result = await performSelfCheckGPT(response, samples);
+  const result = await performSelfCheckGPT(response, samples);
 
-      expect(result).toBeDefined();
-      expect(result.consistency).toBeGreaterThan(0.7);
-      expect(result.isReliable).toBe(true);
-    });
+  assert.ok(result);
+  assert.ok(result.consistency > 0.7);
+  assert.equal(result.isReliable, true);
+});
 
-    it('should detect inconsistent samples', async () => {
-      const response = 'The Earth is flat.';
-      const samples = [
-        'The Earth is spherical',
-        'Earth is round like a ball',
-        'The planet Earth has a spherical shape',
-      ];
+test('performSelfCheckGPT detects inconsistent samples', async () => {
+  const response = 'The Earth is flat.';
+  const samples = [
+    'The Earth is spherical',
+    'Earth is round like a ball',
+    'The planet Earth has a spherical shape',
+  ];
 
-      const result = await performSelfCheckGPT(response, samples);
+  const result = await performSelfCheckGPT(response, samples);
 
-      expect(result).toBeDefined();
-      expect(result.consistency).toBeLessThan(0.5);
-      expect(result.isReliable).toBe(false);
-    });
-  });
+  assert.ok(result);
+  assert.ok(result.consistency < 0.5);
+  assert.equal(result.isReliable, false);
+});
 
-  describe('getHallucinationScore', () => {
-    it('should return a valid hallucination score', async () => {
-      const response = 'Test response';
-      const context = 'Test context';
+test('getHallucinationScore returns valid score', async () => {
+  const response = 'Test response';
+  const context = 'Test context';
 
-      const score = await getHallucinationScore(response, context);
+  const score = await getHallucinationScore(response, context);
 
-      expect(score).toBeDefined();
-      expect(score).toBeGreaterThanOrEqual(0);
-      expect(score).toBeLessThanOrEqual(1);
-    });
+  assert.ok(typeof score === 'number');
+  assert.ok(score >= 0);
+  assert.ok(score <= 1);
+});
 
-    it('should return high score for likely hallucinations', async () => {
-      const response = 'Completely made up information';
-      const context = 'Real factual context';
+test('getHallucinationScore returns high score for likely hallucinations', async () => {
+  const response = 'Completely made up information';
+  const context = 'Real factual context';
 
-      const score = await getHallucinationScore(response, context);
+  const score = await getHallucinationScore(response, context);
 
-      expect(score).toBeGreaterThan(0.5);
-    });
-  });
+  assert.ok(score > 0.5);
+});
 
-  describe('Integration tests', () => {
-    it('should handle complete hallucination detection workflow', async () => {
-      const response = 'The Eiffel Tower is in Paris, France.';
-      const context = 'Paris is the capital of France and home to many landmarks.';
+test('hallucination detection workflow integrates all functions', async () => {
+  const response = 'The Eiffel Tower is in Paris, France.';
+  const context = 'Paris is the capital of France and home to many landmarks.';
 
-      const detection = await detectHallucination(response, context);
-      const score = await getHallucinationScore(response, context);
+  const detection = await detectHallucination(response, context);
+  const score = await getHallucinationScore(response, context);
 
-      expect(detection.isHallucination).toBe(false);
-      expect(score).toBeLessThan(0.5);
-    });
-  });
+  assert.equal(detection.isHallucination, false);
+  assert.ok(score < 0.5);
 });

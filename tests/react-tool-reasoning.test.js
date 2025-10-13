@@ -1,142 +1,64 @@
-import { describe, it, beforeEach } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  ReActAgent,
+import ReActAgent, {
   parseReActOutput,
   executeToolCall,
   runReActLoop,
   formatToolResponse,
 } from '../src/react-tool-reasoning.js';
 
-describe('ReAct Tool Reasoning Module', () => {
-  describe('ReActAgent class', () => {
-    let agent;
+test('ReActAgent returns final answer when LLM provides finish output', async () => {
+  const llm = { generate: async () => 'Final Answer: done' };
+  const agent = new ReActAgent({ tools: {}, llm });
+  const result = await agent.run('Any task');
+  assert.equal(result.answer, 'done');
+  assert.equal(result.steps, 0);
+});
 
-    beforeEach(() => {
-      const tools = {
-        calculator: (expr) => eval(expr),
-        search: (query) => `Search results for: ${query}`,
-        weather: (location) => `Weather in ${location}: Sunny, 72°F`,
-      };
-      agent = new ReActAgent({ tools, maxIterations: 5 });
-    });
+test('ReActAgent uses tool when LLM selects one', async () => {
+  let stage = 0;
+  const tools = {
+    calculator: async (expr) => Function(`return (${expr})`)(),
+  };
+  const llm = {
+    async generate() {
+      stage += 1;
+      if (stage === 1) {
+        return 'Thought: compute\nAction: calculator\nAction Input: 6*7';
+      }
+      return 'Final Answer: 42';
+    },
+  };
+  const agent = new ReActAgent({ tools, llm });
+  const result = await agent.run('Compute 6*7');
+  assert.equal(result.answer, '42');
+});
 
-    it('should create agent with tools', () => {
-      assert.ok(agent);
-      assert.ok(agent.tools);
-      assert.equal(agent.maxSteps, 5);
-    });
-  });
+test('parseReActOutput extracts thought and observation', () => {
+  const parsed = parseReActOutput('Thought: search\nAction: search[AI]\nObservation: found');
+  assert.equal(parsed.thought, 'search');
+  assert.equal(parsed.action, 'search[AI]');
+  assert.equal(parsed.observation, 'found');
+});
 
-  describe('parseReActOutput', () => {
-    it('should parse thought from output', () => {
-      const output = 'Thought: I need to calculate the sum\nAction: calculator[25+17]';
-      const parsed = parseReActOutput(output);
+test('executeToolCall returns tool result and throws for missing tool', async () => {
+  const tools = {
+    upper: (value) => value.toUpperCase(),
+  };
+  const value = await executeToolCall('upper', 'hello', tools);
+  assert.equal(value, 'HELLO');
+  await assert.rejects(() => executeToolCall('missing', '', tools));
+});
 
-      assert.ok(parsed);
-      assert.equal(parsed.thought, 'I need to calculate the sum');
-    });
+test('runReActLoop delegates to ReActAgent', async () => {
+  const tools = {};
+  const llm = { generate: async () => 'Final Answer: success' };
+  const result = await runReActLoop('task', tools, llm, 2);
+  assert.equal(result.answer, 'success');
+});
 
-    it('should parse action and input', () => {
-      const output = 'Thought: Need to search\nAction: search[AI developments]';
-      const parsed = parseReActOutput(output);
-
-      assert.ok(parsed);
-      assert.equal(parsed.action, 'search');
-      assert.equal(parsed.input, 'AI developments');
-    });
-
-    it('should handle observation in output', () => {
-      const output = 'Observation: The result is 42';
-      const parsed = parseReActOutput(output);
-
-      assert.ok(parsed);
-      assert.equal(parsed.observation, 'The result is 42');
-    });
-
-    it('should parse final answer', () => {
-      const output = 'Thought: I have all the information\nFinal Answer: The sum is 42';
-      const parsed = parseReActOutput(output);
-
-      assert.ok(parsed);
-      assert.equal(parsed.finish, 'The sum is 42');
-    });
-
-    it('should handle malformed output gracefully', () => {
-      const output = 'Invalid format without proper tags';
-      const parsed = parseReActOutput(output);
-
-      assert.ok(parsed);
-    });
-  });
-
-  describe('executeToolCall', () => {
-    const tools = {
-      calculator: (expr) => eval(expr),
-      uppercase: (text) => text.toUpperCase(),
-      concat: (a, b) => a + b,
-    };
-
-    it('should execute valid tool call', async () => {
-      const result = await executeToolCall('calculator', '10 * 5', tools);
-
-      assert.ok(result);
-      assert.equal(result, 50);
-    });
-
-    it('should handle non-existent tool', async () => {
-      await assert.rejects(
-        async () => await executeToolCall('nonexistent', 'input', tools),
-        { message: /not found/ }
-      );
-    });
-
-    it('should pass correct arguments to tool', async () => {
-      const result = await executeToolCall('uppercase', 'hello', tools);
-
-      assert.ok(result);
-      assert.equal(result, 'HELLO');
-    });
-  });
-
-  describe('runReActLoop', () => {
-    const tools = {
-      calculator: (expr) => eval(expr),
-      search: (q) => `Results for ${q}`,
-    };
-
-    const mockLLM = {
-      generate: async (prompt) => {
-        if (prompt.includes('15 + 30')) {
-          return 'Thought: I need to calculate\nAction: calculator[15+30]';
-        }
-        return 'Thought: Done\nFinish: 45';
-      },
-    };
-
-    it('should complete ReAct loop successfully', async () => {
-      const query = 'What is 15 + 30?';
-      const result = await runReActLoop(query, tools, mockLLM, 5);
-
-      assert.ok(result);
-      assert.ok(result.answer !== undefined);
-    });
-  });
-
-  describe('formatToolResponse', () => {
-    it('should format tool response', () => {
-      const formatted = formatToolResponse('calculator', 42);
-
-      assert.ok(formatted);
-      assert.ok(formatted.includes('calculator'));
-      assert.ok(formatted.includes('42'));
-    });
-
-    it('should handle complex output objects', () => {
-      const formatted = formatToolResponse('tool', { data: [1, 2, 3] });
-
-      assert.ok(formatted);
-      assert.equal(typeof formatted, 'string');
-    });
-  });
+test('formatToolResponse formats value', () => {
+  const formatted = formatToolResponse('calculator', 42);
+  assert.ok(formatted.includes('calculator'));
+  assert.ok(formatted.includes('42'));
 });

@@ -5,7 +5,7 @@
  * Verification module that checks claims against retrieved evidence
  */
 class ClaimVerifier {
-  constructor({ ragPipeline, hallucinationDetector }) {
+  constructor({ ragPipeline, hallucinationDetector } = {}) {
     this.ragPipeline = ragPipeline;
     this.hallucinationDetector = hallucinationDetector;
   }
