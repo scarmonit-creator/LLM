@@ -1,4 +1,10 @@
-# LLM Application
+#!/usr/bin/env python3
+"""
+Generate comprehensive README.md for LLM Application
+This script creates a fully documented README with all sections, examples, and tables.
+"""
+
+readme_content = """# LLM Application
 
 > A powerful Node.js workspace that connects Anthropic Claude, Google Jules, Ollama, and local tooling for advanced LLM interactions, RAG capabilities, and autonomous browser history analysis.
 
@@ -342,3 +348,30 @@ MIT
 ---
 
 **Built with Node.js, TypeScript, and AI**
+"""
+
+if __name__ == "__main__":
+    import os
+
+    readme_path = "README.md"
+    backup_path = "README.md.old"
+
+    # Backup existing README
+    if os.path.exists(readme_path):
+        if os.path.exists(backup_path):
+            os.remove(backup_path)
+        os.rename(readme_path, backup_path)
+        print(f"✓ Backed up existing README to {backup_path}")
+
+    # Write new README
+    with open(readme_path, 'w', encoding='utf-8') as f:
+        f.write(readme_content)
+
+    # Get file size
+    size = os.path.getsize(readme_path)
+    lines = readme_content.count('\n')
+
+    print(f"✓ Generated new README.md")
+    print(f"  - Lines: {lines}")
+    print(f"  - Size: {size:,} bytes ({size/1024:.1f}K)")
+    print(f"\nTo revert: mv {backup_path} {readme_path}")
