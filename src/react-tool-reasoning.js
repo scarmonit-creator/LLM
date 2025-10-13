@@ -1,6 +1,5 @@
 // ReAct-style reasoning with tool use capabilities
 // Addresses Issue #18
-
 class ReActAgent {
   constructor({ tools = {}, llm }) {
     this.tools = tools; // { name: async (input)=>string }
@@ -62,70 +61,43 @@ class ReActAgent {
     const toolMatch = text.match(/Action:\s*(.*)\nAction Input:\s*([\s\S]*)$/i);
     const thoughtMatch = text.match(/Thought:\s*([\s\S]*?)\nAction:/i);
 
-    if (toolMatch) {
-      return {
-        tool: toolMatch[1].trim(),
-        input: toolMatch[2].trim(),
-        thought: thoughtMatch?.[1]?.trim(),
-      };
-    }
-
-    return {};
+    return {
+      tool: toolMatch ? toolMatch[1].trim() : null,
+      input: toolMatch ? toolMatch[2].trim() : null,
+      thought: thoughtMatch ? thoughtMatch[1].trim() : null,
+    };
   }
 }
 
-module.exports = ReActAgent;
+export default ReActAgent;
 
-// Export wrapper functions for test compatibility
-module.exports.ReActAgent = ReActAgent;
+// Named exports for test compatibility
+export { ReActAgent };
 
-module.exports.parseReActOutput = (output) => {
-  const thought = output.match(/Thought:\s*([^\n]+)/);
-  const action = output.match(/Action:\s*([^\[]+)/);
-  const actionInput = output.match(/Action:\s*[^\[]+\[([^\]]+)\]/);
-  const observation = output.match(/Observation:\s*([^\n]+)/);
-  const finalAnswer = output.match(/Final Answer:\s*(.*)$/);
-
+export const parseReActOutput = (text) => {
+  const thoughtMatch = text.match(/Thought:\s*(.*)/);
+  const actionMatch = text.match(/Action:\s*(.*)/);
+  const observationMatch = text.match(/Observation:\s*(.*)/);
   return {
-    thought: thought ? thought[1].trim() : '',
-    action: action ? action[1].trim() : '',
-    actionInput: actionInput ? actionInput[1].trim() : '',
-    observation: observation ? observation[1].trim() : '',
-    finalAnswer: finalAnswer ? finalAnswer[1].trim() : '',
+    thought: thoughtMatch ? thoughtMatch[1].trim() : null,
+    action: actionMatch ? actionMatch[1].trim() : null,
+    observation: observationMatch ? observationMatch[1].trim() : null,
   };
 };
 
-module.exports.executeToolCall = async (_tool, _input, tools) => {
-  if (!tools[_tool]) {
-    return { success: false, error: `Tool ${_tool} not found` };
+export const executeToolCall = async (toolName, toolInput, availableTools) => {
+  if (!availableTools[toolName]) {
+    throw new Error(`Tool ${toolName} not found`);
   }
-  try {
-    const output = await tools[_tool](_input);
-    return { success: true, output };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
+  return await availableTools[toolName](toolInput);
 };
 
-module.exports.runReActLoop = async (_query, tools, options = {}) => {
-  const maxIterations = options.maxIterations || 5;
-  const steps = [];
-
-  for (let i = 0; i < maxIterations; i++) {
-    steps.push({ iteration: i + 1, thought: 'Processing', action: 'thinking' });
-  }
-
-  return {
-    finalAnswer: '42',
-    success: true,
-    steps,
-    reasoningTrace: steps,
-  };
+export const runReActLoop = async (task, tools, llm, maxSteps = 5) => {
+  const agent = new ReActAgent({ tools, llm });
+  agent.maxSteps = maxSteps;
+  return await agent.run(task);
 };
 
-module.exports.formatToolResponse = (response) => {
-  if (response.success) {
-    return `Success: ${JSON.stringify(response.output)}`;
-  }
-  return `Error: ${response.error}`;
+export const formatToolResponse = (toolName, result) => {
+  return `Tool ${toolName} returned: ${JSON.stringify(result)}`;
 };
