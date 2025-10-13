@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createBridgeServer } from '../src/claude-bridge.js';
+import { createAIBridgeServer } from '../src/ai-bridge.js';
 import WebSocket from 'ws';
 
 /**
@@ -11,7 +11,7 @@ async function demo() {
   console.log('🌉 Starting AI Bridge Demo - Multi-LLM Communication\n');
 
   // Start the bridge server
-  const server = await createBridgeServer({
+  const server = await createAIBridgeServer({
     wsPort: 0, // random port
     httpPort: 0,
   });
@@ -31,9 +31,10 @@ async function demo() {
     ws.on('message', (data) => {
       const msg = JSON.parse(data.toString());
       if (msg.type === 'registered') {
-        console.log(`✓ ${id} connected (total clients: ${msg.connectedClients.length})`);
-      } else if (msg.message) {
-        console.log(`📨 ${id} received from ${msg.from}: "${msg.message}"`);
+        console.log(`✓ ${id} connected as ${msg.client.role}`);
+      } else if (msg.type === 'envelope') {
+        const text = msg.envelope.payload?.text || JSON.stringify(msg.envelope.payload);
+        console.log(`📨 ${id} received from ${msg.envelope.from}: "${text}"`);
       }
     });
 
@@ -50,8 +51,11 @@ async function demo() {
   await new Promise((resolve) => setTimeout(resolve, 500));
   clients[0].ws.send(
     JSON.stringify({
-      type: 'message',
-      message: 'Claude here: Starting code analysis on auth module.',
+      type: 'envelope',
+      envelope: {
+        intent: 'agent.message',
+        payload: { text: 'Claude here: Starting code analysis on auth module.' },
+      },
     })
   );
 
@@ -59,9 +63,12 @@ async function demo() {
   await new Promise((resolve) => setTimeout(resolve, 500));
   clients[1].ws.send(
     JSON.stringify({
-      type: 'message',
-      to: 'ollama-local',
-      message: 'Gemini to Ollama: Can you validate the code patterns locally?',
+      type: 'envelope',
+      envelope: {
+        intent: 'agent.message',
+        to: 'ollama-local',
+        payload: { text: 'Gemini to Ollama: Can you validate the code patterns locally?' },
+      },
     })
   );
 
@@ -69,8 +76,11 @@ async function demo() {
   await new Promise((resolve) => setTimeout(resolve, 500));
   clients[2].ws.send(
     JSON.stringify({
-      type: 'message',
-      message: 'Ollama: Pattern validation complete. Factory method detected.',
+      type: 'envelope',
+      envelope: {
+        intent: 'agent.message',
+        payload: { text: 'Ollama: Pattern validation complete. Factory method detected.' },
+      },
     })
   );
 
@@ -78,8 +88,11 @@ async function demo() {
   await new Promise((resolve) => setTimeout(resolve, 500));
   clients[3].ws.send(
     JSON.stringify({
-      type: 'message',
-      message: 'Perplexity: Found 3 best practices for this pattern in recent literature.',
+      type: 'envelope',
+      envelope: {
+        intent: 'agent.message',
+        payload: { text: 'Perplexity: Found 3 best practices for this pattern in recent literature.' },
+      },
     })
   );
 
@@ -88,19 +101,20 @@ async function demo() {
   console.log('\n--- HTTP API Status ---\n');
 
   const health = await fetch(`http://localhost:${server.ports.http}/health`).then((r) => r.json());
-  console.log(`✓ Health: ${health.status}, ${health.clients} clients connected`);
+  console.log(`✓ Health: ${health.status}, ${health.connectedClients} clients connected`);
 
-  const clientList = await fetch(`http://localhost:${server.ports.http}/clients`).then((r) =>
+  const agentList = await fetch(`http://localhost:${server.ports.http}/agents`).then((r) =>
     r.json()
   );
-  console.log(`✓ Connected clients: ${clientList.clients.join(', ')}`);
+  console.log(`✓ Connected agents: ${agentList.agents.map((a) => a.id).join(', ')}`);
 
   const history = await fetch(`http://localhost:${server.ports.http}/history?limit=5`).then((r) =>
     r.json()
   );
   console.log(`✓ Message history (last ${history.history.length}):`);
-  history.history.forEach((msg) => {
-    console.log(`  - [${msg.timestamp}] ${msg.from}: "${msg.message.substring(0, 40)}..."`);
+  history.history.forEach((env) => {
+    const text = env.payload?.text || JSON.stringify(env.payload).substring(0, 40);
+    console.log(`  - [${env.timestamp}] ${env.from}: "${text}..."`);
   });
 
   // Cleanup
