@@ -6,7 +6,7 @@
  * - Strict citation enforcement
  * - RAGAS-based faithfulness and relevancy metrics
  * - Confidence-based abstention
- * 
+ *
  * Addresses Issue #15: RAG implementation for hallucination mitigation
  */
 
@@ -23,9 +23,9 @@ class RAGPipeline {
       minConfidence: config.minConfidence || 0.7,
       maxTokens: config.maxTokens || 4000,
       citationRequired: config.citationRequired !== false,
-      ...config
+      ...config,
     };
-    
+
     this.client = null;
     this.collection = null;
     this.embeddingFunction = null;
@@ -38,26 +38,26 @@ class RAGPipeline {
     try {
       // Initialize ChromaDB client
       this.client = new ChromaClient({
-        path: this.config.vectorDBPath
+        path: this.config.vectorDBPath,
       });
 
       // Initialize OpenAI embedding function
       this.embeddingFunction = new OpenAIEmbeddingFunction({
         model: this.config.embeddingModel,
-        apiKey: process.env.OPENAI_API_KEY
+        apiKey: process.env.OPENAI_API_KEY,
       });
 
       // Get or create collection
       try {
         this.collection = await this.client.getCollection({
           name: this.config.collectionName,
-          embeddingFunction: this.embeddingFunction
+          embeddingFunction: this.embeddingFunction,
         });
       } catch (error) {
         this.collection = await this.client.createCollection({
           name: this.config.collectionName,
           embeddingFunction: this.embeddingFunction,
-          metadata: { description: 'RAG document store' }
+          metadata: { description: 'RAG document store' },
         });
       }
 
@@ -79,14 +79,14 @@ class RAGPipeline {
     }
 
     try {
-      const ids = documents.map(doc => doc.id || `doc_${Date.now()}_${Math.random()}`);
-      const texts = documents.map(doc => doc.text);
-      const metadatas = documents.map(doc => doc.metadata || {});
+      const ids = documents.map((doc) => doc.id || `doc_${Date.now()}_${Math.random()}`);
+      const texts = documents.map((doc) => doc.text);
+      const metadatas = documents.map((doc) => doc.metadata || {});
 
       await this.collection.add({
         ids,
         documents: texts,
-        metadatas
+        metadatas,
       });
 
       console.log(`Indexed ${documents.length} documents`);
@@ -112,7 +112,7 @@ class RAGPipeline {
       const k = topK || this.config.topK;
       const results = await this.collection.query({
         queryTexts: [query],
-        nResults: k
+        nResults: k,
       });
 
       // Format results
@@ -124,7 +124,7 @@ class RAGPipeline {
             text: results.documents[0][i],
             metadata: results.metadatas[0][i],
             distance: results.distances[0][i],
-            relevanceScore: 1 - (results.distances[0][i] || 0)
+            relevanceScore: 1 - (results.distances[0][i] || 0),
           });
         }
       }
@@ -132,7 +132,7 @@ class RAGPipeline {
       return {
         query,
         documents,
-        count: documents.length
+        count: documents.length,
       };
     } catch (error) {
       console.error('Failed to retrieve documents:', error);
@@ -148,7 +148,7 @@ class RAGPipeline {
    */
   buildAugmentedPrompt(query, documents) {
     let context = '';
-    
+
     if (documents && documents.length > 0) {
       context = '\n\nRelevant Context (cite these sources in your response):\n';
       documents.forEach((doc, idx) => {
@@ -185,22 +185,28 @@ class RAGPipeline {
     }
 
     // Extract claims from answer (simplified: split by sentences)
-    const claims = answer.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const claims = answer.split(/[.!?]+/).filter((s) => s.trim().length > 10);
     if (claims.length === 0) return 0;
 
     // Count how many claims have citation markers
-    const citedClaims = claims.filter(claim => /\[\d+\]/.test(claim));
-    
+    const citedClaims = claims.filter((claim) => /\[\d+\]/.test(claim));
+
     // Check if claims can be verified in context
-    const contextText = documents.map(d => d.text).join(' ').toLowerCase();
+    const contextText = documents
+      .map((d) => d.text)
+      .join(' ')
+      .toLowerCase();
     let supportedClaims = 0;
-    
-    claims.forEach(claim => {
-      const cleanClaim = claim.toLowerCase().replace(/\[\d+\]/g, '').trim();
+
+    claims.forEach((claim) => {
+      const cleanClaim = claim
+        .toLowerCase()
+        .replace(/\[\d+\]/g, '')
+        .trim();
       // Simple keyword overlap check (in production, use semantic similarity)
-      const keywords = cleanClaim.split(/\s+/).filter(w => w.length > 4);
-      const matchedKeywords = keywords.filter(kw => contextText.includes(kw));
-      
+      const keywords = cleanClaim.split(/\s+/).filter((w) => w.length > 4);
+      const matchedKeywords = keywords.filter((kw) => contextText.includes(kw));
+
       if (matchedKeywords.length >= keywords.length * 0.5) {
         supportedClaims++;
       }
@@ -220,12 +226,15 @@ class RAGPipeline {
   calculateRelevancy(query, answer) {
     if (!query || !answer) return 0;
 
-    const queryTokens = query.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const queryTokens = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 3);
     const answerTokens = answer.toLowerCase().split(/\s+/);
-    
+
     let matchedTokens = 0;
-    queryTokens.forEach(qt => {
-      if (answerTokens.some(at => at.includes(qt) || qt.includes(at))) {
+    queryTokens.forEach((qt) => {
+      if (answerTokens.some((at) => at.includes(qt) || qt.includes(at))) {
         matchedTokens++;
       }
     });
@@ -243,17 +252,17 @@ class RAGPipeline {
     if (!samples || samples.length < 2) return 0;
 
     // Count unique semantic clusters (simplified: exact match)
-    const uniqueAnswers = new Set(samples.map(s => s.trim().toLowerCase()));
+    const uniqueAnswers = new Set(samples.map((s) => s.trim().toLowerCase()));
     const probabilities = [];
-    
-    uniqueAnswers.forEach(answer => {
-      const count = samples.filter(s => s.trim().toLowerCase() === answer).length;
+
+    uniqueAnswers.forEach((answer) => {
+      const count = samples.filter((s) => s.trim().toLowerCase() === answer).length;
       probabilities.push(count / samples.length);
     });
 
     // Calculate Shannon entropy
     const entropy = probabilities.reduce((sum, p) => {
-      return sum - (p * Math.log2(p));
+      return sum - p * Math.log2(p);
     }, 0);
 
     return entropy;
@@ -274,53 +283,53 @@ class RAGPipeline {
     try {
       // 1. Retrieve relevant documents
       const retrieval = await this.retrieve(query, options.topK);
-      
+
       // 2. Build augmented prompt
       const augmentedPrompt = this.buildAugmentedPrompt(query, retrieval.documents);
-      
+
       // 3. Generate response(s)
       const numSamples = options.numSamples || 1;
       const samples = [];
-      
+
       for (let i = 0; i < numSamples; i++) {
         const response = await generateFn(augmentedPrompt, {
           temperature: options.temperature || 0.7,
-          maxTokens: options.maxTokens || 500
+          maxTokens: options.maxTokens || 500,
         });
         samples.push(response);
       }
-      
+
       const answer = samples[0];
-      
+
       // 4. Calculate metrics
       const faithfulness = this.calculateFaithfulness(answer, retrieval.documents);
       const relevancy = this.calculateRelevancy(query, answer);
       const semanticEntropy = numSamples > 1 ? this.calculateSemanticEntropy(samples) : 0;
-      
+
       // 5. Determine confidence and abstention
       const confidence = (faithfulness + relevancy) / 2;
-      const shouldAbstain = confidence < this.config.minConfidence || 
-                           (numSamples > 1 && semanticEntropy > 1.5);
-      
+      const shouldAbstain =
+        confidence < this.config.minConfidence || (numSamples > 1 && semanticEntropy > 1.5);
+
       // 6. Return result
       return {
         query,
-        answer: shouldAbstain ? 
-          "I don't have enough information to answer this question confidently. The available context may be insufficient or unclear." : 
-          answer,
+        answer: shouldAbstain
+          ? "I don't have enough information to answer this question confidently. The available context may be insufficient or unclear."
+          : answer,
         retrievedDocuments: retrieval.documents,
         metrics: {
           faithfulness: faithfulness.toFixed(3),
           relevancy: relevancy.toFixed(3),
           semanticEntropy: semanticEntropy.toFixed(3),
-          confidence: confidence.toFixed(3)
+          confidence: confidence.toFixed(3),
         },
         abstained: shouldAbstain,
         metadata: {
           numRetrieved: retrieval.count,
           numSamples,
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       };
     } catch (error) {
       console.error('RAG pipeline processing error:', error);
