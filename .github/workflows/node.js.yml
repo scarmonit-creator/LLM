@@ -5,14 +5,12 @@ permissions:
   contents: write
   id-token: write
   attestations: write
-
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -75,13 +73,14 @@ jobs:
         retention-days: 5
         if-no-files-found: warn
     
-    - name: Attest build provenance
-      if: matrix.node-version == '20.x'
-      uses: actions/attest-build-provenance@v3
-      with:
-        subject-path: |
-          dist/**
-          build/**
+    # Temporarily disabled - project doesn't produce dist/build artifacts yet
+    # - name: Attest build provenance
+    #   if: matrix.node-version == '20.x'
+    #   uses: actions/attest-build-provenance@v3
+    #   with:
+    #     subject-path: |
+    #       dist/**
+    #       build/**
     
     - name: Commit and push autofix changes
       if: github.event_name == 'push' && matrix.node-version == '20.x'
