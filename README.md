@@ -8,6 +8,7 @@ A Node.js application integrating Anthropic Claude and Google Jules APIs for adv
 - **Streaming Support**: Real-time streaming responses from Claude
 - **Multi-turn Conversations**: Context-aware dialogue
 - **Environment Configuration**: Flexible setup via environment variables
+- **Dual-Provider Chat Launcher**: Switch between Claude or Ollama from an interactive CLI or packaged Windows executable
 - **Jules Ready**: Pre-configured for Jules virtual machine environment
 - **RAG Integration**: Retrieval-Augmented Generation with ChromaDB support
 
@@ -51,6 +52,28 @@ Development mode with auto-reload:
 ```bash
 npm run dev
 ```
+
+Launch the interactive Claude/Ollama chat experience:
+```bash
+npm run chat
+```
+
+### Interactive Chat Launcher
+
+- `:help` — list all available commands
+- `:use <provider>` — switch between `claude` and `ollama`
+- `:clear` — reset the current conversation context
+- `:providers` — show configured providers and readiness
+- `:quit` — exit the chat launcher
+
+The launcher auto-selects the first provider with working credentials. Configure Claude with `ANTHROPIC_API_KEY` (and optionally `CLAUDE_MODEL`, `CLAUDE_TEMPERATURE`, `CLAUDE_MAX_TOKENS`, `CLAUDE_SYSTEM_PROMPT`). For Ollama, set `OLLAMA_API_BASE`, `OLLAMA_MODEL`, `OLLAMA_TEMPERATURE`, `OLLAMA_MAX_TOKENS`, and optionally `OLLAMA_API_KEY` for hosted access.
+
+Build the Windows desktop executable:
+```bash
+npm run build:chat-exe
+```
+
+Place a `.env` next to `release/LLMChat.exe` (or set global environment variables) so the launcher can authenticate to Claude or Ollama.
 
 ## RAG Integration Tests
 
