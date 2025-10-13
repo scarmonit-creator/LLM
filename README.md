@@ -13,6 +13,7 @@
 - **Claude Integration**: Streaming responses, multi-turn conversations, and configurable Claude Sonnet 4.5 access
 - **Jules API Client**: Repository analysis, automated coding sessions, and code generation workflows
 - **Dual-Provider Chat**: Interactive CLI launcher with hot-swappable Claude/Ollama providers
+- **AI Bridge**: Real-time WebSocket hub for coordinating multiple LLM sessions (Claude, Codex, Gemini, Perplexity, Ollama) without copy/paste
 - **RAG Pipeline**: Retrieval-Augmented Generation with ChromaDB vector store integration
 - **Browser History**: Autonomous access to Chrome, Firefox, Edge, Safari, Opera, and Brave history
 - **A2A Protocol**: Agent-to-Agent communication via Model Context Protocol (MCP)
@@ -33,6 +34,7 @@
   - [Core Scripts](#core-scripts)
   - [Development Commands](#development-commands)
   - [Chat Launcher](#chat-launcher)
+  - [AI Bridge](#ai-bridge)
 - [Testing](#testing)
 - [Browser History](#browser-history)
 - [API Reference](#api-reference)
@@ -104,6 +106,14 @@ echo "ANTHROPIC_API_KEY=sk-ant-your-key-here" >> .env
 | `CHROMADB_PORT` | `8000` | ChromaDB port |
 | `USE_MOCK_CHROMADB` | `false` | Use mock for testing |
 
+### AI Bridge
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BRIDGE_PORT` | `3456` | WebSocket port for inter-LLM messaging (Claude, Codex, Gemini, Perplexity, Ollama) |
+| `BRIDGE_HTTP_PORT` | `3457` | REST API port for bridge health and control |
+| `BRIDGE_URL` | `ws://localhost:3456` | Default WebSocket endpoint for bridge clients |
+
 ---
 
 ## Usage
@@ -138,6 +148,27 @@ Commands:
 - `:use <provider>` - Switch provider
 - `:clear` - Clear history
 - `:quit` - Exit
+
+### AI Bridge
+
+Run the WebSocket/REST bridge to let multiple LLM sessions (Claude, Codex, Gemini, Perplexity, Ollama) exchange messages without manual copy-paste.
+
+```bash
+npm run bridge:server
+```
+
+Then connect individual LLM instances or headless agents via the bridge client:
+
+```bash
+npm run bridge:client
+```
+
+Client shortcuts:
+- `@all <message>` broadcasts to every connected LLM
+- `@<id> <message>` targets a specific client ID (e.g., `@claude-main`, `@gemini-1`, `@ollama-local`)
+- `:clients` prints active connections and recent history
+
+The bridge also exposes REST endpoints (`/health`, `/clients`, `/history`, `/broadcast`, `/send`) on `BRIDGE_HTTP_PORT` for automation workflows. Configure ports and default URLs with the `BRIDGE_*` variables. Run the focused test suite with `npm run test:bridge` to validate the messaging layer.
 
 ### Packaging the Windows Launcher
 
