@@ -3,7 +3,7 @@ import {
   VerifyRectifyLoop,
   verifyResponse,
   rectifyResponse,
-  runVerificationLoop
+  runVerificationLoop,
 } from '../src/verify-rectify-loop.js';
 
 describe('Verify-Rectify Loop Module', () => {
@@ -13,7 +13,7 @@ describe('Verify-Rectify Loop Module', () => {
     beforeEach(() => {
       loop = new VerifyRectifyLoop({
         maxIterations: 3,
-        confidenceThreshold: 0.8
+        confidenceThreshold: 0.8,
       });
     });
 
@@ -27,7 +27,7 @@ describe('Verify-Rectify Loop Module', () => {
       const response = 'Accurate and verifiable information';
       const context = 'Context supporting the response';
       const result = await loop.execute(response, context);
-      
+
       expect(result).toBeDefined();
       expect(result.verified).toBe(true);
       expect(result.iterations).toBeLessThanOrEqual(3);
@@ -37,7 +37,7 @@ describe('Verify-Rectify Loop Module', () => {
       const response = 'Potentially incorrect information';
       const context = 'Context that contradicts the response';
       const result = await loop.execute(response, context);
-      
+
       expect(result).toBeDefined();
       expect(result.rectified).toBe(true);
       expect(result.iterations).toBeGreaterThan(1);
@@ -47,7 +47,7 @@ describe('Verify-Rectify Loop Module', () => {
       const response = 'Consistently incorrect information';
       const context = 'Context';
       const result = await loop.execute(response, context);
-      
+
       expect(result).toBeDefined();
       expect(result.iterations).toBeLessThanOrEqual(3);
     });
@@ -58,7 +58,7 @@ describe('Verify-Rectify Loop Module', () => {
       const response = 'Water boils at 100°C at standard pressure.';
       const context = 'Physical properties of water';
       const result = await verifyResponse(response, context);
-      
+
       expect(result).toBeDefined();
       expect(result.isValid).toBe(true);
       expect(result.confidence).toBeGreaterThan(0.7);
@@ -69,7 +69,7 @@ describe('Verify-Rectify Loop Module', () => {
       const response = 'Water boils at 0°C.';
       const context = 'Physical properties of water';
       const result = await verifyResponse(response, context);
-      
+
       expect(result).toBeDefined();
       expect(result.isValid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
@@ -79,7 +79,7 @@ describe('Verify-Rectify Loop Module', () => {
       const response = '';
       const context = 'Some context';
       const result = await verifyResponse(response, context);
-      
+
       expect(result).toBeDefined();
       expect(result.isValid).toBe(false);
     });
@@ -91,7 +91,7 @@ describe('Verify-Rectify Loop Module', () => {
       const errors = ['Factual error: incorrect information'];
       const context = 'Correct context';
       const result = await rectifyResponse(response, errors, context);
-      
+
       expect(result).toBeDefined();
       expect(result.corrected).toBe(true);
       expect(result.newResponse).toBeDefined();
@@ -103,7 +103,7 @@ describe('Verify-Rectify Loop Module', () => {
       const errors = ['Error detected'];
       const context = 'Context';
       const result = await rectifyResponse(response, errors, context);
-      
+
       expect(result).toBeDefined();
       expect(result.explanation).toBeDefined();
       expect(result.explanation.length).toBeGreaterThan(0);
@@ -114,7 +114,7 @@ describe('Verify-Rectify Loop Module', () => {
       const errors = ['Error 1', 'Error 2', 'Error 3'];
       const context = 'Context';
       const result = await rectifyResponse(response, errors, context);
-      
+
       expect(result).toBeDefined();
       expect(result.corrected).toBe(true);
       expect(result.corrections.length).toBeGreaterThanOrEqual(errors.length);
@@ -126,9 +126,9 @@ describe('Verify-Rectify Loop Module', () => {
       const initialResponse = 'Factual statement';
       const context = 'Supporting context';
       const options = { maxIterations: 3 };
-      
+
       const result = await runVerificationLoop(initialResponse, context, options);
-      
+
       expect(result).toBeDefined();
       expect(result.finalResponse).toBeDefined();
       expect(result.verified).toBe(true);
@@ -139,7 +139,7 @@ describe('Verify-Rectify Loop Module', () => {
       const initialResponse = 'Statement requiring verification';
       const context = 'Context';
       const result = await runVerificationLoop(initialResponse, context);
-      
+
       expect(result).toBeDefined();
       expect(result.history).toBeDefined();
       expect(Array.isArray(result.history)).toBe(true);
@@ -150,7 +150,7 @@ describe('Verify-Rectify Loop Module', () => {
       const initialResponse = 'Response';
       const context = 'Context';
       const result = await runVerificationLoop(initialResponse, context);
-      
+
       expect(result).toBeDefined();
       expect(result.confidenceScores).toBeDefined();
       expect(Array.isArray(result.confidenceScores)).toBe(true);
@@ -161,14 +161,14 @@ describe('Verify-Rectify Loop Module', () => {
     it('should handle end-to-end verification workflow', async () => {
       const loop = new VerifyRectifyLoop({
         maxIterations: 5,
-        confidenceThreshold: 0.85
+        confidenceThreshold: 0.85,
       });
-      
+
       const response = 'The Great Wall of China is visible from space.';
       const context = 'Common misconceptions about the Great Wall';
-      
+
       const result = await loop.execute(response, context);
-      
+
       expect(result).toBeDefined();
       expect(result.finalResponse).toBeDefined();
       expect(result.verified).toBeDefined();
@@ -178,9 +178,9 @@ describe('Verify-Rectify Loop Module', () => {
       const loop = new VerifyRectifyLoop();
       const response = 'Scientific claim';
       const context = 'Scientific context';
-      
+
       const result = await loop.execute(response, context);
-      
+
       expect(result.report).toBeDefined();
       expect(result.report.iterations).toBeDefined();
       expect(result.report.finalConfidence).toBeDefined();
