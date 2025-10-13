@@ -39,7 +39,7 @@ class RAGPipeline {
     // Initialize vector store
     if (!this.vectorStore) {
       this.vectorStore = await createVectorStore({
-        path: this.config.vectorDBPath
+        path: this.config.vectorDBPath,
       });
     }
 
@@ -60,9 +60,9 @@ class RAGPipeline {
     try {
       // Add documents to collection
       await this.collection.add({
-        documents: documents.map(doc => doc.text),
-        metadatas: documents.map(doc => doc.metadata || {}),
-        ids: documents.map((doc, i) => doc.id || `doc_${Date.now()}_${i}`)
+        documents: documents.map((doc) => doc.text),
+        metadatas: documents.map((doc) => doc.metadata || {}),
+        ids: documents.map((doc, i) => doc.id || `doc_${Date.now()}_${i}`),
       });
     } catch (_error) {
       // Silently handle collection errors
@@ -83,7 +83,7 @@ class RAGPipeline {
     // Query vector store
     const results = await this.collection.query({
       queryTexts: [queryText],
-      nResults
+      nResults,
     });
 
     // Format and return results with citations
@@ -103,20 +103,20 @@ class RAGPipeline {
     const distances = results.distances ? results.distances[0] : [];
 
     // Convert distances to similarity scores (assuming cosine distance)
-    const scores = distances.map(d => 1 - d);
+    const scores = distances.map((d) => 1 - d);
 
     // Create citations
     const citations = documents.map((doc, i) => ({
       text: doc,
       metadata: metadatas[i] || {},
       score: scores[i],
-      index: i
+      index: i,
     }));
 
     return {
       documents,
       citations,
-      scores
+      scores,
     };
   }
 
@@ -134,14 +134,12 @@ class RAGPipeline {
         response: "I don't have sufficient information to answer this question.",
         citations: [],
         confidence: maxScore,
-        abstained: true
+        abstained: true,
       };
     }
 
     // Build augmented prompt with retrieved context
-    const context = citations
-      .map((c, i) => `[${i + 1}] ${c.text}`)
-      .join('\n\n');
+    const context = citations.map((c, i) => `[${i + 1}] ${c.text}`).join('\n\n');
 
     const augmentedPrompt = `Context:\n${context}\n\nQuestion: ${prompt}\n\nPlease answer based on the context above and cite your sources using [1], [2], etc.`;
 
@@ -155,7 +153,7 @@ class RAGPipeline {
       response,
       citations,
       confidence: maxScore,
-      abstained: false
+      abstained: false,
     };
   }
 
@@ -190,13 +188,9 @@ class RAGPipeline {
     }
 
     // Check if cited indices are valid
-    const citedIndices = citationMatches.map(m =>
-      parseInt(m.replace(/[\[\]]/g, ''))
-    );
+    const citedIndices = citationMatches.map((m) => parseInt(m.replace(/[\[\]]/g, '')));
 
-    const validCitations = citedIndices.filter(
-      idx => idx > 0 && idx <= citations.length
-    );
+    const validCitations = citedIndices.filter((idx) => idx > 0 && idx <= citations.length);
 
     return validCitations.length / citationMatches.length;
   }
