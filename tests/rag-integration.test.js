@@ -1,6 +1,5 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import path from 'path';
 
 // Import RAG components
 import * as ragIntegration from '../src/rag-integration.js';
