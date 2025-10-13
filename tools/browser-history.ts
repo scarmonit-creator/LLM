@@ -8,7 +8,6 @@ import { Tool } from './types';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { Database as _Database } from 'better-sqlite3';
 
 interface HistoryEntry {
   url: string;
@@ -82,14 +81,29 @@ export default class BrowserHistoryTool implements Tool {
 
       case BrowserType.FIREFOX:
         if (platform === 'darwin') {
-          const profilesPath = path.join(home, 'Library/Application Support/Firefox/Profiles');
-          this.addFirefoxProfiles(profilesPath, paths);
+          const profileDir = path.join(home, 'Library/Application Support/Firefox/Profiles');
+          if (fs.existsSync(profileDir)) {
+            const profiles = fs.readdirSync(profileDir).filter((f) => f.includes('.default'));
+            profiles.forEach((p) => {
+              paths.push(path.join(profileDir, p, 'places.sqlite'));
+            });
+          }
         } else if (platform === 'win32') {
-          const profilesPath = path.join(home, 'AppData/Roaming/Mozilla/Firefox/Profiles');
-          this.addFirefoxProfiles(profilesPath, paths);
+          const profileDir = path.join(home, 'AppData/Roaming/Mozilla/Firefox/Profiles');
+          if (fs.existsSync(profileDir)) {
+            const profiles = fs.readdirSync(profileDir).filter((f) => f.includes('.default'));
+            profiles.forEach((p) => {
+              paths.push(path.join(profileDir, p, 'places.sqlite'));
+            });
+          }
         } else {
-          const profilesPath = path.join(home, '.mozilla/firefox');
-          this.addFirefoxProfiles(profilesPath, paths);
+          const profileDir = path.join(home, '.mozilla/firefox');
+          if (fs.existsSync(profileDir)) {
+            const profiles = fs.readdirSync(profileDir).filter((f) => f.includes('.default'));
+            profiles.forEach((p) => {
+              paths.push(path.join(profileDir, p, 'places.sqlite'));
+            });
+          }
         }
         break;
 
@@ -109,18 +123,21 @@ export default class BrowserHistoryTool implements Tool {
 
       case BrowserType.BRAVE:
         if (platform === 'darwin') {
-          paths.push(
-            path.join(
-              home,
-              'Library/Application Support/BraveSoftware/Brave-Browser/Default/History'
-            )
-          );
+          paths.push(path.join(home, 'Library/Application Support/BraveSoftware/Brave-Browser/Default/History'));
         } else if (platform === 'win32') {
-          paths.push(
-            path.join(home, 'AppData/Local/BraveSoftware/Brave-Browser/User Data/Default/History')
-          );
+          paths.push(path.join(home, 'AppData/Local/BraveSoftware/Brave-Browser/User Data/Default/History'));
         } else {
           paths.push(path.join(home, '.config/BraveSoftware/Brave-Browser/Default/History'));
+        }
+        break;
+
+      case BrowserType.OPERA:
+        if (platform === 'darwin') {
+          paths.push(path.join(home, 'Library/Application Support/com.operasoftware.Opera/History'));
+        } else if (platform === 'win32') {
+          paths.push(path.join(home, 'AppData/Roaming/Opera Software/Opera Stable/History'));
+        } else {
+          paths.push(path.join(home, '.config/opera/History'));
         }
         break;
     }
@@ -128,139 +145,139 @@ export default class BrowserHistoryTool implements Tool {
     return paths.filter((p) => fs.existsSync(p));
   }
 
-  private addFirefoxProfiles(profilesPath: string, paths: string[]): void {
-    try {
-      if (!fs.existsSync(profilesPath)) return;
-      const profiles = fs.readdirSync(profilesPath);
-      for (const profile of profiles) {
-        if (profile.endsWith('.default') || profile.includes('default')) {
-          const historyPath = path.join(profilesPath, profile, 'places.sqlite');
-          if (fs.existsSync(historyPath)) {
-            paths.push(historyPath);
-          }
-        }
-      }
-    } catch (error) {
-      console.error(`Error reading Firefox profiles: ${error}`);
-    }
-  }
-
   async getHistory(browser?: string, limit?: number): Promise<HistoryEntry[]> {
-    const entries: HistoryEntry[] = [];
-    const browsersToSearch = browser
-      ? [browser]
-      : this.config.browsers || Object.values(BrowserType);
+    const allHistory: HistoryEntry[] = [];
+    const browsers = browser ? [browser] : this.config.browsers || [];
 
-    for (const browserType of browsersToSearch) {
-      const browserPaths = this.getBrowserPaths(browserType);
+    for (const browserType of browsers) {
+      const paths = this.getBrowserPaths(browserType);
 
-      for (const dbPath of browserPaths) {
+      for (const dbPath of paths) {
         try {
-          const browserEntries = await this.readBrowserHistory(dbPath, browserType);
-          entries.push(...browserEntries);
+          const history = await this.readBrowserHistory(dbPath, browserType);
+          allHistory.push(...history);
         } catch (error) {
-          console.error(`Error reading ${browserType} history: ${error}`);
+          console.error(`Error reading ${browserType} history:`, error);
         }
       }
     }
 
-    // Sort by visit time and limit results
-    const sorted = entries.sort((a, b) => b.visitTime - a.visitTime);
-    const maxLimit = limit || this.config.maxEntries;
-    return sorted.slice(0, maxLimit);
+    // Sort by visit time, most recent first
+    allHistory.sort((a, b) => b.visitTime - a.visitTime);
+
+    // Apply filters
+    const filtered = this.applyFilters(allHistory);
+
+    // Apply limit
+    return filtered.slice(0, limit || this.config.maxEntries);
   }
 
   private async readBrowserHistory(dbPath: string, browserType: string): Promise<HistoryEntry[]> {
-    return new Promise((resolve, reject) => {
-      try {
-        // Create a temporary copy to avoid locks
-        const tempPath = path.join(os.tmpdir(), `history_${Date.now()}.db`);
-        fs.copyFileSync(dbPath, tempPath);
+    const history: HistoryEntry[] = [];
 
-        const Database = require('better-sqlite3');
-        const db = new Database(tempPath, { readonly: true });
+    // Create a temporary copy to avoid lock issues
+    const tempPath = `${dbPath}.tmp.${Date.now()}`;
+    fs.copyFileSync(dbPath, tempPath);
 
-        let query: string;
-        let rows: any[];
+    try {
+      // Dynamic require to handle optional dependency
+      const Database = require('better-sqlite3');
+      const db = new Database(tempPath, { readonly: true });
 
-        if (browserType === BrowserType.FIREFOX) {
-          query = `
-            SELECT url, title, last_visit_date / 1000000 as visit_time, visit_count
-            FROM moz_places
-            WHERE visit_count > 0
-            ORDER BY visit_time DESC
-          `;
-          rows = db.prepare(query).all();
-        } else if (browserType === BrowserType.SAFARI) {
-          query = `
-            SELECT url, title, visit_time, visit_count
-            FROM history_items
-            ORDER BY visit_time DESC
-          `;
-          rows = db.prepare(query).all();
-        } else {
-          // Chrome-based browsers
-          query = `
-            SELECT url, title, last_visit_time, visit_count
-            FROM urls
-            ORDER BY last_visit_time DESC
-          `;
-          rows = db.prepare(query).all();
-        }
+      let rows: any[];
 
-        db.close();
-        fs.unlinkSync(tempPath);
+      if (browserType === BrowserType.FIREFOX) {
+        rows = db
+          .prepare(
+            `SELECT url, title, visit_count as visitCount, last_visit_date as visitTime 
+             FROM moz_places 
+             WHERE visit_count > 0 
+             ORDER BY last_visit_date DESC 
+             LIMIT ?`
+          )
+          .all(this.config.maxEntries || 1000);
 
-        const entries: HistoryEntry[] = rows.map((row: any) => ({
+        // Firefox stores timestamps in microseconds
+        rows = rows.map((row: any) => ({
+          ...row,
+          visitTime: Math.floor(row.visitTime / 1000),
+        }));
+      } else if (browserType === BrowserType.SAFARI) {
+        rows = db
+          .prepare(
+            `SELECT url, visit_count as visitCount, visit_time as visitTime 
+             FROM history_visits 
+             JOIN history_items ON history_visits.history_item = history_items.id 
+             ORDER BY visit_time DESC 
+             LIMIT ?`
+          )
+          .all(this.config.maxEntries || 1000);
+
+        // Safari uses Core Data timestamp (seconds since 2001-01-01)
+        rows = rows.map((row: any) => ({
+          ...row,
+          title: '',
+          visitTime: Math.floor((row.visitTime + 978307200) * 1000),
+        }));
+      } else {
+        // Chromium-based browsers (Chrome, Edge, Brave, Opera)
+        rows = db
+          .prepare(
+            `SELECT url, title, visit_count as visitCount, last_visit_time as visitTime 
+             FROM urls 
+             ORDER BY last_visit_time DESC 
+             LIMIT ?`
+          )
+          .all(this.config.maxEntries || 1000);
+
+        // Chromium stores timestamps in microseconds since 1601-01-01
+        rows = rows.map((row: any) => ({
+          ...row,
+          visitTime: Math.floor(row.visitTime / 1000 - 11644473600000),
+        }));
+      }
+
+      db.close();
+
+      history.push(
+        ...rows.map((row: any) => ({
           url: row.url,
           title: row.title || '',
-          visitTime: this.normalizeTimestamp(row.visit_time || row.last_visit_time, browserType),
-          visitCount: row.visit_count,
+          visitTime: row.visitTime,
+          visitCount: row.visitCount,
           browser: browserType,
-        }));
-
-        resolve(this.applyFilters(entries));
-      } catch (error) {
-        reject(error);
+          profile: path.basename(path.dirname(dbPath)),
+        }))
+      );
+    } catch (error) {
+      console.error(`Error reading database ${dbPath}:`, error);
+    } finally {
+      // Clean up temp file
+      try {
+        fs.unlinkSync(tempPath);
+      } catch (e) {
+        // Ignore cleanup errors
       }
-    });
+    }
+
+    return history;
   }
 
-  private normalizeTimestamp(timestamp: number, browserType: string): number {
-    // Chrome uses microseconds since 1601-01-01
-    if (
-      browserType === BrowserType.CHROME ||
-      browserType === BrowserType.EDGE ||
-      browserType === BrowserType.BRAVE
-    ) {
-      const epochDelta = 11644473600000000; // microseconds between 1601 and 1970
-      return Math.floor((timestamp - epochDelta) / 1000);
-    }
-    // Firefox uses microseconds since epoch
-    if (browserType === BrowserType.FIREFOX) {
-      return Math.floor(timestamp / 1000);
-    }
-    // Safari uses seconds since 2001-01-01
-    if (browserType === BrowserType.SAFARI) {
-      return timestamp + 978307200000;
-    }
-    return timestamp;
-  }
-
-  private applyFilters(entries: HistoryEntry[]): HistoryEntry[] {
+  private applyFilters(history: HistoryEntry[]): HistoryEntry[] {
     if (!this.config.filters || this.config.filters.length === 0) {
-      return entries;
+      return history;
     }
 
-    return entries.filter((entry) => {
-      return this.config.filters!.some((filter) => {
-        return entry.url.includes(filter) || entry.title.includes(filter);
+    return history.filter((entry) => {
+      return this.config.filters!.every((filter) => {
+        const regex = new RegExp(filter, 'i');
+        return regex.test(entry.url) || regex.test(entry.title);
       });
     });
   }
 
   async searchHistory(query: string, limit?: number): Promise<HistoryEntry[]> {
-    const allHistory = await this.getHistory(undefined, undefined);
+    const allHistory = await this.getHistory();
     const searchLower = query.toLowerCase();
 
     const filtered = allHistory.filter(
@@ -291,6 +308,7 @@ export default class BrowserHistoryTool implements Tool {
 
   private updateConfig(newConfig: BrowserHistoryConfig): void {
     this.config = { ...this.config, ...newConfig };
+
     if (this.config.autoSync) {
       this.stopAutoSync();
       this.startAutoSync();
@@ -306,28 +324,23 @@ export default class BrowserHistoryTool implements Tool {
     switch (action) {
       case 'get_history':
         return await this.getHistory(args.browser, args.limit);
-
       case 'search_history':
         if (!args.query) {
           throw new Error('Query parameter required for search_history');
         }
         return await this.searchHistory(args.query, args.limit);
-
       case 'start_sync':
         this.startAutoSync();
         return { success: true, message: 'Auto-sync started' };
-
       case 'stop_sync':
         this.stopAutoSync();
         return { success: true, message: 'Auto-sync stopped' };
-
       case 'update_config':
         if (!args.config) {
           throw new Error('Config parameter required for update_config');
         }
         this.updateConfig(args.config);
         return { success: true, message: 'Configuration updated' };
-
       default:
         throw new Error(`Unknown action: ${action}`);
     }
