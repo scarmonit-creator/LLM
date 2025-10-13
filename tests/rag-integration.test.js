@@ -67,11 +67,7 @@ describe('RAG Pipeline Integration Tests', () => {
 
   describe('Document Indexing', () => {
     it('should index documents successfully', async () => {
-      const documents = [
-        'The sky is blue.',
-        'Grass is green.',
-        'The sun is yellow.',
-      ];
+      const documents = ['The sky is blue.', 'Grass is green.', 'The sun is yellow.'];
 
       const result = await pipeline.indexDocuments(documents);
 
@@ -100,9 +96,9 @@ describe('RAG Pipeline Integration Tests', () => {
     it('should fail when pipeline not initialized', async () => {
       const uninitializedPipeline = new RAGPipeline();
 
-      await expect(
-        uninitializedPipeline.indexDocuments(['test'])
-      ).rejects.toThrow('Pipeline not initialized');
+      await expect(uninitializedPipeline.indexDocuments(['test'])).rejects.toThrow(
+        'Pipeline not initialized'
+      );
     });
   });
 

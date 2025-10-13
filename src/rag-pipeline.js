@@ -38,8 +38,8 @@ class RAGPipeline {
   async initialize(vectorStore = null) {
     try {
       // Use provided store or create a new one
-      this.vectorStore = vectorStore || await createVectorStore();
-      
+      this.vectorStore = vectorStore || (await createVectorStore());
+
       // Initialize embedding function
       const openaiKey = process.env.OPENAI_API_KEY;
       if (openaiKey) {
@@ -77,9 +77,7 @@ class RAGPipeline {
 
     try {
       const ids = documents.map((_, i) => `doc_${Date.now()}_${i}`);
-      const texts = documents.map((doc) =>
-        typeof doc === 'string' ? doc : doc.content
-      );
+      const texts = documents.map((doc) => (typeof doc === 'string' ? doc : doc.content));
       const metadatas = documents.map((doc) =>
         typeof doc === 'string'
           ? { indexed_at: new Date().toISOString() }
@@ -92,9 +90,7 @@ class RAGPipeline {
         embeddings = await this.embeddingFunction.generate(texts);
       } else {
         // Simple fallback: use random embeddings for testing
-        embeddings = texts.map(() =>
-          Array.from({ length: 1536 }, () => Math.random())
-        );
+        embeddings = texts.map(() => Array.from({ length: 1536 }, () => Math.random()));
       }
 
       await this.vectorStore.add(this.collectionName, {
@@ -178,9 +174,7 @@ class RAGPipeline {
       const retrievedDocs = await this.retrieve(query, options.topK);
 
       // Filter by minimum confidence
-      const relevantDocs = retrievedDocs.filter(
-        (doc) => doc.score >= this.config.minConfidence
-      );
+      const relevantDocs = retrievedDocs.filter((doc) => doc.score >= this.config.minConfidence);
 
       if (relevantDocs.length === 0 && this.config.citationRequired) {
         return {

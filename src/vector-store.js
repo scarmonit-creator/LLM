@@ -22,7 +22,7 @@ class InMemoryVectorStore {
         documents: [],
         embeddings: [],
         metadatas: [],
-        ids: []
+        ids: [],
       });
     }
     return this.collections.get(name);
@@ -65,7 +65,7 @@ class InMemoryVectorStore {
         id: collection.ids[i],
         document: collection.documents[i],
         metadata: collection.metadatas[i],
-        distance: 1 - similarity
+        distance: 1 - similarity,
       });
     }
 
@@ -73,10 +73,10 @@ class InMemoryVectorStore {
     results.sort((a, b) => a.distance - b.distance);
 
     return {
-      ids: [results.slice(0, nResults).map(r => r.id)],
-      documents: [results.slice(0, nResults).map(r => r.document)],
-      metadatas: [results.slice(0, nResults).map(r => r.metadata)],
-      distances: [results.slice(0, nResults).map(r => r.distance)]
+      ids: [results.slice(0, nResults).map((r) => r.id)],
+      documents: [results.slice(0, nResults).map((r) => r.document)],
+      metadatas: [results.slice(0, nResults).map((r) => r.metadata)],
+      distances: [results.slice(0, nResults).map((r) => r.distance)],
     };
   }
 
