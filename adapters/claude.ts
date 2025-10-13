@@ -2,7 +2,7 @@ export function toEnvelope(prompt: string) {
   return {
     protocol: "multiagent-1.0",
     role: "agent",
-    agent: { id: "claude.generic", name: "Claude", model: "claude-3.7-sonnet" },
+    agent: { id: "claude.generic", name: "Claude", model: "claude-3-5-sonnet-20241022" },
     timestamp: new Date().toISOString(),
     intent: "analyze",
     task: prompt.slice(0, 160),
