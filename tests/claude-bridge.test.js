@@ -57,7 +57,7 @@ async function registerClient(port, clientId) {
     JSON.stringify({
       type: 'register',
       clientId,
-    }),
+    })
   );
 
   const pending = [];
@@ -83,14 +83,14 @@ test('broadcast delivers messages to all other connected clients', async () => {
 
     const messagePromise = waitForMessage(
       clientB,
-      (payload) => payload.message === 'Hello from A' && payload.from === 'claude-a',
+      (payload) => payload.message === 'Hello from A' && payload.from === 'claude-a'
     );
 
     clientA.send(
       JSON.stringify({
         type: 'message',
         message: 'Hello from A',
-      }),
+      })
     );
 
     const payload = await messagePromise;
@@ -117,7 +117,7 @@ test('direct messages queue for offline recipients and flush on reconnect', asyn
         type: 'message',
         to: 'claude-c',
         message: 'Queued hello',
-      }),
+      })
     );
 
     await delay(50);
@@ -128,7 +128,7 @@ test('direct messages queue for offline recipients and flush on reconnect', asyn
     if (!payload) {
       payload = await waitForMessage(
         clientC,
-        (msg) => msg.message === 'Queued hello' && msg.from === 'claude-a',
+        (msg) => msg.message === 'Queued hello' && msg.from === 'claude-a'
       );
     }
 

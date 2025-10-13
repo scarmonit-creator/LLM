@@ -35,7 +35,9 @@ export class ClaudeBridge {
         try {
           ws.send(JSON.stringify(msg));
         } catch (error) {
-          this.logger.error(`[Bridge] Failed to flush queued message for ${clientId}: ${error.message}`);
+          this.logger.error(
+            `[Bridge] Failed to flush queued message for ${clientId}: ${error.message}`
+          );
         }
       });
       this.messageQueue.delete(clientId);
@@ -85,7 +87,9 @@ export class ClaudeBridge {
         target.send(JSON.stringify(envelope));
         this.logger.log(`[Bridge] Direct message ${senderId} -> ${targetId}`);
       } catch (error) {
-        this.logger.error(`[Bridge] Failed to send direct message to ${targetId}: ${error.message}`);
+        this.logger.error(
+          `[Bridge] Failed to send direct message to ${targetId}: ${error.message}`
+        );
       }
       return;
     }
@@ -167,7 +171,7 @@ export async function createBridgeServer({
               clientId,
               connectedClients: bridge.listClients(),
               history: bridge.getHistory(historySnapshotSize),
-            }),
+            })
           );
           return;
         }
@@ -192,7 +196,7 @@ export async function createBridgeServer({
               type: 'query_response',
               clients: bridge.listClients(),
               history: bridge.getHistory(payload.limit || 50),
-            }),
+            })
           );
         }
       } catch (error) {
