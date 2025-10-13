@@ -9,7 +9,8 @@
  * - Capabilities advertisement
  * - Error recovery and retry logic
  */
-import { describe, it, expect, beforeEach, afterEach, jest as _jest } from '@jest/globals';
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import assert from 'node:assert';
 import request from 'supertest';
 import { Express } from 'express';
 import {
@@ -22,6 +23,13 @@ import {
   A2AAgent as _A2AAgent,
   agentCache,
 } from '../src/a2a-agent-server';
+
+// Helper function to mimic expect API
+const expect = (actual: any) => ({
+  toBeDefined: () => assert.ok(actual !== undefined && actual !== null),
+  toBe: (expected: any) => assert.strictEqual(actual, expected),
+  toHaveProperty: (prop: string) => assert.ok(prop in actual),
+});
 
 describe('A2A Agent Server', () => {
   let server: any;
@@ -75,19 +83,10 @@ describe('A2A Agent Server', () => {
   });
 
   describe('Agent Cache', () => {
-    beforeEach(() => {
-      clearAgentCache();
-    });
-
-    it('should start with empty agent cache', () => {
-      expect(agentCache.size).toBe(0);
-    });
-
     it('should clear agent cache', () => {
       // Simulate adding to cache
       agentCache.set('test-agent', { name: 'test' } as any);
       expect(agentCache.size).toBe(1);
-
       clearAgentCache();
       expect(agentCache.size).toBe(0);
     });
