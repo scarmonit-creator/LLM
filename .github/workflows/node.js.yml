@@ -3,12 +3,16 @@
 name: Node.js CI
 permissions:
   contents: write
+  id-token: write
+  attestations: write
+
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -62,6 +66,7 @@ jobs:
     - name: Archive build output
       if: matrix.node-version == '20.x'
       uses: actions/upload-artifact@v4
+      id: upload-artifact
       with:
         name: build-artifacts-node-${{ matrix.node-version }}
         path: |
@@ -70,11 +75,19 @@ jobs:
         retention-days: 5
         if-no-files-found: warn
     
+    - name: Attest build provenance
+      if: matrix.node-version == '20.x'
+      uses: actions/attest-build-provenance@v3
+      with:
+        subject-path: |
+          dist/**
+          build/**
+    
     - name: Commit and push autofix changes
       if: github.event_name == 'push' && matrix.node-version == '20.x'
       run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
         git add -A
-        git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-fix: Apply lint and format fixes [skip ci]" && git push)
-      continue-on-error: true
+        git diff --staged --quiet || git commit -m "chore: apply automated fixes [skip ci]"
+        git push
