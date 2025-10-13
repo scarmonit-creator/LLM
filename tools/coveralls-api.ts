@@ -1,13 +1,13 @@
 /**
  * Coveralls API JSON-Format Web Data Integration
- * 
+ *
  * This tool provides functionality to fetch and process coverage data from Coveralls
  * using the JSON-format web data API. It supports fetching data for:
  * - Repositories
  * - Builds
  * - Jobs
  * - Source files
- * 
+ *
  * All endpoints require authentication via OAuth (user must be logged in to Coveralls web app)
  * and support the .json suffix to return JSON representations.
  */
@@ -89,7 +89,7 @@ export class CoverallsApiClient {
       const response = await fetch(url, {
         signal: controller.signal,
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
 
@@ -102,7 +102,7 @@ export class CoverallsApiClient {
       return await response.json();
     } catch (error) {
       if (attempt < this.retryAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
         return this.fetchWithRetry(url, attempt + 1);
       }
       throw error;
