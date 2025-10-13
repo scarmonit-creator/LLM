@@ -8,12 +8,10 @@ on:
       version:
         description: 'Version to release (e.g., v1.0.0)'
         required: true
-
 permissions:
   contents: write
   id-token: write
   actions: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -46,8 +44,9 @@ jobs:
       with:
         name: dist
         path: '*.tgz'
+        retention-days: 14
         if-no-files-found: error
-
+  
   provenance:
     needs: [build]
     permissions:
@@ -58,7 +57,7 @@ jobs:
     with:
       base64-subjects: "${{ needs.build.outputs.hashes }}"
       upload-assets: true
-
+  
   release:
     needs: [build, provenance]
     runs-on: ubuntu-latest
