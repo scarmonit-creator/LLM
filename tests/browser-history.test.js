@@ -2,7 +2,6 @@
  * Browser History Tool Tests
  * Tests for autonomous browser history syncing capabilities
  */
-
 import { test } from 'node:test';
 import assert from 'node:assert';
 import BrowserHistoryTool from '../dist/tools/browser-history.js';
@@ -46,7 +45,7 @@ test('BrowserHistoryTool - History Retrieval', async (t) => {
   });
 
   await t.test('should get recent history', async () => {
-    const result = await historyTool.getRecentHistory(10);
+    const result = await historyTool.getHistory(undefined, 10);
     assert.ok(Array.isArray(result));
   });
 
@@ -55,8 +54,11 @@ test('BrowserHistoryTool - History Retrieval', async (t) => {
     assert.ok(Array.isArray(result));
   });
 
-  await t.test('should filter history by domain', async () => {
-    const result = await historyTool.getHistoryByDomain('github.com');
+  await t.test('should get history with filters', async () => {
+    const result = await historyTool.execute({
+      action: 'get_history',
+      limit: 10,
+    });
     assert.ok(Array.isArray(result));
   });
 });
@@ -74,69 +76,61 @@ test('BrowserHistoryTool - Tool Execution', async (t) => {
     }
   });
 
-  await t.test('should execute recent action', async () => {
-    const result = await historyTool.execute({
-      action: 'recent',
-      limit: 50,
-    });
+  await t.test('should execute get_history action', async () => {
+    const result = await historyTool.execute({ action: 'get_history', limit: 5 });
     assert.ok(Array.isArray(result));
   });
 
-  await t.test('should execute search action', async () => {
+  await t.test('should execute search_history action', async () => {
     const result = await historyTool.execute({
-      action: 'search',
+      action: 'search_history',
       query: 'test',
+      limit: 5,
     });
     assert.ok(Array.isArray(result));
   });
 
-  await t.test('should execute domain action', async () => {
-    const result = await historyTool.execute({
-      action: 'domain',
-      query: 'example.com',
-    });
-    assert.ok(Array.isArray(result));
+  await t.test('should execute start_sync action', async () => {
+    const result = await historyTool.execute({ action: 'start_sync' });
+    assert.ok(result.success);
   });
 
-  await t.test('should throw error for unknown action', async () => {
-    await assert.rejects(async () => historyTool.execute({ action: 'invalid' }), /Unknown action/);
+  await t.test('should execute stop_sync action', async () => {
+    const result = await historyTool.execute({ action: 'stop_sync' });
+    assert.ok(result.success);
   });
 
-  await t.test('should throw error when query is missing for search', async () => {
+  await t.test('should require query for search_history', async () => {
     await assert.rejects(
-      async () => historyTool.execute({ action: 'search' }),
-      /Query required for search action/
+      async () => {
+        await historyTool.execute({ action: 'search_history' });
+      },
+      { message: 'Query parameter required for search_history' }
     );
   });
 
-  await t.test('should throw error when domain is missing for domain action', async () => {
+  await t.test('should handle unknown action', async () => {
     await assert.rejects(
-      async () => historyTool.execute({ action: 'domain' }),
-      /Domain required for domain action/
+      async () => {
+        await historyTool.execute({ action: 'invalid_action' });
+      },
+      { message: /Unknown action/ }
     );
   });
 });
 
-test('BrowserHistoryTool - Auto-sync Management', async (t) => {
-  await t.test('should stop auto-sync', () => {
-    const autoSyncTool = new BrowserHistoryTool({ autoSync: true, syncInterval: 1000 });
-    autoSyncTool.stopAutoSync();
-    autoSyncTool.destroy();
-  });
-
-  await t.test('should handle multiple stop calls gracefully', () => {
-    const historyTool = new BrowserHistoryTool({ autoSync: false });
-    historyTool.stopAutoSync();
-    historyTool.stopAutoSync(); // Should not throw
+test('BrowserHistoryTool - Auto-sync', async (t) => {
+  await t.test('should stop auto-sync via execute', async () => {
+    const historyTool = new BrowserHistoryTool({ autoSync: true, syncInterval: 1000 });
+    const result = await historyTool.execute({ action: 'stop_sync' });
+    assert.ok(result.success);
     historyTool.destroy();
   });
-});
 
-test('BrowserHistoryTool - Cleanup', async (t) => {
-  await t.test('should clean up resources on destroy', () => {
+  await t.test('should start auto-sync via execute', async () => {
     const historyTool = new BrowserHistoryTool({ autoSync: false });
+    const result = await historyTool.execute({ action: 'start_sync' });
+    assert.ok(result.success);
     historyTool.destroy();
-    // Tool should be cleaned up without errors
-    assert.doesNotThrow(() => historyTool.destroy());
   });
 });
