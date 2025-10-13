@@ -35,8 +35,8 @@ jobs:
       run: npm run build
     - name: Run build (fallback)
       run: npm run build --if-present
-    - name: Run tests (without external integration tests)
-      run: npm test
+    - name: Run tests with coverage
+      run: npm run coverage
       continue-on-error: true
       env:
         # Gate external integration tests - only run when explicitly enabled
