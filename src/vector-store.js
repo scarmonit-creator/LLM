@@ -40,7 +40,7 @@ class InMemoryVectorStore {
     if (!collection) {
       throw new Error(`Collection ${collectionName} not found`);
     }
-    
+
     // Add documents to the collection
     if (data.documents) {
       collection.documents.push(...data.documents);
@@ -61,13 +61,13 @@ class InMemoryVectorStore {
     if (!collection) {
       throw new Error(`Collection ${collectionName} not found`);
     }
-    
+
     // Simple mock implementation - return empty results
     return {
       ids: [[]],
       distances: [[]],
       documents: [[]],
-      metadatas: [[]]
+      metadatas: [[]],
     };
   }
 }
@@ -85,7 +85,7 @@ class ChromaVectorStore {
     if (this.collections.has(name)) {
       return this.collections.get(name);
     }
-    
+
     const collection = await this.client.createCollection({ name });
     this.collections.set(name, collection);
     return collection;
@@ -95,7 +95,7 @@ class ChromaVectorStore {
     if (this.collections.has(name)) {
       return this.collections.get(name);
     }
-    
+
     try {
       const collection = await this.client.getCollection({ name });
       this.collections.set(name, collection);
@@ -133,12 +133,12 @@ class ChromaVectorStore {
  */
 export async function createVectorStore() {
   const storeType = process.env.LLM_VECTOR_STORE || 'chromadb';
-  
+
   if (storeType === 'memory') {
     console.log('Using in-memory vector store');
     return new InMemoryVectorStore();
   }
-  
+
   // Try to use ChromaDB, fall back to in-memory if it fails
   try {
     const chromaClient = new ChromaClient();
