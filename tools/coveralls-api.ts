@@ -45,266 +45,253 @@ export interface CoverallsBuildData {
   badge_url: string;
   coverage_change: number;
   covered_percent: number;
-  paths?: string;
-  selected_source_files_count?: number;
-  paths_covered_percent?: number;
-  paths_previous_covered_percent?: number;
-  paths_covered_percent_change?: number;
+  covered_lines: number;
+  total_lines: number;
 }
 
 export interface CoverallsJobData {
-  repo_name: string;
-  full_number: string;
-  timestamp: string;
+  created_at: string;
+  run_at: string;
+  job_id: string;
+  coverage_change: number;
   covered_percent: number;
-  paths?: string;
-  selected_source_files_count?: number;
-  paths_covered_percent?: number;
-  paths_previous_covered_percent?: number;
-  paths_covered_percent_change?: number;
+  source_files?: Array<{
+    name: string;
+    coverage: (number | null)[];
+  }>;
+  paths?: string[];
 }
 
-export interface CoverallsSourceFileData {
-  coverage: (number | null)[];
-}
+export class CoverallsAPI {
+  private baseUrl = 'https://coveralls.io';
 
-export interface SourceFileStats {
-  totalLines: number;
-  relevantLines: number;
-  coveredLines: number;
-  uncoveredLines: number;
-  coveragePercent: number;
-  linesByHitCount: Map<number, number[]>;
-}
-
-export async function getRepo(
-  owner: string,
-  repo: string,
-  service: string = 'github'
-): Promise<CoverallsRepoData> {
-  const url = `https://coveralls.io/${service}/${owner}/${repo}.json`;
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch repo data: ${response.status} ${response.statusText}`
-    );
+  /**
+   * Constructs the API URL for a repository
+   */
+  private getRepoUrl(service: string, username: string, repo: string): string {
+    return `${this.baseUrl}/${service}/${username}/${repo}.json`;
   }
 
-  return await response.json();
-}
-
-export async function getRepoBuilds(
-  owner: string,
-  repo: string,
-  page: number = 1,
-  service: string = 'github'
-): Promise<CoverallsRepoBuildsData> {
-  const url = `https://coveralls.io/${service}/${owner}/${repo}.json?page=${page}`;
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch repo builds: ${response.status} ${response.statusText}`
-    );
+  /**
+   * Constructs the API URL for repository builds
+   */
+  private getRepoBuildsUrl(
+    service: string,
+    username: string,
+    repo: string,
+    page: number = 1,
+  ): string {
+    return `${this.baseUrl}/builds/${service}/${username}/${repo}.json?page=${page}`;
   }
 
-  return await response.json();
-}
+  /**
+   * Fetches repository data from Coveralls
+   */
+  async getRepo(
+    service: string,
+    username: string,
+    repo: string,
+  ): Promise<CoverallsRepoData> {
+    const url = this.getRepoUrl(service, username, repo);
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
 
-export async function getAllRepoBuilds(
-  owner: string,
-  repo: string,
-  service: string = 'github'
-): Promise<CoverallsRepoData[]> {
-  const firstPage = await getRepoBuilds(owner, repo, 1, service);
-  const allBuilds = [...firstPage.builds];
-
-  if (firstPage.pages > 1) {
-    const pagePromises = [];
-    for (let page = 2; page <= firstPage.pages; page++) {
-      pagePromises.push(getRepoBuilds(owner, repo, page, service));
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch repo data: ${response.status} ${response.statusText}`,
+      );
     }
 
-    const remainingPages = await Promise.all(pagePromises);
-    for (const pageData of remainingPages) {
-      allBuilds.push(...pageData.builds);
+    return (await response.json()) as CoverallsRepoData;
+  }
+
+  /**
+   * Fetches paginated builds data for a repository
+   */
+  async getRepoBuilds(
+    service: string,
+    username: string,
+    repo: string,
+    page: number = 1,
+  ): Promise<CoverallsRepoBuildsData> {
+    const url = this.getRepoBuildsUrl(service, username, repo, page);
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch repo builds: ${response.status} ${response.statusText}`,
+      );
     }
+
+    return (await response.json()) as CoverallsRepoBuildsData;
   }
 
-  return allBuilds;
-}
+  /**
+   * Fetches build data by build ID
+   */
+  async getBuild(buildId: string): Promise<CoverallsBuildData> {
+    const url = `${this.baseUrl}/builds/${buildId}.json`;
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
 
-export async function getBuildById(
-  buildId: number
-): Promise<CoverallsBuildData> {
-  const url = `https://coveralls.io/builds/${buildId}.json`;
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch build: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return await response.json();
-}
-
-export async function getBuildByCommitSha(
-  commitSha: string
-): Promise<CoverallsBuildData> {
-  const url = `https://coveralls.io/builds/${commitSha}.json`;
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch build by commit SHA: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return await response.json();
-}
-
-export async function getBuildWithPaths(
-  buildIdOrSha: string | number,
-  paths: string
-): Promise<CoverallsBuildData> {
-  const url = `https://coveralls.io/builds/${buildIdOrSha}.json?paths=${encodeURIComponent(paths)}`;
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch build with paths: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return await response.json();
-}
-
-export async function getJob(jobId: number): Promise<CoverallsJobData> {
-  const url = `https://coveralls.io/jobs/${jobId}.json`;
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch job: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return await response.json();
-}
-
-export async function getJobWithPaths(
-  jobId: number,
-  paths: string
-): Promise<CoverallsJobData> {
-  const url = `https://coveralls.io/jobs/${jobId}.json?paths=${encodeURIComponent(paths)}`;
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch job with paths: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return await response.json();
-}
-
-export async function getSourceFile(
-  fileId: number
-): Promise<CoverallsSourceFileData> {
-  const url = `https://coveralls.io/files/${fileId}.json`;
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch source file: ${response.status} ${response.statusText}`
-    );
-  }
-
-  const coverage = await response.json();
-  return { coverage };
-}
-
-export async function getSourceFileByName(
-  buildIdOrSha: string | number,
-  filename: string
-): Promise<CoverallsSourceFileData> {
-  const url = `https://coveralls.io/builds/${buildIdOrSha}/source.json?filename=${encodeURIComponent(filename)}`;
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch source file by name: ${response.status} ${response.statusText}`
-    );
-  }
-
-  const coverage = await response.json();
-  return { coverage };
-}
-
-export function analyzeSourceFile(
-  coverage: (number | null)[]
-): SourceFileStats {
-  const totalLines = coverage.length;
-  const relevantLines = coverage.filter((v) => v !== null).length;
-  const coveredLines = coverage.filter((v) => v !== null && v > 0).length;
-  const uncoveredLines = relevantLines - coveredLines;
-  const coveragePercent =
-    relevantLines > 0 ? (coveredLines / relevantLines) * 100 : 0;
-
-  const linesByHitCount = new Map<number, number[]>();
-  coverage.forEach((hitCount, lineNumber) => {
-    if (hitCount !== null) {
-      if (!linesByHitCount.has(hitCount)) {
-        linesByHitCount.set(hitCount, []);
-      }
-      linesByHitCount.get(hitCount)!.push(lineNumber + 1);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch build data: ${response.status} ${response.statusText}`,
+      );
     }
-  });
 
-  return {
-    totalLines,
-    relevantLines,
-    coveredLines,
-    uncoveredLines,
-    coveragePercent,
-    linesByHitCount,
-  };
+    return (await response.json()) as CoverallsBuildData;
+  }
+
+  /**
+   * Fetches build data by commit SHA
+   */
+  async getBuildByCommit(
+    service: string,
+    username: string,
+    repo: string,
+    commitSha: string,
+  ): Promise<CoverallsBuildData> {
+    const url = `${this.baseUrl}/builds/${service}/${username}/${repo}/${commitSha}.json`;
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch build by commit: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    return (await response.json()) as CoverallsBuildData;
+  }
+
+  /**
+   * Fetches build data by branch name
+   */
+  async getBuildByBranch(
+    service: string,
+    username: string,
+    repo: string,
+    branch: string,
+  ): Promise<CoverallsBuildData> {
+    const url = `${this.baseUrl}/${service}/${username}/${repo}/${branch}.json`;
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch build by branch: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    return (await response.json()) as CoverallsBuildData;
+  }
+
+  /**
+   * Fetches job data by job ID
+   */
+  async getJob(jobId: string): Promise<CoverallsJobData> {
+    const url = `${this.baseUrl}/jobs/${jobId}.json`;
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch job data: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    return (await response.json()) as CoverallsJobData;
+  }
+
+  /**
+   * Fetches job data with paths field included
+   */
+  async getJobWithPaths(jobId: string): Promise<CoverallsJobData> {
+    const url = `${this.baseUrl}/jobs/${jobId}.json?paths=true`;
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch job with paths: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    return (await response.json()) as CoverallsJobData;
+  }
+
+  /**
+   * Fetches source file coverage data for a specific job
+   */
+  async getSourceFile(
+    jobId: string,
+    filePath: string,
+  ): Promise<(number | null)[]> {
+    const encodedPath = encodeURIComponent(filePath);
+    const url = `${this.baseUrl}/jobs/${jobId}/source.json?filename=${encodedPath}`;
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch source file: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const coverage = (await response.json()) as (number | null)[];
+    return coverage;
+  }
+
+  /**
+   * Fetches source file coverage data for a specific build
+   */
+  async getSourceFileByBuild(
+    buildId: string,
+    filePath: string,
+  ): Promise<(number | null)[]> {
+    const encodedPath = encodeURIComponent(filePath);
+    const url = `${this.baseUrl}/builds/${buildId}/source.json?filename=${encodedPath}`;
+    const response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch source file by build: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const coverage = (await response.json()) as (number | null)[];
+    return coverage;
+  }
 }
+
+export default CoverallsAPI;
