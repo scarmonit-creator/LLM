@@ -12,7 +12,7 @@ class HallucinationDetector {
   async selfCheckGPT(prompt, numSamples = 5) {
     try {
       const responses = [];
-      
+
       // Generate multiple responses
       for (let i = 0; i < numSamples; i++) {
         const response = await this.llmClient.generate(prompt, {
@@ -21,10 +21,10 @@ class HallucinationDetector {
         });
         responses.push(response);
       }
-      
+
       // Calculate consistency score
       const consistencyScore = this.calculateConsistencyScore(responses);
-      
+
       return {
         responses,
         consistencyScore,
@@ -42,16 +42,16 @@ class HallucinationDetector {
     try {
       // Use provided responses or generate new ones
       const responses = providedResponses || (await this.selfCheckGPT(prompt, 10)).responses;
-      
+
       // Cluster responses based on semantic similarity
       const clusters = this.clusterResponses(responses);
-      
+
       // Calculate cluster probabilities
       const probabilities = clusters.map((cluster) => cluster.length / responses.length);
-      
+
       // Calculate Shannon entropy
       const entropy = this.calculateEntropy(probabilities);
-      
+
       return {
         entropy,
         clusters: clusters.length,
@@ -69,7 +69,7 @@ class HallucinationDetector {
     // Simplified: Calculate mean pairwise similarity
     let totalSimilarity = 0;
     let comparisons = 0;
-    
+
     for (let i = 0; i < responses.length; i++) {
       for (let j = i + 1; j < responses.length; j++) {
         const similarity = this.calculateSimilarity(responses[i], responses[j]);
@@ -77,7 +77,7 @@ class HallucinationDetector {
         comparisons++;
       }
     }
-    
+
     return comparisons > 0 ? totalSimilarity / comparisons : 0;
   }
 
@@ -85,26 +85,26 @@ class HallucinationDetector {
   clusterResponses(responses) {
     const clusters = [];
     const assigned = new Set();
-    
+
     for (let i = 0; i < responses.length; i++) {
       if (assigned.has(i)) continue;
-      
+
       const cluster = [responses[i]];
       assigned.add(i);
-      
+
       for (let j = i + 1; j < responses.length; j++) {
         if (assigned.has(j)) continue;
-        
+
         const similarity = this.calculateSimilarity(responses[i], responses[j]);
         if (similarity > 0.8) {
           cluster.push(responses[j]);
           assigned.add(j);
         }
       }
-      
+
       clusters.push(cluster);
     }
-    
+
     return clusters;
   }
 
@@ -121,23 +121,23 @@ class HallucinationDetector {
     // In production, use embeddings + cosine similarity
     const text1 = typeof response1 === 'string' ? response1 : response1.text || '';
     const text2 = typeof response2 === 'string' ? response2 : response2.text || '';
-    
+
     return text1 === text2 ? 1 : 0;
   }
 
   // Main detection method
   async detectHallucination(prompt, method = 'both') {
     const results = {};
-    
+
     if (method === 'selfcheck' || method === 'both') {
       results.selfcheck = await this.selfCheckGPT(prompt);
     }
-    
+
     if (method === 'entropy' || method === 'both') {
       const responses = results.selfcheck ? results.selfcheck.responses : null;
       results.entropy = await this.calculateSemanticEntropy(prompt, responses);
     }
-    
+
     return results;
   }
 }
