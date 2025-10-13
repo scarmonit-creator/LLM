@@ -35,7 +35,7 @@ class RAGPipeline {
   async initialize() {
     try {
       this.client = new ChromaClient({ path: this.config.vectorDBPath });
-      
+
       this.embeddingFunction = new OpenAIEmbeddingFunction({
         model: this.config.embeddingModel,
         apiKey: process.env.OPENAI_API_KEY,
@@ -62,9 +62,9 @@ class RAGPipeline {
     }
 
     try {
-      const ids = documents.map(doc => doc.id || `doc_${Date.now()}_${Math.random()}`);
-      const texts = documents.map(doc => doc.text);
-      const metadatas = documents.map(doc => doc.metadata || {});
+      const ids = documents.map((doc) => doc.id || `doc_${Date.now()}_${Math.random()}`);
+      const texts = documents.map((doc) => doc.text);
+      const metadatas = documents.map((doc) => doc.metadata || {});
 
       await this.collection.add({
         ids,
@@ -127,7 +127,7 @@ class RAGPipeline {
       const retrievedDocs = await this.retrieve(query);
 
       // Check if sufficient evidence exists
-      const maxScore = Math.max(...retrievedDocs.map(d => d.score));
+      const maxScore = Math.max(...retrievedDocs.map((d) => d.score));
       if (maxScore < this.config.minConfidence) {
         return {
           response: "I don't have sufficient information to answer this question with confidence.",
@@ -151,20 +151,21 @@ class RAGPipeline {
       const tokens = encode(prompt);
       if (tokens.length > this.config.maxTokens) {
         // Trim context to fit
-        const availableTokens = this.config.maxTokens - encode(`Question: ${query}\n\nAnswer:`).length;
+        const availableTokens =
+          this.config.maxTokens - encode(`Question: ${query}\n\nAnswer:`).length;
         const trimmedDocs = this._trimContext(retrievedDocs, availableTokens);
         const trimmedContext = trimmedDocs
           .map((doc, idx) => `[${idx + 1}] ${doc.text}\nSource: ${doc.citation}`)
           .join('\n\n');
         const trimmedPrompt = `Answer the following question using ONLY the provided context. You MUST cite sources using [number] notation.\n\nContext:\n${trimmedContext}\n\nQuestion: ${query}\n\nAnswer (with citations):`;
-        
+
         const response = await llmFunction(trimmedPrompt, trimmedContext);
-        
+
         return {
           response,
           abstained: false,
           confidence: maxScore,
-          citations: trimmedDocs.map(d => d.citation),
+          citations: trimmedDocs.map((d) => d.citation),
           retrievedDocs: trimmedDocs,
         };
       }
@@ -176,7 +177,7 @@ class RAGPipeline {
         response,
         abstained: false,
         confidence: maxScore,
-        citations: retrievedDocs.map(d => d.citation),
+        citations: retrievedDocs.map((d) => d.citation),
         retrievedDocs,
       };
     } catch (error) {
@@ -234,11 +235,9 @@ class RAGPipeline {
   _calculateFaithfulness(response, retrievedDocs) {
     // Simple keyword overlap check
     const responseWords = new Set(response.toLowerCase().split(/\W+/));
-    const docWords = new Set(
-      retrievedDocs.flatMap(d => d.text.toLowerCase().split(/\W+/))
-    );
+    const docWords = new Set(retrievedDocs.flatMap((d) => d.text.toLowerCase().split(/\W+/)));
 
-    const overlap = [...responseWords].filter(w => docWords.has(w)).length;
+    const overlap = [...responseWords].filter((w) => docWords.has(w)).length;
     return Math.min(overlap / responseWords.size, 1.0);
   }
 

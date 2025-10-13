@@ -72,18 +72,14 @@ export class CoverallsAPI {
     service: string,
     username: string,
     repo: string,
-    page: number = 1,
+    page: number = 1
   ): string {
     return `${this.baseUrl}/builds/${service}/${username}/${repo}.json?page=${page}`;
   }
   /**
    * Fetches repository data from Coveralls
    */
-  async getRepo(
-    service: string,
-    username: string,
-    repo: string,
-  ): Promise<CoverallsRepoData> {
+  async getRepo(service: string, username: string, repo: string): Promise<CoverallsRepoData> {
     const url = this.getRepoUrl(service, username, repo);
     const response = await fetch(url, {
       headers: {
@@ -91,9 +87,7 @@ export class CoverallsAPI {
       },
     });
     if (!response.ok) {
-      throw new Error(
-        `Failed to fetch repo data: ${response.status} ${response.statusText}`,
-      );
+      throw new Error(`Failed to fetch repo data: ${response.status} ${response.statusText}`);
     }
     return (await response.json()) as CoverallsRepoData;
   }
@@ -104,7 +98,7 @@ export class CoverallsAPI {
     service: string,
     username: string,
     repo: string,
-    page: number = 1,
+    page: number = 1
   ): Promise<CoverallsRepoBuildsData> {
     const url = this.getRepoBuildsUrl(service, username, repo, page);
     const response = await fetch(url, {
@@ -113,9 +107,7 @@ export class CoverallsAPI {
       },
     });
     if (!response.ok) {
-      throw new Error(
-        `Failed to fetch repo builds: ${response.status} ${response.statusText}`,
-      );
+      throw new Error(`Failed to fetch repo builds: ${response.status} ${response.statusText}`);
     }
     return (await response.json()) as CoverallsRepoBuildsData;
   }
@@ -130,9 +122,7 @@ export class CoverallsAPI {
       },
     });
     if (!response.ok) {
-      throw new Error(
-        `Failed to fetch build data: ${response.status} ${response.statusText}`,
-      );
+      throw new Error(`Failed to fetch build data: ${response.status} ${response.statusText}`);
     }
     return (await response.json()) as CoverallsBuildData;
   }
@@ -143,7 +133,7 @@ export class CoverallsAPI {
     service: string,
     username: string,
     repo: string,
-    commitSha: string,
+    commitSha: string
   ): Promise<CoverallsBuildData> {
     const url = `${this.baseUrl}/builds/${service}/${username}/${repo}/${commitSha}.json`;
     const response = await fetch(url, {
@@ -152,9 +142,7 @@ export class CoverallsAPI {
       },
     });
     if (!response.ok) {
-      throw new Error(
-        `Failed to fetch build by commit: ${response.status} ${response.statusText}`,
-      );
+      throw new Error(`Failed to fetch build by commit: ${response.status} ${response.statusText}`);
     }
     return (await response.json()) as CoverallsBuildData;
   }
@@ -165,7 +153,7 @@ export class CoverallsAPI {
     service: string,
     username: string,
     repo: string,
-    branch: string,
+    branch: string
   ): Promise<CoverallsBuildData> {
     const url = `${this.baseUrl}/${service}/${username}/${repo}/${branch}.json`;
     const response = await fetch(url, {
@@ -174,9 +162,7 @@ export class CoverallsAPI {
       },
     });
     if (!response.ok) {
-      throw new Error(
-        `Failed to fetch build by branch: ${response.status} ${response.statusText}`,
-      );
+      throw new Error(`Failed to fetch build by branch: ${response.status} ${response.statusText}`);
     }
     return (await response.json()) as CoverallsBuildData;
   }
@@ -191,9 +177,7 @@ export class CoverallsAPI {
       },
     });
     if (!response.ok) {
-      throw new Error(
-        `Failed to fetch job data: ${response.status} ${response.statusText}`,
-      );
+      throw new Error(`Failed to fetch job data: ${response.status} ${response.statusText}`);
     }
     return (await response.json()) as CoverallsJobData;
   }
@@ -208,19 +192,14 @@ export class CoverallsAPI {
       },
     });
     if (!response.ok) {
-      throw new Error(
-        `Failed to fetch job with paths: ${response.status} ${response.statusText}`,
-      );
+      throw new Error(`Failed to fetch job with paths: ${response.status} ${response.statusText}`);
     }
     return (await response.json()) as CoverallsJobData;
   }
   /**
    * Fetches source file coverage data for a specific job
    */
-  async getSourceFile(
-    jobId: string,
-    filePath: string,
-  ): Promise<(number | null)[]> {
+  async getSourceFile(jobId: string, filePath: string): Promise<(number | null)[]> {
     const encodedPath = encodeURIComponent(filePath);
     const url = `${this.baseUrl}/jobs/${jobId}/source.json?filename=${encodedPath}`;
     const response = await fetch(url, {
@@ -229,19 +208,14 @@ export class CoverallsAPI {
       },
     });
     if (!response.ok) {
-      throw new Error(
-        `Failed to fetch source file: ${response.status} ${response.statusText}`,
-      );
+      throw new Error(`Failed to fetch source file: ${response.status} ${response.statusText}`);
     }
     return (await response.json()) as (number | null)[];
   }
   /**
    * Fetches source file coverage data for a specific build
    */
-  async getSourceFileByBuild(
-    buildId: string,
-    filePath: string,
-  ): Promise<(number | null)[]> {
+  async getSourceFileByBuild(buildId: string, filePath: string): Promise<(number | null)[]> {
     const encodedPath = encodeURIComponent(filePath);
     const url = `${this.baseUrl}/builds/${buildId}/source.json?filename=${encodedPath}`;
     const response = await fetch(url, {
@@ -251,7 +225,7 @@ export class CoverallsAPI {
     });
     if (!response.ok) {
       throw new Error(
-        `Failed to fetch source file by build: ${response.status} ${response.statusText}`,
+        `Failed to fetch source file by build: ${response.status} ${response.statusText}`
       );
     }
     return (await response.json()) as (number | null)[];

@@ -41,14 +41,16 @@ class ReActAgent {
   }
 
   buildPrompt(task, scratchpad, observation) {
-    return `You are a ReAct agent. Use Thought/Action/Observation steps.\n` +
+    return (
+      'You are a ReAct agent. Use Thought/Action/Observation steps.\n' +
       `Available tools: ${Object.keys(this.tools).join(', ')}\n` +
       `Task: ${task}\n` +
       `${scratchpad}\n` +
       (observation ? `Latest observation: ${observation}\n` : '') +
-      `Respond strictly in one of two formats:\n` +
-      `1) Thought: ...\nAction: <tool>\nAction Input: <input>\n` +
-      `2) Final Answer: <answer>`;
+      'Respond strictly in one of two formats:\n' +
+      '1) Thought: ...\nAction: <tool>\nAction Input: <input>\n' +
+      '2) Final Answer: <answer>'
+    );
   }
 
   parseAction(text) {
@@ -61,7 +63,11 @@ class ReActAgent {
     const thoughtMatch = text.match(/Thought:\s*([\s\S]*?)\nAction:/i);
 
     if (toolMatch) {
-      return { tool: toolMatch[1].trim(), input: toolMatch[2].trim(), thought: thoughtMatch?.[1]?.trim() };
+      return {
+        tool: toolMatch[1].trim(),
+        input: toolMatch[2].trim(),
+        thought: thoughtMatch?.[1]?.trim(),
+      };
     }
 
     return {};

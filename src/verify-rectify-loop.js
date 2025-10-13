@@ -24,10 +24,10 @@ class VerifyRectifyLoop {
       const rectifyInstructions = this.buildRectifyInstructions(verdict);
 
       // Generate rectified output
-      output = await this.generator(
-        `${prompt}\n\nRevise to address: ${rectifyInstructions}`,
-        { ...context, lastVerdict: verdict }
-      );
+      output = await this.generator(`${prompt}\n\nRevise to address: ${rectifyInstructions}`, {
+        ...context,
+        lastVerdict: verdict,
+      });
 
       attempt++;
     }
@@ -42,8 +42,7 @@ class VerifyRectifyLoop {
 
     if (verdict.issues?.length) {
       parts.push(
-        'Fix the following issues: ' +
-          verdict.issues.map((i, idx) => `${idx + 1}. ${i}`).join(' ')
+        'Fix the following issues: ' + verdict.issues.map((i, idx) => `${idx + 1}. ${i}`).join(' ')
       );
     }
 

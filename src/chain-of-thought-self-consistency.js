@@ -17,8 +17,8 @@ class SelfConsistencyReasoner {
       paths.push({ reasoning, answer, raw: out });
     }
 
-    const majority = this.majorityAnswer(paths.map(p => p.answer));
-    const support = paths.filter(p => p.answer === majority);
+    const majority = this.majorityAnswer(paths.map((p) => p.answer));
+    const support = paths.filter((p) => p.answer === majority);
     return {
       answer: majority,
       confidence: support.length / this.samples,
@@ -38,8 +38,13 @@ class SelfConsistencyReasoner {
   majorityAnswer(answers) {
     const counts = new Map();
     for (const a of answers) counts.set(a, (counts.get(a) || 0) + 1);
-    let best = null, bestN = -1;
-    for (const [a, n] of counts) if (n > bestN) { best = a; bestN = n; }
+    let best = null,
+      bestN = -1;
+    for (const [a, n] of counts)
+      if (n > bestN) {
+        best = a;
+        bestN = n;
+      }
     return best;
   }
 }

@@ -38,80 +38,82 @@ class ProxyConfig {
       // Basic proxy settings
       port: 8080,
       host: '0.0.0.0', // Allow connections from all network interfaces for multi-device support
-      
+
       // Obfuscation settings
       obfuscationKey: null, // Auto-generated if not provided
       simulateChrome: true,
       enableLogging: true,
-      
+
       // Performance settings
       maxConnections: 100,
       connectionTimeout: 30000, // 30 seconds
       requestTimeout: 60000, // 60 seconds
-      
+
       // Security settings
       allowedOrigins: ['*'], // Allow all origins by default
       blockList: [], // List of blocked domains
-      
+
       // Chrome simulation headers (updated for latest Chrome)
       chromeHeaders: {
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         acceptLanguage: 'en-US,en;q=0.9',
         acceptEncoding: 'gzip, deflate, br',
-        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        accept:
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         secChUa: '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
         secChUaMobile: '?0',
-        secChUaPlatform: '"Windows"'
+        secChUaPlatform: '"Windows"',
       },
-      
+
       // Platform-specific settings
       platform: {
         windows: {
           autoStart: false,
-          systemProxy: false
+          systemProxy: false,
         },
         macos: {
           autoStart: false,
-          systemProxy: false
+          systemProxy: false,
         },
         linux: {
           autoStart: false,
-          systemProxy: false
+          systemProxy: false,
         },
         android: {
           wifiOnly: false,
-          batteryOptimization: true
+          batteryOptimization: true,
         },
         ios: {
           wifiOnly: false,
-          backgroundMode: true
-        }
+          backgroundMode: true,
+        },
       },
-      
+
       // Advanced obfuscation settings
       obfuscation: {
         enabled: true,
         algorithm: 'xor-rotation', // XOR with key rotation
         keyRotationInterval: 1000, // Rotate key every 1000 bytes
         randomPadding: true, // Add random padding to make traffic patterns irregular
-        mimicProtocol: 'https' // Mimic HTTPS traffic patterns
+        mimicProtocol: 'https', // Mimic HTTPS traffic patterns
       },
-      
+
       // Traffic shaping to avoid detection
       trafficShaping: {
         enabled: true,
         minDelay: 10, // Minimum delay between requests (ms)
         maxDelay: 100, // Maximum delay between requests (ms)
         burstLimit: 10, // Maximum burst of requests
-        randomizeTimings: true // Randomize request timings
+        randomizeTimings: true, // Randomize request timings
       },
-      
+
       // DNS settings
       dns: {
         servers: ['8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1'],
         dohEnabled: false, // DNS over HTTPS
-        cacheTTL: 300 // 5 minutes
-      }
+        cacheTTL: 300, // 5 minutes
+      },
     };
   }
 
@@ -121,12 +123,12 @@ class ProxyConfig {
   getPlatformConfig() {
     const config = this.getDefaultConfig();
     const platformSettings = config.platform[this.platform] || {};
-    
+
     return {
       ...config,
       ...platformSettings,
       platform: this.platform,
-      configDir: this.configDir
+      configDir: this.configDir,
     };
   }
 
@@ -135,22 +137,22 @@ class ProxyConfig {
    */
   validateConfig(config) {
     const errors = [];
-    
+
     if (!config.port || config.port < 1 || config.port > 65535) {
       errors.push('Invalid port number');
     }
-    
+
     if (!config.host) {
       errors.push('Host is required');
     }
-    
+
     if (config.maxConnections && config.maxConnections < 1) {
       errors.push('maxConnections must be at least 1');
     }
-    
+
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -159,26 +161,26 @@ class ProxyConfig {
    */
   mergeConfig(userConfig = {}) {
     const defaultConfig = this.getPlatformConfig();
-    
+
     return {
       ...defaultConfig,
       ...userConfig,
       chromeHeaders: {
         ...defaultConfig.chromeHeaders,
-        ...(userConfig.chromeHeaders || {})
+        ...(userConfig.chromeHeaders || {}),
       },
       obfuscation: {
         ...defaultConfig.obfuscation,
-        ...(userConfig.obfuscation || {})
+        ...(userConfig.obfuscation || {}),
       },
       trafficShaping: {
         ...defaultConfig.trafficShaping,
-        ...(userConfig.trafficShaping || {})
+        ...(userConfig.trafficShaping || {}),
       },
       dns: {
         ...defaultConfig.dns,
-        ...(userConfig.dns || {})
-      }
+        ...(userConfig.dns || {}),
+      },
     };
   }
 
@@ -187,7 +189,7 @@ class ProxyConfig {
    */
   getPresetConfig(preset) {
     const baseConfig = this.getDefaultConfig();
-    
+
     const presets = {
       // Maximum stealth configuration
       stealth: {
@@ -198,15 +200,15 @@ class ProxyConfig {
           ...baseConfig.obfuscation,
           enabled: true,
           randomPadding: true,
-          keyRotationInterval: 500
+          keyRotationInterval: 500,
         },
         trafficShaping: {
           ...baseConfig.trafficShaping,
           enabled: true,
-          randomizeTimings: true
-        }
+          randomizeTimings: true,
+        },
       },
-      
+
       // Performance-optimized configuration
       performance: {
         ...baseConfig,
@@ -216,14 +218,14 @@ class ProxyConfig {
         obfuscation: {
           ...baseConfig.obfuscation,
           enabled: true,
-          randomPadding: false
+          randomPadding: false,
         },
         trafficShaping: {
           ...baseConfig.trafficShaping,
-          enabled: false
-        }
+          enabled: false,
+        },
       },
-      
+
       // Development/testing configuration
       development: {
         ...baseConfig,
@@ -232,15 +234,15 @@ class ProxyConfig {
         simulateChrome: false,
         obfuscation: {
           ...baseConfig.obfuscation,
-          enabled: false
+          enabled: false,
         },
         trafficShaping: {
           ...baseConfig.trafficShaping,
-          enabled: false
-        }
-      }
+          enabled: false,
+        },
+      },
     };
-    
+
     return presets[preset] || baseConfig;
   }
 }

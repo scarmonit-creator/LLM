@@ -22,15 +22,15 @@ class ObfuscationProxy {
       obfuscationKey: config.obfuscationKey || crypto.randomBytes(32).toString('hex'),
       simulateChrome: config.simulateChrome !== false,
       enableLogging: config.enableLogging !== false,
-      ...config
+      ...config,
     };
-    
+
     this.server = null;
     this.connections = new Set();
     this.stats = {
       requests: 0,
       bytesTransferred: 0,
-      activeConnections: 0
+      activeConnections: 0,
     };
   }
 
@@ -40,10 +40,10 @@ class ObfuscationProxy {
   start() {
     return new Promise((resolve, reject) => {
       this.server = http.createServer(this.handleRequest.bind(this));
-      
+
       // Handle CONNECT method for HTTPS tunneling
       this.server.on('connect', this.handleConnect.bind(this));
-      
+
       this.server.on('error', (err) => {
         this.log('Server error:', err);
         reject(err);
@@ -92,21 +92,21 @@ class ObfuscationProxy {
         port: url.port || (url.protocol === 'https:' ? 443 : 80),
         path: url.pathname + url.search,
         method: clientReq.method,
-        headers: this.obfuscateHeaders(clientReq.headers)
+        headers: this.obfuscateHeaders(clientReq.headers),
       };
 
       const protocol = url.protocol === 'https:' ? https : http;
-      
+
       const proxyReq = protocol.request(options, (proxyRes) => {
         // Copy response headers with obfuscation
         clientRes.writeHead(proxyRes.statusCode, this.obfuscateHeaders(proxyRes.headers, true));
-        
+
         // Track data transfer
         proxyRes.on('data', (chunk) => {
           this.stats.bytesTransferred += chunk.length;
           clientRes.write(this.obfuscateData(chunk));
         });
-        
+
         proxyRes.on('end', () => {
           clientRes.end();
         });
@@ -123,7 +123,7 @@ class ObfuscationProxy {
         this.stats.bytesTransferred += chunk.length;
         proxyReq.write(this.obfuscateData(chunk));
       });
-      
+
       clientReq.on('end', () => {
         proxyReq.end();
       });
@@ -141,20 +141,20 @@ class ObfuscationProxy {
     this.stats.requests++;
     this.stats.activeConnections++;
     this.connections.add(clientSocket);
-    
+
     this.log(`CONNECT: ${req.url}`);
 
     const [hostname, port] = req.url.split(':');
-    
+
     const serverSocket = net.connect(port || 443, hostname, () => {
-      clientSocket.write('HTTP/1.1 200 Connection Established\r\n' +
-                        'Proxy-agent: ObfuscationProxy/1.0\r\n' +
-                        '\r\n');
-      
+      clientSocket.write(
+        'HTTP/1.1 200 Connection Established\r\n' + 'Proxy-agent: ObfuscationProxy/1.0\r\n' + '\r\n'
+      );
+
       // Bidirectional pipe with obfuscation
       serverSocket.pipe(clientSocket);
       clientSocket.pipe(serverSocket);
-      
+
       if (head.length > 0) {
         serverSocket.write(head);
       }
@@ -186,13 +186,15 @@ class ObfuscationProxy {
     }
 
     const obfuscated = { ...headers };
-    
+
     if (this.config.simulateChrome) {
       // Add Chrome-like headers
-      obfuscated['user-agent'] = obfuscated['user-agent'] || 
+      obfuscated['user-agent'] =
+        obfuscated['user-agent'] ||
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-      
-      obfuscated['accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8';
+
+      obfuscated['accept'] =
+        'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8';
       obfuscated['accept-encoding'] = 'gzip, deflate, br';
       obfuscated['accept-language'] = 'en-US,en;q=0.9';
       obfuscated['cache-control'] = 'no-cache';
@@ -225,12 +227,12 @@ class ObfuscationProxy {
 
     const key = Buffer.from(this.config.obfuscationKey, 'hex');
     const result = Buffer.alloc(data.length);
-    
+
     for (let i = 0; i < data.length; i++) {
       // XOR with rotating key
       result[i] = data[i] ^ key[i % key.length];
     }
-    
+
     return result;
   }
 
@@ -251,8 +253,8 @@ class ObfuscationProxy {
       config: {
         port: this.config.port,
         host: this.config.host,
-        simulateChrome: this.config.simulateChrome
-      }
+        simulateChrome: this.config.simulateChrome,
+      },
     };
   }
 

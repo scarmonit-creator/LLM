@@ -12,24 +12,24 @@ class HallucinationDetector {
   async selfCheckGPT(prompt, numSamples = 5) {
     try {
       const responses = [];
-      
+
       // Generate multiple responses
       for (let i = 0; i < numSamples; i++) {
         const response = await this.llmClient.generate(prompt, {
           temperature: 0.8,
-          max_tokens: 500
+          max_tokens: 500,
         });
         responses.push(response);
       }
 
       // Calculate consistency score
       const consistencyScore = this.calculateConsistencyScore(responses);
-      
+
       return {
         responses,
         consistencyScore,
         isHallucinating: consistencyScore < this.consistencyThreshold,
-        method: 'SelfCheckGPT'
+        method: 'SelfCheckGPT',
       };
     } catch (error) {
       console.error('SelfCheckGPT error:', error);
@@ -40,16 +40,13 @@ class HallucinationDetector {
   // Calculate semantic similarity between responses
   calculateConsistencyScore(responses) {
     if (responses.length < 2) return 1.0;
-    
+
     let totalSimilarity = 0;
     let comparisons = 0;
 
     for (let i = 0; i < responses.length; i++) {
       for (let j = i + 1; j < responses.length; j++) {
-        const similarity = this.calculateSemanticSimilarity(
-          responses[i],
-          responses[j]
-        );
+        const similarity = this.calculateSemanticSimilarity(responses[i], responses[j]);
         totalSimilarity += similarity;
         comparisons++;
       }
@@ -62,10 +59,10 @@ class HallucinationDetector {
   calculateSemanticSimilarity(text1, text2) {
     const tokens1 = new Set(text1.toLowerCase().split(/\s+/));
     const tokens2 = new Set(text2.toLowerCase().split(/\s+/));
-    
-    const intersection = new Set([...tokens1].filter(x => tokens2.has(x)));
+
+    const intersection = new Set([...tokens1].filter((x) => tokens2.has(x)));
     const union = new Set([...tokens1, ...tokens2]);
-    
+
     return union.size > 0 ? intersection.size / union.size : 0;
   }
 
@@ -79,16 +76,16 @@ class HallucinationDetector {
 
       // Group semantically similar responses
       const clusters = this.clusterResponses(responses);
-      
+
       // Calculate entropy over clusters
-      const probabilities = clusters.map(c => c.length / responses.length);
+      const probabilities = clusters.map((c) => c.length / responses.length);
       const entropy = this.calculateEntropy(probabilities);
-      
+
       return {
         entropy,
         clusters: clusters.length,
         isHallucinating: entropy > this.entropyThreshold,
-        method: 'SemanticEntropy'
+        method: 'SemanticEntropy',
       };
     } catch (error) {
       console.error('Semantic entropy calculation error:', error);
@@ -103,24 +100,21 @@ class HallucinationDetector {
 
     for (let i = 0; i < responses.length; i++) {
       if (assigned.has(i)) continue;
-      
+
       const cluster = [responses[i]];
       assigned.add(i);
-      
+
       for (let j = i + 1; j < responses.length; j++) {
         if (assigned.has(j)) continue;
-        
-        const similarity = this.calculateSemanticSimilarity(
-          responses[i],
-          responses[j]
-        );
-        
+
+        const similarity = this.calculateSemanticSimilarity(responses[i], responses[j]);
+
         if (similarity >= similarityThreshold) {
           cluster.push(responses[j]);
           assigned.add(j);
         }
       }
-      
+
       clusters.push(cluster);
     }
 
@@ -143,37 +137,34 @@ class HallucinationDetector {
     }
 
     if (method === 'entropy' || method === 'both') {
-      const responses = results.selfcheck ? 
-        results.selfcheck.responses : null;
+      const responses = results.selfcheck ? results.selfcheck.responses : null;
       results.entropy = await this.calculateSemanticEntropy(prompt, responses);
     }
 
     // Combine results
-    const isHallucinating = 
-      (results.selfcheck?.isHallucinating || false) ||
-      (results.entropy?.isHallucinating || false);
+    const isHallucinating =
+      results.selfcheck?.isHallucinating || false || results.entropy?.isHallucinating || false;
 
     return {
       ...results,
       finalVerdict: isHallucinating,
-      confidence: this.calculateConfidence(results)
+      confidence: this.calculateConfidence(results),
     };
   }
 
   calculateConfidence(results) {
     const scores = [];
-    
+
     if (results.selfcheck) {
       scores.push(results.selfcheck.consistencyScore);
     }
-    
+
     if (results.entropy) {
       // Normalize entropy to 0-1 range (inverse)
       scores.push(1 - Math.min(results.entropy.entropy, 1));
     }
-    
-    return scores.length > 0 ? 
-      scores.reduce((a, b) => a + b) / scores.length : 0;
+
+    return scores.length > 0 ? scores.reduce((a, b) => a + b) / scores.length : 0;
   }
 }
 
