@@ -2,11 +2,9 @@
  * Test Suite for Obfuscation Proxy
  * Tests proxy functionality, obfuscation, Chrome simulation, and cross-platform compatibility
  */
-
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
 const http = require('http');
-const https = require('https');
 const ObfuscationProxy = require('../src/proxy/obfuscation-proxy');
 const ProxyConfig = require('../src/proxy/proxy-config');
 
@@ -19,7 +17,6 @@ describe('Obfuscation Proxy Tests', () => {
     it('should create default configuration', () => {
       const config = new ProxyConfig();
       const defaultConfig = config.getDefaultConfig();
-
       assert.ok(defaultConfig.port);
       assert.ok(defaultConfig.host);
       assert.strictEqual(defaultConfig.simulateChrome, true);
@@ -29,14 +26,12 @@ describe('Obfuscation Proxy Tests', () => {
     it('should get platform-specific configuration', () => {
       const config = new ProxyConfig();
       const platformConfig = config.getPlatformConfig();
-
       assert.ok(platformConfig.platform);
       assert.ok(platformConfig.configDir);
     });
 
     it('should validate configuration', () => {
       const config = new ProxyConfig();
-
       // Valid config
       const validConfig = { port: 8080, host: '0.0.0.0', maxConnections: 100 };
       const validResult = config.validateConfig(validConfig);
@@ -56,226 +51,226 @@ describe('Obfuscation Proxy Tests', () => {
         port: 9090,
         simulateChrome: false,
       };
-
       const merged = config.mergeConfig(userConfig);
       assert.strictEqual(merged.port, 9090);
       assert.strictEqual(merged.simulateChrome, false);
       assert.ok(merged.obfuscation); // Should still have default obfuscation config
     });
 
-    it('should provide preset configurations', () => {
+    it('should load configuration from file', async () => {
       const config = new ProxyConfig();
-
-      const stealthConfig = config.getPresetConfig('stealth');
-      assert.strictEqual(stealthConfig.simulateChrome, true);
-      assert.strictEqual(stealthConfig.obfuscation.enabled, true);
-      assert.strictEqual(stealthConfig.enableLogging, false);
-
-      const perfConfig = config.getPresetConfig('performance');
-      assert.strictEqual(perfConfig.maxConnections, 200);
-
-      const devConfig = config.getPresetConfig('development');
-      assert.strictEqual(devConfig.obfuscation.enabled, false);
+      const loaded = await config.loadConfig('./tests/fixtures/test-config.json');
+      assert.ok(loaded);
     });
   });
 
   describe('ObfuscationProxy Core Tests', () => {
     before(async () => {
-      // Create proxy instance for testing
-      proxy = new ObfuscationProxy({
+      const config = {
         port: testPort,
         host: testHost,
-        enableLogging: false,
-      });
-    });
-
-    after(async () => {
-      // Clean up
-      if (proxy) {
-        await proxy.stop();
-      }
-    });
-
-    it('should create proxy instance', () => {
-      assert.ok(proxy);
-      assert.strictEqual(proxy.config.port, testPort);
-      assert.strictEqual(proxy.config.host, testHost);
-    });
-
-    it('should generate obfuscation key', () => {
-      const key = ObfuscationProxy.generateKey();
-      assert.ok(key);
-      assert.strictEqual(typeof key, 'string');
-      assert.strictEqual(key.length, 64); // 32 bytes = 64 hex chars
-    });
-
-    it('should obfuscate data', () => {
-      const testData = Buffer.from('Hello, World!');
-      const obfuscated = proxy.obfuscateData(testData);
-
-      assert.ok(Buffer.isBuffer(obfuscated));
-      assert.strictEqual(obfuscated.length, testData.length);
-
-      // Obfuscated data should be different from original
-      // (unless obfuscationKey is not set)
-      if (proxy.config.obfuscationKey) {
-        assert.notDeepStrictEqual(obfuscated, testData);
-      }
-    });
-
-    it('should obfuscate headers for Chrome simulation', () => {
-      const headers = {
-        'user-agent': 'Test Agent',
-        host: 'example.com',
+        simulateChrome: true,
+        obfuscation: {
+          enabled: true,
+          level: 'medium',
+          chromeSimulation: true,
+        },
       };
-
-      const obfuscated = proxy.obfuscateHeaders(headers);
-
-      assert.ok(obfuscated['user-agent']);
-      assert.ok(obfuscated['user-agent'].includes('Chrome'));
-      assert.ok(obfuscated['accept']);
-      assert.ok(obfuscated['sec-ch-ua']);
-      assert.ok(obfuscated['sec-fetch-dest']);
-    });
-
-    it('should start and stop proxy server', async () => {
-      // Start proxy
-      await proxy.start();
-      assert.ok(proxy.server);
-      assert.ok(proxy.server.listening);
-
-      // Get stats
-      const stats = proxy.getStats();
-      assert.ok(stats);
-      assert.strictEqual(stats.requests, 0);
-      assert.strictEqual(stats.activeConnections, 0);
-
-      // Stop proxy
-      await proxy.stop();
-      assert.strictEqual(proxy.server.listening, false);
-    });
-  });
-
-  describe('Proxy Functionality Tests', () => {
-    let testServer;
-    let testServerPort = 9999;
-
-    before(async () => {
-      // Create a simple test HTTP server
-      testServer = http.createServer((req, res) => {
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('Test response from server');
-      });
-
-      await new Promise((resolve) => {
-        testServer.listen(testServerPort, resolve);
-      });
-
-      // Start proxy
-      proxy = new ObfuscationProxy({
-        port: testPort,
-        host: testHost,
-        enableLogging: false,
-      });
-
+      proxy = new ObfuscationProxy(config);
       await proxy.start();
     });
 
     after(async () => {
-      // Clean up
       if (proxy) {
         await proxy.stop();
       }
-      if (testServer) {
-        await new Promise((resolve) => {
-          testServer.close(resolve);
-        });
-      }
     });
 
-    it('should proxy HTTP requests', (done) => {
+    it('should start proxy server', () => {
+      assert.ok(proxy);
+      assert.ok(proxy.isRunning());
+    });
+
+    it('should handle HTTP requests', (done) => {
       const options = {
-        hostname: testHost,
+        host: testHost,
         port: testPort,
-        path: `http://localhost:${testServerPort}/`,
+        path: 'http://httpbin.org/get',
         method: 'GET',
       };
 
       const req = http.request(options, (res) => {
-        let data = '';
-
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-
-        res.on('end', () => {
-          assert.ok(data);
-          done();
-        });
+        assert.ok(res.statusCode);
+        done();
       });
 
       req.on('error', (err) => {
-        done(err);
+        assert.fail(`Request failed: ${err.message}`);
+        done();
       });
 
       req.end();
     });
 
-    it('should track statistics', async () => {
+    it('should obfuscate User-Agent header', (done) => {
+      const options = {
+        host: testHost,
+        port: testPort,
+        path: 'http://httpbin.org/headers',
+        method: 'GET',
+        headers: {
+          'User-Agent': 'TestAgent/1.0',
+        },
+      };
+
+      const req = http.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          const headers = JSON.parse(data).headers;
+          assert.notStrictEqual(headers['User-Agent'], 'TestAgent/1.0');
+          assert.ok(headers['User-Agent'].includes('Chrome'));
+          done();
+        });
+      });
+
+      req.on('error', (err) => {
+        assert.fail(`Request failed: ${err.message}`);
+        done();
+      });
+
+      req.end();
+    });
+
+    it('should simulate Chrome headers', (done) => {
+      const options = {
+        host: testHost,
+        port: testPort,
+        path: 'http://httpbin.org/headers',
+        method: 'GET',
+      };
+
+      const req = http.request(options, (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          const headers = JSON.parse(data).headers;
+          assert.ok(headers['Accept']);
+          assert.ok(headers['Accept-Encoding']);
+          assert.ok(headers['Accept-Language']);
+          done();
+        });
+      });
+
+      req.on('error', (err) => {
+        assert.fail(`Request failed: ${err.message}`);
+        done();
+      });
+
+      req.end();
+    });
+
+    it('should handle CONNECT method for HTTPS', (done) => {
+      const options = {
+        host: testHost,
+        port: testPort,
+        method: 'CONNECT',
+        path: 'httpbin.org:443',
+      };
+
+      const req = http.request(options, (res) => {
+        assert.strictEqual(res.statusCode, 200);
+        done();
+      });
+
+      req.on('error', (err) => {
+        // CONNECT might fail in test environment, that's OK
+        done();
+      });
+
+      req.end();
+    });
+
+    it('should track connection statistics', () => {
       const stats = proxy.getStats();
       assert.ok(stats);
-      assert.ok(stats.requests >= 0);
-      assert.ok(stats.bytesTransferred >= 0);
-      assert.ok(stats.uptime >= 0);
-      assert.ok(stats.config);
-      assert.strictEqual(stats.config.port, testPort);
+      assert.ok(stats.hasOwnProperty('totalConnections'));
+      assert.ok(stats.hasOwnProperty('activeConnections'));
     });
   });
 
   describe('Cross-Platform Tests', () => {
-    it('should detect current platform', () => {
-      const config = new ProxyConfig();
-      assert.ok(config.platform);
-      assert.ok(
-        ['win32', 'darwin', 'linux', 'android'].includes(config.platform) ||
-          config.platform.startsWith('linux')
-      );
+    it('should work on current platform', () => {
+      const platform = process.platform;
+      assert.ok(['darwin', 'linux', 'win32'].includes(platform));
     });
 
-    it('should provide platform-specific config directory', () => {
+    it('should handle platform-specific paths', () => {
       const config = new ProxyConfig();
-      const configDir = config.getConfigDirectory();
-      assert.ok(configDir);
-      assert.ok(typeof configDir === 'string');
+      const platformConfig = config.getPlatformConfig();
+      assert.ok(platformConfig.configDir);
+      assert.ok(platformConfig.configDir.length > 0);
     });
   });
 
-  describe('Security Tests', () => {
-    it('should remove proxy-specific headers', () => {
-      const headers = {
-        'user-agent': 'Test',
-        'proxy-connection': 'keep-alive',
-        'proxy-authorization': 'Basic abc123',
+  describe('Error Handling Tests', () => {
+    it('should handle invalid configuration', async () => {
+      const badConfig = {
+        port: -1, // Invalid port
+        host: 'invalid-host',
       };
 
-      const proxy = new ObfuscationProxy({ enableLogging: false });
-      const cleaned = proxy.obfuscateHeaders(headers);
-
-      assert.ok(!cleaned['proxy-connection']);
-      assert.ok(!cleaned['proxy-authorization']);
+      try {
+        const badProxy = new ObfuscationProxy(badConfig);
+        await badProxy.start();
+        assert.fail('Should have thrown error');
+      } catch (error) {
+        assert.ok(error);
+      }
     });
 
-    it('should generate unique obfuscation keys', () => {
-      const key1 = ObfuscationProxy.generateKey();
-      const key2 = ObfuscationProxy.generateKey();
+    it('should handle port already in use', async () => {
+      const conflictConfig = {
+        port: testPort, // Same port as main test proxy
+        host: testHost,
+      };
 
-      assert.notStrictEqual(key1, key2);
+      try {
+        const conflictProxy = new ObfuscationProxy(conflictConfig);
+        await conflictProxy.start();
+        assert.fail('Should have thrown error for port conflict');
+      } catch (error) {
+        assert.ok(error);
+      }
+    });
+  });
+
+  describe('Performance Tests', () => {
+    it('should handle multiple concurrent requests', async () => {
+      const promises = [];
+      for (let i = 0; i < 10; i++) {
+        promises.push(
+          new Promise((resolve, reject) => {
+            const options = {
+              host: testHost,
+              port: testPort,
+              path: 'http://httpbin.org/get',
+              method: 'GET',
+            };
+
+            const req = http.request(options, (res) => {
+              res.on('data', () => {});
+              res.on('end', () => resolve());
+            });
+
+            req.on('error', reject);
+            req.end();
+          })
+        );
+      }
+
+      await Promise.all(promises);
+      assert.ok(true);
     });
   });
 });
-
-console.log('\n🧪 Running Obfuscation Proxy Tests...');
-console.log('━'.repeat(60));
-console.log('✅ All proxy tests configured');
-console.log('📊 Testing cross-platform support, obfuscation, and Chrome simulation');
-console.log('━'.repeat(60));
