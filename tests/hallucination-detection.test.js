@@ -3,7 +3,7 @@ import {
   detectHallucination,
   calculateSemanticEntropy,
   performSelfCheckGPT,
-  getHallucinationScore
+  getHallucinationScore,
 } from '../src/hallucination-detection.js';
 
 describe('Hallucination Detection Module', () => {
@@ -40,7 +40,7 @@ describe('Hallucination Detection Module', () => {
       const responses = [
         'Paris is the capital of France',
         'The capital of France is Paris',
-        'Paris, the capital city of France'
+        'Paris, the capital city of France',
       ];
       const entropy = await calculateSemanticEntropy(responses);
       expect(entropy).toBeDefined();
@@ -49,11 +49,7 @@ describe('Hallucination Detection Module', () => {
     });
 
     it('should calculate higher entropy for inconsistent responses', async () => {
-      const responses = [
-        'Paris is the capital',
-        'London is the capital',
-        'Berlin is the capital'
-      ];
+      const responses = ['Paris is the capital', 'London is the capital', 'Berlin is the capital'];
       const entropy = await calculateSemanticEntropy(responses);
       expect(entropy).toBeDefined();
       expect(entropy).toBeGreaterThan(0.5);
@@ -73,7 +69,7 @@ describe('Hallucination Detection Module', () => {
       const samples = [
         'Earth revolves around the Sun',
         'The Sun is at the center with Earth orbiting it',
-        'Earth has an orbital path around the Sun'
+        'Earth has an orbital path around the Sun',
       ];
       const result = await performSelfCheckGPT(response, samples);
       expect(result).toBeDefined();
@@ -86,7 +82,7 @@ describe('Hallucination Detection Module', () => {
       const samples = [
         'The Earth is spherical',
         'Earth is round like a ball',
-        'The planet Earth has a spherical shape'
+        'The planet Earth has a spherical shape',
       ];
       const result = await performSelfCheckGPT(response, samples);
       expect(result).toBeDefined();
@@ -117,10 +113,10 @@ describe('Hallucination Detection Module', () => {
     it('should handle complete hallucination detection workflow', async () => {
       const response = 'The Eiffel Tower is in Paris, France.';
       const context = 'Paris is the capital of France and home to many landmarks.';
-      
+
       const detection = await detectHallucination(response, context);
       const score = await getHallucinationScore(response, context);
-      
+
       expect(detection.isHallucination).toBe(false);
       expect(score).toBeLessThan(0.5);
     });
