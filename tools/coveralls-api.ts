@@ -11,7 +11,6 @@
  * All endpoints require authentication via OAuth (user must be logged in to Coveralls web app)
  * and support the .json suffix to return JSON representations.
  */
-
 export interface CoverallsRepoData {
   created_at: string;
   url: string | null;
@@ -25,14 +24,12 @@ export interface CoverallsRepoData {
   coverage_change: number;
   covered_percent: number;
 }
-
 export interface CoverallsRepoBuildsData {
   page: number;
   pages: number;
   total: number;
   builds: CoverallsRepoData[];
 }
-
 export interface CoverallsBuildData {
   created_at: string;
   url: string | null;
@@ -48,7 +45,6 @@ export interface CoverallsBuildData {
   covered_lines: number;
   total_lines: number;
 }
-
 export interface CoverallsJobData {
   created_at: string;
   run_at: string;
@@ -61,17 +57,14 @@ export interface CoverallsJobData {
   }>;
   paths?: string[];
 }
-
 export class CoverallsAPI {
   private baseUrl = 'https://coveralls.io';
-
   /**
    * Constructs the API URL for a repository
    */
   private getRepoUrl(service: string, username: string, repo: string): string {
     return `${this.baseUrl}/${service}/${username}/${repo}.json`;
   }
-
   /**
    * Constructs the API URL for repository builds
    */
@@ -83,7 +76,6 @@ export class CoverallsAPI {
   ): string {
     return `${this.baseUrl}/builds/${service}/${username}/${repo}.json?page=${page}`;
   }
-
   /**
    * Fetches repository data from Coveralls
    */
@@ -98,16 +90,13 @@ export class CoverallsAPI {
         Accept: 'application/json',
       },
     });
-
     if (!response.ok) {
       throw new Error(
         `Failed to fetch repo data: ${response.status} ${response.statusText}`,
       );
     }
-
     return (await response.json()) as CoverallsRepoData;
   }
-
   /**
    * Fetches paginated builds data for a repository
    */
@@ -123,16 +112,13 @@ export class CoverallsAPI {
         Accept: 'application/json',
       },
     });
-
     if (!response.ok) {
       throw new Error(
         `Failed to fetch repo builds: ${response.status} ${response.statusText}`,
       );
     }
-
     return (await response.json()) as CoverallsRepoBuildsData;
   }
-
   /**
    * Fetches build data by build ID
    */
@@ -143,16 +129,13 @@ export class CoverallsAPI {
         Accept: 'application/json',
       },
     });
-
     if (!response.ok) {
       throw new Error(
         `Failed to fetch build data: ${response.status} ${response.statusText}`,
       );
     }
-
     return (await response.json()) as CoverallsBuildData;
   }
-
   /**
    * Fetches build data by commit SHA
    */
@@ -168,16 +151,13 @@ export class CoverallsAPI {
         Accept: 'application/json',
       },
     });
-
     if (!response.ok) {
       throw new Error(
         `Failed to fetch build by commit: ${response.status} ${response.statusText}`,
       );
     }
-
     return (await response.json()) as CoverallsBuildData;
   }
-
   /**
    * Fetches build data by branch name
    */
@@ -193,16 +173,13 @@ export class CoverallsAPI {
         Accept: 'application/json',
       },
     });
-
     if (!response.ok) {
       throw new Error(
         `Failed to fetch build by branch: ${response.status} ${response.statusText}`,
       );
     }
-
     return (await response.json()) as CoverallsBuildData;
   }
-
   /**
    * Fetches job data by job ID
    */
@@ -213,16 +190,13 @@ export class CoverallsAPI {
         Accept: 'application/json',
       },
     });
-
     if (!response.ok) {
       throw new Error(
         `Failed to fetch job data: ${response.status} ${response.statusText}`,
       );
     }
-
     return (await response.json()) as CoverallsJobData;
   }
-
   /**
    * Fetches job data with paths field included
    */
@@ -233,16 +207,13 @@ export class CoverallsAPI {
         Accept: 'application/json',
       },
     });
-
     if (!response.ok) {
       throw new Error(
         `Failed to fetch job with paths: ${response.status} ${response.statusText}`,
       );
     }
-
     return (await response.json()) as CoverallsJobData;
   }
-
   /**
    * Fetches source file coverage data for a specific job
    */
@@ -257,17 +228,13 @@ export class CoverallsAPI {
         Accept: 'application/json',
       },
     });
-
     if (!response.ok) {
       throw new Error(
         `Failed to fetch source file: ${response.status} ${response.statusText}`,
       );
     }
-
-    const coverage = (await response.json()) as (number | null)[];
-    return coverage;
+    return (await response.json()) as (number | null)[];
   }
-
   /**
    * Fetches source file coverage data for a specific build
    */
@@ -282,16 +249,12 @@ export class CoverallsAPI {
         Accept: 'application/json',
       },
     });
-
     if (!response.ok) {
       throw new Error(
         `Failed to fetch source file by build: ${response.status} ${response.statusText}`,
       );
     }
-
-    const coverage = (await response.json()) as (number | null)[];
-    return coverage;
+    return (await response.json()) as (number | null)[];
   }
 }
-
 export default CoverallsAPI;
