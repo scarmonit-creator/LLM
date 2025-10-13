@@ -127,12 +127,12 @@ class ProxyServer {
 
     // Windows
     console.log('\n🪟 Windows:');
-    console.log(`   Internet Options → Connections → LAN Settings`);
+    console.log('   Internet Options → Connections → LAN Settings');
     console.log(`   Proxy server: ${this.config.host}:${this.config.port}`);
 
     // macOS
     console.log('\n🍎 macOS:');
-    console.log(`   System Preferences → Network → Advanced → Proxies`);
+    console.log('   System Preferences → Network → Advanced → Proxies');
     console.log(`   Web Proxy (HTTP): ${this.config.host}:${this.config.port}`);
     console.log(`   Secure Web Proxy (HTTPS): ${this.config.host}:${this.config.port}`);
 
@@ -143,7 +143,7 @@ class ProxyServer {
 
     // Mobile
     console.log('\n📱 Mobile (Android/iOS):');
-    console.log(`   WiFi Settings → Proxy → Manual`);
+    console.log('   WiFi Settings → Proxy → Manual');
     console.log(`   Server: ${this.getLocalIP()}`);
     console.log(`   Port: ${this.config.port}`);
 
@@ -191,7 +191,7 @@ class ProxyServer {
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   }
 
   /**
