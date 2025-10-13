@@ -142,7 +142,7 @@ class RAGPipeline {
     const maxScore = citations.length > 0 ? Math.max(...citations.map((c) => c.score)) : 0;
     if (maxScore < this.config.minConfidence && this.config.citationRequired) {
       return {
-        response: "I don't have enough information to answer this question confidently.",
+        response: 'I don\'t have enough information to answer this question confidently.',
         citations: [],
         confidence: maxScore,
         abstained: true,

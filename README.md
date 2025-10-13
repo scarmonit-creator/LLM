@@ -110,9 +110,11 @@ echo "ANTHROPIC_API_KEY=sk-ant-your-key-here" >> .env
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BRIDGE_PORT` | `3456` | WebSocket port for inter-LLM messaging (Claude, Codex, Gemini, Perplexity, Ollama) |
-| `BRIDGE_HTTP_PORT` | `3457` | REST API port for bridge health and control |
-| `BRIDGE_URL` | `ws://localhost:3456` | Default WebSocket endpoint for bridge clients |
+| `AI_BRIDGE_PORT` | `4567` | WebSocket port for intent-aware agent routing |
+| `AI_BRIDGE_HTTP_PORT` | `4568` | REST API port for bridge health, history, and task views |
+| `AI_BRIDGE_URL` | `ws://localhost:4567` | Default WebSocket endpoint for local agents |
+| `AGENT_ID` | `agent-dev` | Default client identifier when using the CLI agent |
+| `AGENT_ROLE` | `coder` | Default persona role advertised during registration |
 
 ---
 
@@ -168,7 +170,7 @@ Client shortcuts:
 - `@<id> <message>` targets a specific client ID (e.g., `@claude-main`, `@gemini-1`, `@ollama-local`)
 - `:clients` prints active connections and recent history
 
-The bridge also exposes REST endpoints (`/health`, `/clients`, `/history`, `/broadcast`, `/send`) on `BRIDGE_HTTP_PORT` for automation workflows. Configure ports and default URLs with the `BRIDGE_*` variables. Run the focused test suite with `npm run test:bridge` to validate the messaging layer.
+The bridge also exposes REST endpoints (`/health`, `/agents`, `/history`, `/tasks`, `/broadcast`, `/send`) on `AI_BRIDGE_HTTP_PORT` for automation workflows. Configure ports and default URLs with the `AI_BRIDGE_*` variables. Run the focused test suite with `npm run test:bridge` to validate the messaging layer.
 
 ### Packaging the Windows Launcher
 
