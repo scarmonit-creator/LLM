@@ -1,0 +1,173 @@
+# LLM Application
+
+A Node.js workspace that connects Anthropic Claude, Google Jules, Ollama, and local tooling for advanced LLM interactions.
+
+## Features
+- Claude client with streaming, conversation history, and configurable defaults
+- Jules client for repository analysis and remote coding sessions
+- Dual-provider chat launcher for Claude and Ollama
+- Retrieval-Augmented Generation (RAG) utilities backed by ChromaDB
+- Browser history ingestion helpers for common desktop browsers
+- TypeScript build pipeline and comprehensive automated tests
+
+## Table of Contents
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Configure Environment Variables](#configure-environment-variables)
+- [Running the Applications](#running-the-applications)
+  - [Core Scripts](#core-scripts)
+  - [Chat Launcher](#chat-launcher)
+  - [Packaging the Windows Launcher](#packaging-the-windows-launcher)
+- [Testing](#testing)
+  - [Test Commands](#test-commands)
+  - [RAG Integration Notes](#rag-integration-notes)
+- [Browser History Integration](#browser-history-integration)
+- [API Reference](#api-reference)
+  - [JulesClient](#julesclient)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Getting Started
+
+### Prerequisites
+- Node.js v18 or newer
+- npm v9 or newer (bundled with Node 18)
+- Anthropic API key for Claude operations
+- Optional: Ollama local runtime or cloud API key
+- Optional: ChromaDB server for full RAG integration tests
+
+### Installation
+```bash
+npm install
+```
+
+### Configure Environment Variables
+1. Copy the example file and populate credentials:
+   ```bash
+   cp .env.example .env
+   ```
+2. Set the variables that apply to your workflow. The most common options are:
+
+| Purpose | Variable | Notes |
+| --- | --- | --- |
+| Claude access | `ANTHROPIC_API_KEY` | Required for all Claude features |
+| Claude tuning | `CLAUDE_MODEL`, `CLAUDE_TEMPERATURE`, `CLAUDE_MAX_TOKENS`, `CLAUDE_SYSTEM_PROMPT` | Optional overrides; defaults apply when unset |
+| Ollama access | `OLLAMA_API_BASE`, `OLLAMA_API_KEY` | Base defaults to `http://localhost:11434`; API key only needed for hosted access |
+| Ollama tuning | `OLLAMA_MODEL`, `OLLAMA_TEMPERATURE`, `OLLAMA_MAX_TOKENS`, `OLLAMA_SYSTEM_PROMPT` | Optional overrides |
+| RAG services | `CHROMADB_HOST`, `CHROMADB_PORT`, `USE_MOCK_CHROMADB` | Configure for integration tests |
+| Jules client | `JULES_API_KEY` | Required for the demo script and tests |
+
+## Running the Applications
+
+### Core Scripts
+The repository exposes several npm scripts for day-to-day flows:
+
+| Command | Description |
+| --- | --- |
+| `npm start` | Runs `src/index.js`, a Claude quick-start demo |
+| `node src/jules-demo.js` | Exercises the Jules client without additional packaging |
+| `npm run start:orchestrator` | Launches the task orchestrator (TypeScript via tsx) |
+| `npm run start:a2a` | Starts the agent-to-agent server example |
+| `npm run chat` | Opens the interactive chat launcher described below |
+
+### Chat Launcher
+Run the CLI with:
+```bash
+npm run chat
+```
+
+Commands inside the launcher:
+- `:help` - list all supported commands
+- `:use <provider>` - switch between `claude` and `ollama`
+- `:clear` - reset the active provider conversation history
+- `:providers` - show provider readiness and connection status
+- `:quit` - exit the launcher
+
+Defaults:
+- Claude activates when `ANTHROPIC_API_KEY` is available. Optional overrides mirror the environment table above.
+- Ollama activates automatically; configure `OLLAMA_API_BASE` for remote targets and specify `OLLAMA_API_KEY` for hosted access.
+
+### Packaging the Windows Launcher
+Create a bundled executable that embeds Node.js and the launcher logic:
+```bash
+npm run build:chat-exe
+```
+The script outputs `release/LLMChat.exe` and reuses `build/chat-launcher.cjs` as the intermediate bundle. Place a `.env` file next to the executable (or rely on system environment variables) so the launcher can authenticate to Claude or Ollama at runtime.
+
+## Testing
+
+### Test Commands
+
+| Command | Description |
+| --- | --- |
+| `npm test` | Runs the default node:test suite (unit and integration) |
+| `npm run test:e2e` | Executes the end-to-end smoke tests for Claude, Jules, and Ollama clients |
+| `npm run test:orchestrator` | Validates orchestrator behavior via node:test with the tsx loader |
+| `npm run test:a2a` | Runs the agent-to-agent TypeScript tests |
+| `npm run test:history` | Exercises the browser history ingestion helpers |
+| `npm run test:all` | Aggregates unit, orchestrator, and a2a test suites |
+| `npm run coverage` | Generates c8 summary reports for the default suite |
+
+### RAG Integration Notes
+- RAG tests default to an in-memory vector store when a live ChromaDB instance is unavailable.
+- Set `USE_MOCK_CHROMADB=true` to bypass external dependencies during CI or quick local runs.
+- For a full integration check:
+  1. Install ChromaDB with `pip install chromadb`.
+  2. Start the service: `chroma run --host localhost --port 8000`.
+  3. Configure `.env` with `CHROMADB_HOST` and `CHROMADB_PORT`.
+  4. Run `npm test` to execute the RAG scenarios.
+
+## Browser History Integration
+
+The browser history tool reads SQLite stores from Chrome, Firefox, Edge, Brave, and related profiles. Usage example:
+```javascript
+import { browserHistoryTool } from './tools/browser-history.js';
+
+const history = await browserHistoryTool.execute({
+  browser: 'chrome',
+  limit: 50,
+});
+```
+The tool auto-detects platform-specific paths. See `BROWSER_HISTORY_AUTOMATION.md` for advanced configuration and autonomous execution tips.
+
+## API Reference
+
+### JulesClient
+
+#### `listSources()`
+List all available Jules sources.
+```javascript
+import { JulesClient } from './src/jules-client.js';
+
+const jules = new JulesClient();
+const sources = await jules.listSources();
+```
+
+#### `createSession({ prompt, sourceId?, title? })`
+Create a Jules coding session.
+```javascript
+const session = await jules.createSession({
+  prompt: 'Analyze repository and suggest improvements',
+  sourceId: 'github/owner/repo',
+  title: 'Code Review Session',
+});
+```
+
+#### `listSessions({ pageSize?, pageToken? })`
+```javascript
+const sessions = await jules.listSessions({ pageSize: 10 });
+```
+
+#### `getSession(sessionId)`
+```javascript
+const session = await jules.getSession('session-id-123');
+```
+
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request with your proposed changes. Follow the existing coding style (ES modules, two-space indentation, trailing semicolons) and update or add tests when modifying server behavior.
+
+## License
+
+MIT

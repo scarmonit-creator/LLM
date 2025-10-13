@@ -1,232 +1,354 @@
 # LLM Application
-A Node.js application integrating Anthropic Claude and Google Jules APIs for advanced LLM interactions.
+
+> A powerful Node.js workspace that connects Anthropic Claude, Google Jules, Ollama, and local tooling for advanced LLM interactions, RAG capabilities, and autonomous browser history analysis.
+
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
+
+---
 
 ## Features
-- **Claude Integration**: Direct integration with Anthropic's Claude API for conversational AI
-- **Jules Integration**: Google Jules API for automated coding sessions and repository analysis
-- **Browser History Integration**: Autonomous access and analysis of browser history from multiple browsers (Chrome, Firefox, Edge, Safari, Opera, Brave)
-- **Streaming Support**: Real-time streaming responses from Claude
-- **Multi-turn Conversations**: Context-aware dialogue
-- **Environment Configuration**: Flexible setup via environment variables
-- **Dual-Provider Chat Launcher**: Switch between Claude or Ollama from an interactive CLI or packaged Windows executable
-- **Jules Ready**: Pre-configured for Jules virtual machine environment
-- **RAG Integration**: Retrieval-Augmented Generation with ChromaDB support
 
-## Quick Start
+- **Claude Integration**: Streaming responses, multi-turn conversations, and configurable Claude Sonnet 4.5 access
+- **Jules API Client**: Repository analysis, automated coding sessions, and code generation workflows
+- **Dual-Provider Chat**: Interactive CLI launcher with hot-swappable Claude/Ollama providers
+- **RAG Pipeline**: Retrieval-Augmented Generation with ChromaDB vector store integration
+- **Browser History**: Autonomous access to Chrome, Firefox, Edge, Safari, Opera, and Brave history
+- **A2A Protocol**: Agent-to-Agent communication via Model Context Protocol (MCP)
+- **TypeScript Support**: Full type definitions with ESM module system
+- **Comprehensive Testing**: Unit, integration, and E2E tests with coverage reporting
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Configuration](#configuration)
+- [Environment Variables](#environment-variables)
+- [Usage](#usage)
+  - [Core Scripts](#core-scripts)
+  - [Development Commands](#development-commands)
+  - [Chat Launcher](#chat-launcher)
+- [Testing](#testing)
+- [Browser History](#browser-history)
+- [API Reference](#api-reference)
+  - [ClaudeClient](#claudeclient)
+  - [JulesClient](#julesclient)
+  - [RAG Integration](#rag-integration)
+- [Troubleshooting](#troubleshooting)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Getting Started
 
 ### Prerequisites
-- Node.js v18.0.0 or higher
-- Anthropic API key
-- Google Jules API key
-- ChromaDB (for RAG integration tests)
+
+- **Node.js** v18.0.0 or newer
+- **npm** v9 or newer
+- **Anthropic API Key** ([Get one](https://console.anthropic.com/))
+- Optional: Ollama, ChromaDB, Jules API key
 
 ### Installation
+
 ```bash
+# Clone and install
+git clone <repository-url>
+cd LLM
 npm install
+npm run build
 ```
 
 ### Configuration
-1. Copy `.env.example` to `.env`:
+
 ```bash
+# Create .env file
 cp .env.example .env
+
+# Add your API key
+echo "ANTHROPIC_API_KEY=sk-ant-your-key-here" >> .env
 ```
 
-2. Add your API keys to `.env`:
-```
-ANTHROPIC_API_KEY=your_api_key_here
-JULES_API_KEY=your_jules_api_key_here
-```
+---
 
-### Usage
-Run the Claude demo application:
-```bash
-npm start
-```
+## Environment Variables
 
-Run Jules API integration demo:
-```bash
-npm run jules
-```
+### Claude
 
-Development mode with auto-reload:
-```bash
-npm run dev
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ANTHROPIC_API_KEY` | **Required** | Your Anthropic API key |
+| `MODEL` | `claude-sonnet-4-5-20250929` | Claude model |
+| `MAX_TOKENS` | `4096` | Max response tokens |
+| `TEMPERATURE` | `1.0` | Sampling temperature |
 
-Launch the interactive Claude/Ollama chat experience:
+### Ollama
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OLLAMA_API_BASE` | `http://localhost:11434` | Ollama API URL |
+| `OLLAMA_API_KEY` | Optional | For cloud Ollama |
+| `OLLAMA_MODEL` | `llama3` | Model name |
+
+### RAG/ChromaDB
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CHROMADB_HOST` | `localhost` | ChromaDB host |
+| `CHROMADB_PORT` | `8000` | ChromaDB port |
+| `USE_MOCK_CHROMADB` | `false` | Use mock for testing |
+
+---
+
+## Usage
+
+### Core Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm start` | Run Claude demo |
+| `npm run chat` | Launch chat launcher |
+| `npm run start:orchestrator` | Start orchestrator |
+| `npm run start:a2a` | Start A2A server |
+
+### Development Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run build` | Compile TypeScript |
+| `npm run lint` | Lint and fix code |
+| `npm run format` | Format with Prettier |
+| `npm run autofix` | Lint + format |
+| `npm run typecheck` | Check types |
+
+### Chat Launcher
+
 ```bash
 npm run chat
 ```
 
-### Interactive Chat Launcher
+Commands:
+- `:help` - Show help
+- `:use <provider>` - Switch provider
+- `:clear` - Clear history
+- `:quit` - Exit
 
-- `:help` — list all available commands
-- `:use <provider>` — switch between `claude` and `ollama`
-- `:clear` — reset the current conversation context
-- `:providers` — show configured providers and readiness
-- `:quit` — exit the chat launcher
+### Packaging the Windows Launcher
 
-The launcher auto-selects the first provider with working credentials. Configure Claude with `ANTHROPIC_API_KEY` (and optionally `CLAUDE_MODEL`, `CLAUDE_TEMPERATURE`, `CLAUDE_MAX_TOKENS`, `CLAUDE_SYSTEM_PROMPT`). For Ollama, set `OLLAMA_API_BASE`, `OLLAMA_MODEL`, `OLLAMA_TEMPERATURE`, `OLLAMA_MAX_TOKENS`, and optionally `OLLAMA_API_KEY` for hosted access.
+To create a standalone Windows executable for the chat launcher, use the following command:
 
-Build the Windows desktop executable:
 ```bash
 npm run build:chat-exe
 ```
 
-Place a `.env` next to `release/LLMChat.exe` (or set global environment variables) so the launcher can authenticate to Claude or Ollama.
+This command bundles the chat launcher and uses `pkg` to produce `release/LLMChat.exe`. Ensure the `pkg` CLI is available (e.g., by running `npm install --save-dev pkg` or using `npx pkg`). The resulting executable will be located in the `release/` directory.
 
-## RAG Integration Tests
+---
 
-### ChromaDB Requirements
+## Testing
 
-⚠️ **IMPORTANT**: RAG integration tests require ChromaDB to be properly initialized before running. Tests will fail if ChromaDB is not available.
+| Command | Description |
+|---------|-------------|
+| `npm test` | Run tests |
+| `npm run test:watch` | Watch mode |
+| `npm run test:e2e` | E2E tests |
+| `npm run test:all` | All test suites |
+| `npm run coverage` | Generate coverage |
 
-### Testing Options
+### RAG Tests
 
-You have two options for running RAG integration tests:
-
-#### Option 1: Local ChromaDB Instance (Recommended for Development)
-
-1. Install ChromaDB:
 ```bash
+# With ChromaDB
 pip install chromadb
-```
-
-2. Start ChromaDB server:
-```bash
 chroma run --host localhost --port 8000
+npm test
+
+# Or use mock
+USE_MOCK_CHROMADB=true npm test
 ```
 
-3. Configure environment variables in `.env`:
-```
-CHROMADB_HOST=localhost
-CHROMADB_PORT=8000
-```
+---
 
-4. Run RAG integration tests:
-```bash
-npm run test:rag
-```
+## Browser History
 
-#### Option 2: Mock Database Configuration (For CI/CD and Testing)
+| Browser | Windows | macOS | Linux |
+|---------|---------|-------|-------|
+| Chrome | ✓ | ✓ | ✓ |
+| Firefox | ✓ | ✓ | ✓ |
+| Edge | ✓ | ✓ | - |
+| Safari | - | ✓ | - |
 
-For environments where a full ChromaDB instance is not feasible (CI pipelines, quick local tests), use the mock configuration:
-
-1. Set mock mode in `.env` or environment:
-```bash
-USE_MOCK_CHROMADB=true
-```
-
-2. Run tests with mock database:
-```bash
-USE_MOCK_CHROMADB=true npm run test:rag
-```
-
-### CI/CD Configuration
-
-The CI pipeline automatically initializes ChromaDB in mock mode for integration tests. See `.github/workflows/integration.yml` for implementation details.
-
-**Key CI Environment Variables:**
-- `USE_MOCK_CHROMADB=true` - Enables mock ChromaDB for testing
-- `CHROMADB_HOST=localhost` - ChromaDB host (ignored in mock mode)
-- `CHROMADB_PORT=8000` - ChromaDB port (ignored in mock mode)
-
-### Troubleshooting RAG Tests
-
-If RAG integration tests fail:
-
-1. **Check ChromaDB availability**:
-   - Ensure ChromaDB server is running (Option 1)
-   - OR ensure mock mode is enabled (Option 2)
-
-2. **Verify environment variables**:
-   ```bash
-   echo $USE_MOCK_CHROMADB
-   echo $CHROMADB_HOST
-   echo $CHROMADB_PORT
-   ```
-
-3. **Check test output for initialization errors**:
-   - Look for "ChromaDB connection failed" messages
-   - Verify mock setup if using `USE_MOCK_CHROMADB=true`
-
-4. **Local development quick fix**:
-   ```bash
-   # Use mock mode to bypass ChromaDB requirement
-   USE_MOCK_CHROMADB=true npm test
-   ```
-
-## Browser History Integration
-
-The application includes autonomous browser history access capabilities that can read and analyze browsing history from multiple browsers.
-
-### Supported Browsers
-- Google Chrome
-- Mozilla Firefox
-- Microsoft Edge
-- Safari (macOS)
-- Opera
-- Brave
-
-### Usage
 ```javascript
 import { browserHistoryTool } from './tools/browser-history.js';
 
-// Get recent browser history
 const history = await browserHistoryTool.execute({
   browser: 'chrome',
-  limit: 50
+  limit: 50,
 });
 ```
 
-### Configuration
-Browser history paths are automatically detected based on your operating system. See [BROWSER_HISTORY_AUTOMATION.md](BROWSER_HISTORY_AUTOMATION.md) for detailed configuration and autonomous execution setup.
-
-### Testing
-Run browser history integration tests:
-```bash
-npm run test:browser-history
-```
+---
 
 ## API Reference
 
+### ClaudeClient
+
+```javascript
+import { ClaudeClient } from './src/claude-client.js';
+
+const claude = new ClaudeClient();
+
+// Send message
+const response = await claude.sendMessage('Hello!');
+
+// Stream message
+await claude.streamMessage('Tell a story');
+
+// Conversation
+const messages = [
+  { role: 'user', content: 'My name is Alice' },
+  { role: 'assistant', content: 'Nice to meet you!' },
+  { role: 'user', content: 'What is my name?' },
+];
+const reply = await claude.conversation(messages);
+```
+
 ### JulesClient
 
-#### `listSources()`
-List all available GitHub sources.
 ```javascript
 import { JulesClient } from './src/jules-client.js';
 
 const jules = new JulesClient();
+
+// List sources
 const sources = await jules.listSources();
-```
 
-#### `createSession({ prompt, sourceId?, title? })`
-Create a new Jules coding session.
-```javascript
+// Create session
 const session = await jules.createSession({
-  prompt: 'Analyze repository and suggest improvements',
-  sourceId: 'github/owner/repo',
-  title: 'Code Review Session'
+  prompt: 'Analyze repository',
+  sourceId: 'sources/github/owner/repo',
+  title: 'Code Review',
 });
+
+// Get session
+const details = await jules.getSession(session.sessionId);
+
+// Approve plan
+await jules.approvePlan(session.sessionId);
 ```
 
-#### `listSessions({ pageSize?, pageToken? })`
-List all sessions with pagination.
+### RAG Integration
+
 ```javascript
-const sessions = await jules.listSessions({ pageSize: 10 });
+import { createRAGEnabledLLM } from './src/rag-integration.js';
+import { ClaudeClient } from './src/claude-client.js';
+
+const claude = new ClaudeClient();
+const ragLLM = createRAGEnabledLLM(claude);
+
+await ragLLM.initialize();
+
+// Add documents
+await ragLLM.addKnowledge([
+  {
+    id: '1',
+    content: 'Node.js is a JavaScript runtime.',
+    metadata: { source: 'docs' },
+  },
+]);
+
+// Query
+const result = await ragLLM.generateWithRAG('What is Node.js?');
+console.log(result.response);
+
+await ragLLM.cleanup();
 ```
 
-#### `getSession(sessionId)`
-Get detailed session information.
-```javascript
-const session = await jules.getSession('session-id-123');
+---
+
+## Troubleshooting
+
+### API Key Not Found
+
+```bash
+cp .env.example .env
+echo "ANTHROPIC_API_KEY=your-key" >> .env
 ```
+
+### Module Not Found
+
+```bash
+rm -rf node_modules
+npm install
+npm run build
+```
+
+### ChromaDB Connection Failed
+
+```bash
+# Start ChromaDB
+pip install chromadb
+chroma run --host localhost --port 8000
+
+# Or use mock
+USE_MOCK_CHROMADB=true npm test
+```
+
+---
+
+## Deployment
+
+### Production
+
+```bash
+npm ci --production
+npm run build
+export NODE_ENV=production
+npm start
+```
+
+### Docker
+
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --production
+COPY . .
+RUN npm run build
+CMD ["npm", "start"]
+```
+
+---
+
+## Contributing
+
+```bash
+git checkout -b feature/your-feature
+npm run autofix
+npm run test:all
+npm run verify:all
+```
+
+Follow conventional commits:
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation
+- `test:` - Tests
+- `chore:` - Maintenance
+
+---
 
 ## License
 
 MIT
 
-## Contributing
+---
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+**Built with Node.js, TypeScript, and AI**
