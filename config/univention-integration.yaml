@@ -1,0 +1,257 @@
+# Univention App Center Integration Configuration
+# Configuration for integrating LLM application with Univention UCS services
+# Analyzed from: https://www.univention.com/products/app-catalog/
+
+univention:
+  version: "1.0.0"
+  enabled: true
+  
+  # Identity Management Integration
+  identity_management:
+    enabled: true
+    # LDAP/Active Directory Integration
+    ldap:
+      host: ${UNIVENTION_LDAP_HOST:localhost}
+      port: ${UNIVENTION_LDAP_PORT:389}
+      use_ssl: ${UNIVENTION_LDAP_SSL:true}
+      base_dn: ${UNIVENTION_BASE_DN:dc=example,dc=com}
+      bind_dn: ${UNIVENTION_BIND_DN:cn=admin,dc=example,dc=com}
+      bind_password: ${UNIVENTION_BIND_PASSWORD}
+      user_search_base: "ou=users,${UNIVENTION_BASE_DN}"
+      group_search_base: "ou=groups,${UNIVENTION_BASE_DN}"
+      timeout: 30
+    
+    # Active Directory Connection (App: adconnector)
+    ad_connector:
+      enabled: false
+      sync_interval: 300  # seconds
+      bidirectional: false
+      attributes:
+        - uid
+        - mail
+        - givenName
+        - sn
+        - cn
+        - memberOf
+
+  # Single Sign-On (SSO) Integration
+  sso:
+    enabled: true
+    
+    # Keycloak Integration (App: keycloak)
+    keycloak:
+      enabled: true
+      server_url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}
+      realm: ${KEYCLOAK_REALM:master}
+      client_id: ${KEYCLOAK_CLIENT_ID:llm-app}
+      client_secret: ${KEYCLOAK_CLIENT_SECRET}
+      ssl_verify: true
+      protocol: "openid-connect"
+      redirect_uri: ${APP_URL}/auth/callback
+      scope:
+        - openid
+        - profile
+        - email
+        - roles
+    
+    # OpenID Connect Provider (App: openid-connect-provider)
+    oidc:
+      enabled: true
+      issuer: ${OIDC_ISSUER_URL}
+      authorization_endpoint: "${OIDC_ISSUER_URL}/authorize"
+      token_endpoint: "${OIDC_ISSUER_URL}/token"
+      userinfo_endpoint: "${OIDC_ISSUER_URL}/userinfo"
+      jwks_uri: "${OIDC_ISSUER_URL}/.well-known/jwks.json"
+      
+    # SAML Configuration (App: privacyIDEA SAML)
+    saml:
+      enabled: false
+      entity_id: ${SAML_ENTITY_ID}
+      sso_url: ${SAML_SSO_URL}
+      slo_url: ${SAML_SLO_URL}
+      x509_cert: ${SAML_X509_CERT}
+      name_id_format: "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+
+  # REST API Integrations
+  api:
+    # UCS@school Kelvin REST API
+    kelvin_api:
+      enabled: false
+      base_url: ${KELVIN_API_URL}
+      api_key: ${KELVIN_API_KEY}
+      endpoints:
+        users: "/kelvin/v1/users"
+        groups: "/kelvin/v1/schools/{school}/classes"
+        roles: "/kelvin/v1/roles"
+      rate_limit:
+        requests_per_minute: 60
+    
+    # Guardian Authorization API
+    guardian_api:
+      enabled: true
+      authorization_url: ${GUARDIAN_AUTH_API_URL}
+      management_url: ${GUARDIAN_MGMT_API_URL}
+      api_token: ${GUARDIAN_API_TOKEN}
+      cache_ttl: 300  # seconds
+      
+  # Cloud/Collaboration Integration
+  collaboration:
+    # Nextcloud Hub Integration (App: nextcloud)
+    nextcloud:
+      enabled: false
+      url: ${NEXTCLOUD_URL}
+      admin_user: ${NEXTCLOUD_ADMIN_USER}
+      admin_password: ${NEXTCLOUD_ADMIN_PASSWORD}
+      ocs_api_version: "v2"
+      enable_sharing: true
+      enable_federation: false
+      
+    # Microsoft 365 Connector (App: microsoft365)
+    microsoft365:
+      enabled: false
+      tenant_id: ${M365_TENANT_ID}
+      client_id: ${M365_CLIENT_ID}
+      client_secret: ${M365_CLIENT_SECRET}
+      sync_users: true
+      sync_groups: true
+      
+    # Google Workspace Connector (App: google-apps)
+    google_workspace:
+      enabled: false
+      service_account_json: ${GOOGLE_SERVICE_ACCOUNT_JSON}
+      domain: ${GOOGLE_WORKSPACE_DOMAIN}
+      impersonate_user: ${GOOGLE_IMPERSONATE_USER}
+      sync_interval: 3600
+
+  # Communication/Messaging Integration
+  messaging:
+    # Rocket.Chat (App: rocketchat)
+    rocketchat:
+      enabled: false
+      url: ${ROCKETCHAT_URL}
+      admin_user: ${ROCKETCHAT_ADMIN_USER}
+      admin_password: ${ROCKETCHAT_ADMIN_PASSWORD}
+      use_ssl: true
+      
+    # Jitsi Meet (App: jitsimeet)
+    jitsi:
+      enabled: false
+      domain: ${JITSI_DOMAIN}
+      jwt_app_id: ${JITSI_JWT_APP_ID}
+      jwt_app_secret: ${JITSI_JWT_APP_SECRET}
+      enable_lobby: true
+
+  # Dashboard & Monitoring
+  monitoring:
+    # UCS Dashboard (Grafana-based)
+    dashboard:
+      enabled: true
+      grafana_url: ${GRAFANA_URL}
+      api_key: ${GRAFANA_API_KEY}
+      datasource: "prometheus"
+      
+    # Prometheus Integration
+    prometheus:
+      enabled: true
+      url: ${PROMETHEUS_URL:http://localhost:9090}
+      scrape_interval: 15
+      metrics_path: "/metrics"
+      
+  # Security & Access Control
+  security:
+    # RADIUS Integration (App: radius)
+    radius:
+      enabled: false
+      server: ${RADIUS_SERVER}
+      port: ${RADIUS_PORT:1812}
+      secret: ${RADIUS_SECRET}
+      timeout: 5
+      
+    # privacyIDEA SAML
+    mfa:
+      enabled: false
+      privacyidea_url: ${PRIVACYIDEA_URL}
+      api_key: ${PRIVACYIDEA_API_KEY}
+      realm: ${PRIVACYIDEA_REALM:default}
+      
+    # Self Service (Password management)
+    self_service:
+      enabled: true
+      allow_password_change: true
+      allow_password_reset: true
+      min_password_length: 12
+      require_mfa: false
+
+  # VPN & Remote Access
+  remote_access:
+    # OpenVPN4UCS
+    openvpn:
+      enabled: false
+      config_path: "/etc/openvpn"
+      port: ${OPENVPN_PORT:1194}
+      protocol: "udp"
+      
+    # Guacamole (Clientless remote desktop)
+    guacamole:
+      enabled: false
+      url: ${GUACAMOLE_URL}
+      admin_user: ${GUACAMOLE_ADMIN}
+      admin_password: ${GUACAMOLE_PASSWORD}
+
+  # Document Management
+  documents:
+    # ONLYOFFICE Docs (App: onlyoffice-ds)
+    onlyoffice:
+      enabled: false
+      url: ${ONLYOFFICE_URL}
+      jwt_secret: ${ONLYOFFICE_JWT_SECRET}
+      jwt_enabled: true
+      
+    # Collabora Online (App: collabora)
+    collabora:
+      enabled: false
+      url: ${COLLABORA_URL}
+      username: ${COLLABORA_USERNAME}
+      password: ${COLLABORA_PASSWORD}
+
+# Integration Health Checks
+health_checks:
+  enabled: true
+  interval: 60  # seconds
+  endpoints:
+    - name: "LDAP"
+      url: "${UNIVENTION_LDAP_HOST}:${UNIVENTION_LDAP_PORT}"
+      type: "tcp"
+    - name: "Keycloak"
+      url: "${KEYCLOAK_SERVER_URL}/health"
+      type: "http"
+    - name: "Guardian API"
+      url: "${GUARDIAN_AUTH_API_URL}/health"
+      type: "http"
+    - name: "Prometheus"
+      url: "${PROMETHEUS_URL}/-/healthy"
+      type: "http"
+
+# Logging Configuration
+logging:
+  level: ${LOG_LEVEL:info}
+  format: "json"
+  outputs:
+    - console
+    - file
+  file:
+    path: "/var/log/llm-app/univention-integration.log"
+    max_size: 100  # MB
+    max_backups: 5
+    max_age: 30  # days
+
+# Retry & Circuit Breaker Configuration
+resilience:
+  retry:
+    max_attempts: 3
+    backoff_multiplier: 2
+    initial_interval: 1000  # ms
+  circuit_breaker:
+    failure_threshold: 5
+    timeout: 60000  # ms
+    reset_timeout: 30000  # ms
