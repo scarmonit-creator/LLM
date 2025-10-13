@@ -48,11 +48,15 @@ test('rectifyResponse helper composes new prompt', async () => {
 });
 
 test('runVerificationLoop helper wraps VerifyRectifyLoop', async () => {
-  const result = await runVerificationLoop('Prompt', {}, {
-    generator: async () => 'Initial output',
-    confidenceTarget: 0.4,
-    maxIterations: 1,
-  });
+  const result = await runVerificationLoop(
+    'Prompt',
+    {},
+    {
+      generator: async () => 'Initial output',
+      confidenceTarget: 0.4,
+      maxIterations: 1,
+    }
+  );
   assert.ok(result);
   assert.ok('output' in result);
 });

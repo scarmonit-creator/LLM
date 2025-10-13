@@ -136,8 +136,9 @@ export async function performSelfCheckGPT(response, samples = []) {
   }
 
   const consistency = calculateConsistencyScore(responses);
-  const contradiction = responses.some((text) => /flat/.test(normalise(text)))
-    && responses.some((text) => /spherical|round|ball/.test(normalise(text)));
+  const contradiction =
+    responses.some((text) => /flat/.test(normalise(text))) &&
+    responses.some((text) => /spherical|round|ball/.test(normalise(text)));
 
   let adjustedConsistency = contradiction ? Math.min(consistency, 0.3) : consistency;
   if (!contradiction) {
@@ -210,7 +211,6 @@ export class HallucinationDetector {
     }
     const samples = [];
     for (let i = 0; i < numSamples; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
       const completion = await this.llmClient.generate(prompt, {
         temperature: 0.8,
         max_tokens: 500,
@@ -221,8 +221,7 @@ export class HallucinationDetector {
   }
 
   async calculateSemanticEntropy(prompt, providedResponses = null) {
-    const responses =
-      providedResponses || (await this.selfCheckGPT(prompt, 10)).responses || [];
+    const responses = providedResponses || (await this.selfCheckGPT(prompt, 10)).responses || [];
     return calculateSemanticEntropy(responses);
   }
 

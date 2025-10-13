@@ -6,7 +6,10 @@ test('RAG pipeline operates with in-memory vector store fallback', async () => {
   const previous = process.env.LLM_VECTOR_STORE;
   process.env.LLM_VECTOR_STORE = 'memory';
 
-  const pipeline = new RAGPipeline({ collectionName: 'rag_test_collection', citationRequired: false });
+  const pipeline = new RAGPipeline({
+    collectionName: 'rag_test_collection',
+    citationRequired: false,
+  });
   await pipeline.initialize();
   await pipeline.addDocuments([
     { text: 'Paris is the capital of France.', metadata: { source: 'geo' } },
@@ -18,7 +21,7 @@ test('RAG pipeline operates with in-memory vector store fallback', async () => {
 
   const result = await pipeline.generateWithRAG(
     'What is the capital of France?',
-    async () => 'The capital of France is Paris.',
+    async () => 'The capital of France is Paris.'
   );
   assert.ok(result);
   assert.equal(result.abstained, false);

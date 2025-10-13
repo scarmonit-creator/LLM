@@ -10,7 +10,8 @@ dotenv.config();
 
 const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-5-20250929';
 const DEFAULT_OLLAMA_MODEL = 'llama3.2';
-const DEFAULT_OLLAMA_PROMPT = 'You are a helpful AI assistant running on Ollama. Provide concise, accurate answers.';
+const DEFAULT_OLLAMA_PROMPT =
+  'You are a helpful AI assistant running on Ollama. Provide concise, accurate answers.';
 
 function toNumber(value, fallback) {
   const parsed = Number(value);
@@ -186,7 +187,9 @@ async function main() {
   console.log('========================================\n');
 
   if (!activeKey) {
-    console.log('No providers ready yet. Configure ANTHROPIC_API_KEY for Claude or run Ollama locally.');
+    console.log(
+      'No providers ready yet. Configure ANTHROPIC_API_KEY for Claude or run Ollama locally.'
+    );
   } else {
     console.log(`Active provider: ${providers[activeKey].label}`);
   }
