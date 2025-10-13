@@ -315,7 +315,7 @@ class VerifyRectifyLoop {
           previousOutput: output,
           lastVerdict: verdict,
           evidence: verdict.evidence,
-        },
+        }
       );
 
       attempt++;
@@ -353,7 +353,7 @@ class VerifyRectifyLoop {
     if (verdict.issues?.length) {
       parts.push(
         'Fix the following issues:\n' +
-          verdict.issues.map((i, idx) => `${idx + 1}. ${i}`).join('\n'),
+          verdict.issues.map((i, idx) => `${idx + 1}. ${i}`).join('\n')
       );
     }
 
@@ -365,7 +365,7 @@ class VerifyRectifyLoop {
               const text = e.content || e.text || String(e);
               return `${idx + 1}. ${text.substring(0, 100)}...`;
             })
-            .join('\n'),
+            .join('\n')
       );
     }
 
@@ -373,13 +373,10 @@ class VerifyRectifyLoop {
       parts.push('Add missing elements: ' + verdict.missing.join(', '));
     }
 
-    if (
-      typeof verdict.confidence === 'number' &&
-      verdict.confidence < this.confidenceTarget
-    ) {
+    if (typeof verdict.confidence === 'number' && verdict.confidence < this.confidenceTarget) {
       parts.push(
         `Increase factual accuracy and confidence to at least ${this.confidenceTarget}. ` +
-          `Current confidence: ${verdict.confidence.toFixed(2)}`,
+          `Current confidence: ${verdict.confidence.toFixed(2)}`
       );
     }
 
