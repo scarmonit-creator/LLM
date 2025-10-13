@@ -85,13 +85,13 @@ module.exports.parseReActOutput = (output) => {
   const actionInput = output.match(/Action:\s*[^\[]+\[([^\]]+)\]/);
   const observation = output.match(/Observation:\s*([^\n]+)/);
   const finalAnswer = output.match(/Final Answer:\s*(.*)$/);
-  
+
   return {
     thought: thought ? thought[1].trim() : '',
     action: action ? action[1].trim() : '',
     actionInput: actionInput ? actionInput[1].trim() : '',
     observation: observation ? observation[1].trim() : '',
-    finalAnswer: finalAnswer ? finalAnswer[1].trim() : ''
+    finalAnswer: finalAnswer ? finalAnswer[1].trim() : '',
   };
 };
 
@@ -110,16 +110,16 @@ module.exports.executeToolCall = async (_tool, _input, tools) => {
 module.exports.runReActLoop = async (_query, tools, options = {}) => {
   const maxIterations = options.maxIterations || 5;
   const steps = [];
-  
+
   for (let i = 0; i < maxIterations; i++) {
     steps.push({ iteration: i + 1, thought: 'Processing', action: 'thinking' });
   }
-  
+
   return {
     finalAnswer: '42',
     success: true,
     steps,
-    reasoningTrace: steps
+    reasoningTrace: steps,
   };
 };
 
