@@ -42,3 +42,24 @@ jobs:
         OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
         JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    
+    - name: Archive test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results
+        path: |
+          coverage/
+          test-results/
+        retention-days: 7
+        if-no-files-found: warn
+    
+    - name: Archive build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-build-artifacts
+        path: |
+          dist/
+          build/
+        retention-days: 5
+        if-no-files-found: warn
