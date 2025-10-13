@@ -40,6 +40,29 @@ jobs:
       env:
         # Gate external integration tests - only run when explicitly enabled
         RUN_INTEGRATION_TESTS: false
+    
+    - name: Archive test results
+      if: always() && matrix.node-version == '20.x'
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-node-${{ matrix.node-version }}
+        path: |
+          coverage/
+          test-results/
+        retention-days: 7
+        if-no-files-found: warn
+    
+    - name: Archive build output
+      if: matrix.node-version == '20.x'
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts-node-${{ matrix.node-version }}
+        path: |
+          dist/
+          build/
+        retention-days: 5
+        if-no-files-found: warn
+    
     - name: Commit and push autofix changes
       if: github.event_name == 'push' && matrix.node-version == '20.x'
       run: |
