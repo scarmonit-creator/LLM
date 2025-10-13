@@ -43,9 +43,15 @@ class RAGPipeline {
     }
 
     // Get or create collection
-    this.collection = await this.vectorStore.getOrCreateCollection({
-      name: this.collectionName,
-    });
+    if (typeof this.vectorStore.getOrCreateCollection === 'function') {
+      this.collection = await this.vectorStore.getOrCreateCollection({
+        name: this.collectionName,
+      });
+    } else if (typeof this.vectorStore.createCollection === 'function') {
+      this.collection = await this.vectorStore.createCollection(this.collectionName);
+    } else {
+      throw new Error('Vector store does not support collection creation');
+    }
   }
 
   /**

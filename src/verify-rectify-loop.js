@@ -384,4 +384,22 @@ class VerifyRectifyLoop {
   }
 }
 
-module.exports = { VerifyRectifyLoop, ClaimVerifier };
+export { VerifyRectifyLoop, ClaimVerifier };
+export default VerifyRectifyLoop;
+
+// Helper functions for backwards compatibility
+export const verifyResponse = async (output, context, verifier) => {
+  return await verifier.verify(output, context);
+};
+
+export const rectifyResponse = async (prompt, context, generator, instructions) => {
+  return await generator(
+    `${prompt}\n\nRevise the previous response to address these issues:\n${instructions}\n\nProvide a corrected response that is accurate and well-supported.`,
+    context
+  );
+};
+
+export const runVerificationLoop = async (prompt, context, config) => {
+  const loop = new VerifyRectifyLoop(config);
+  return await loop.run(prompt, context);
+};
