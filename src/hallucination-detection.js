@@ -170,12 +170,12 @@ class HallucinationDetector {
 module.exports = HallucinationDetector;
 
 // Export wrapper functions for test compatibility
-const defaultDetector = new HallucinationDetector({generate: async () => 'mocked response'});
+const defaultDetector = new HallucinationDetector({ generate: async () => 'mocked response' });
 
 module.exports.detectHallucination = async (response, context) => {
   return {
     isHallucination: false,
-    confidence: 0.8
+    confidence: 0.8,
   };
 };
 
@@ -188,7 +188,7 @@ module.exports.calculateSemanticEntropy = async (responses) => {
 module.exports.performSelfCheckGPT = async (response, samples) => {
   return {
     consistency: 0.8,
-    isReliable: true
+    isReliable: true,
   };
 };
 
