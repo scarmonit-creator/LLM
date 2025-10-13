@@ -192,7 +192,7 @@ export default class BrowserHistoryTool implements Tool {
       .slice(0, options.maxResults || this.config.maxEntries);
   }
 
-  private async readBrowserHistory(dbPath: string, _browserType: string): Promise<HistoryEntry[]> {
+  private async readBrowserHistory(_dbPath: string, _browserType: string): Promise<HistoryEntry[]> {
     const entries: HistoryEntry[] = [];
 
     try {
@@ -201,7 +201,7 @@ export default class BrowserHistoryTool implements Tool {
       // as the focus is on the tool structure and capabilities.
       
       // Example implementation would look like:
-      // const db = new Database(dbPath, { readonly: true });
+      // const db = new Database(_dbPath, { readonly: true });
       // const rows = db.prepare('SELECT url, title, visit_count, last_visit_time FROM urls').all();
       // 
       // for (const row of rows) {
@@ -210,7 +210,7 @@ export default class BrowserHistoryTool implements Tool {
       //     title: row.title,
       //     visitTime: row.last_visit_time,
       //     visitCount: row.visit_count,
-      //     browser: browserType,
+      //     browser: _browserType,
       //   });
       // }
 
