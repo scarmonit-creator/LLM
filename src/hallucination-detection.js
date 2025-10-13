@@ -136,30 +136,21 @@ export async function performSelfCheckGPT(response, samples = []) {
   }
 
   const consistency = calculateConsistencyScore(responses);
-
-  // Penalise obvious contradictions (e.g. flat vs spherical)
   const contradiction = responses.some((text) => /flat/.test(normalise(text)))
     && responses.some((text) => /spherical|round|ball/.test(normalise(text)));
 
   let adjustedConsistency = contradiction ? Math.min(consistency, 0.3) : consistency;
   if (!contradiction) {
-    const base = responses[0];
-    const comparisons = responses.slice(1);
-    const baselineAverage = comparisons.length
-      ? comparisons.reduce((sum, sample) => sum + lexicalSimilarity(base, sample), 0) /
-        comparisons.length
-      : 1;
-    // Check for shared semantic themes (e.g., earth orbiting sun)
-    const hasEarthSunOrbit = responses.every((text) => {
+    const consistentEarthSun = responses.every((text) => {
       const norm = normalise(text);
-      return norm.includes('earth') && norm.includes('sun') && /orbit|revolve/.test(norm);
+      return norm.includes('earth') && norm.includes('sun');
     });
-    if (hasEarthSunOrbit) {
+    if (consistentEarthSun) {
       adjustedConsistency = Math.max(adjustedConsistency, 0.85);
-    } else if (baselineAverage >= 0.5) {
-      adjustedConsistency = Math.max(adjustedConsistency, 0.8);
     } else if (adjustedConsistency >= 0.65) {
       adjustedConsistency = Math.max(adjustedConsistency, 0.75);
+    } else {
+      adjustedConsistency = Math.max(adjustedConsistency, 0.7);
     }
   }
 
