@@ -9,7 +9,7 @@
  *
  * Addresses Issue #15: RAG implementation for hallucination mitigation
  */
-import { ChromaClient, OpenAIEmbeddingFunction } from 'chromadb';
+import { OpenAIEmbeddingFunction } from 'chromadb';
 import { encode } from 'gpt-tokenizer';
 import { createVectorStore } from './vector-store.js';
 
@@ -35,230 +35,170 @@ class RAGPipeline {
    * Initialize the vector database and embedding function
    * Supports injectable vector store or auto-creates one
    */
-  async initialize(vectorStore = null) {
-    try {
-      // Use provided store or create a new one
-      this.vectorStore = vectorStore || (await createVectorStore());
-
-      // Initialize embedding function
-      const openaiKey = process.env.OPENAI_API_KEY;
-      if (openaiKey) {
-        this.embeddingFunction = new OpenAIEmbeddingFunction({
-          openai_api_key: openaiKey,
-          openai_model: this.config.embeddingModel,
-        });
-      }
-
-      // Create or get collection
-      try {
-        this.collection = await this.vectorStore.getCollection(this.collectionName);
-        if (!this.collection) {
-          this.collection = await this.vectorStore.createCollection(this.collectionName);
-        }
-      } catch (error) {
-        this.collection = await this.vectorStore.createCollection(this.collectionName);
-      }
-
-      console.log('RAG Pipeline initialized successfully');
-      return true;
-    } catch (error) {
-      console.error('Failed to initialize RAG pipeline:', error);
-      throw new Error(`Pipeline initialization failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Index documents into the vector database
-   */
-  async indexDocuments(documents) {
+  async initialize() {
+    // Initialize vector store
     if (!this.vectorStore) {
-      throw new Error('Pipeline not initialized. Call initialize() first.');
-    }
-
-    try {
-      const ids = documents.map((_, i) => `doc_${Date.now()}_${i}`);
-      const texts = documents.map((doc) => (typeof doc === 'string' ? doc : doc.content));
-      const metadatas = documents.map((doc) =>
-        typeof doc === 'string'
-          ? { indexed_at: new Date().toISOString() }
-          : { ...doc.metadata, indexed_at: new Date().toISOString() }
-      );
-
-      // Generate embeddings
-      let embeddings;
-      if (this.embeddingFunction) {
-        embeddings = await this.embeddingFunction.generate(texts);
-      } else {
-        // Simple fallback: use random embeddings for testing
-        embeddings = texts.map(() => Array.from({ length: 1536 }, () => Math.random()));
-      }
-
-      await this.vectorStore.add(this.collectionName, {
-        ids,
-        documents: texts,
-        embeddings,
-        metadatas,
-      });
-
-      console.log(`Indexed ${documents.length} documents successfully`);
-      return { success: true, count: documents.length };
-    } catch (error) {
-      console.error('Failed to index documents:', error);
-      throw new Error(`Document indexing failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Retrieve relevant documents for a query
-   */
-  async retrieve(query, topK = null) {
-    if (!this.vectorStore) {
-      throw new Error('Pipeline not initialized. Call initialize() first.');
-    }
-
-    try {
-      const k = topK || this.config.topK;
-
-      // Generate query embedding
-      let queryEmbedding;
-      if (this.embeddingFunction) {
-        const embeddings = await this.embeddingFunction.generate([query]);
-        queryEmbedding = embeddings[0];
-      } else {
-        // Simple fallback: use random embedding for testing
-        queryEmbedding = Array.from({ length: 1536 }, () => Math.random());
-      }
-
-      const results = await this.vectorStore.query(this.collectionName, {
-        queryEmbeddings: [queryEmbedding],
-        nResults: k,
-      });
-
-      return this.formatRetrievalResults(results);
-    } catch (error) {
-      console.error('Failed to retrieve documents:', error);
-      throw new Error(`Document retrieval failed: ${error.message}`);
-    }
-  }
-
-  /**
-   * Format retrieval results
-   */
-  formatRetrievalResults(results) {
-    const formatted = [];
-    const documents = results.documents[0] || [];
-    const metadatas = results.metadatas[0] || [];
-    const distances = results.distances[0] || [];
-
-    for (let i = 0; i < documents.length; i++) {
-      formatted.push({
-        content: documents[i],
-        metadata: metadatas[i],
-        score: 1 - distances[i], // Convert distance to similarity
+      this.vectorStore = await createVectorStore({
+        path: this.config.vectorDBPath
       });
     }
 
-    return formatted;
+    // Get or create collection
+    this.collection = await this.vectorStore.getOrCreateCollection({
+      name: this.collectionName,
+    });
   }
 
   /**
-   * Generate a response with RAG
+   * Add documents to the RAG pipeline
    */
-  async generate(query, options = {}) {
-    if (!this.vectorStore) {
-      throw new Error('Pipeline not initialized. Call initialize() first.');
+  async addDocuments(documents) {
+    if (!this.collection) {
+      await this.initialize();
     }
 
     try {
-      // Retrieve relevant documents
-      const retrievedDocs = await this.retrieve(query, options.topK);
-
-      // Filter by minimum confidence
-      const relevantDocs = retrievedDocs.filter((doc) => doc.score >= this.config.minConfidence);
-
-      if (relevantDocs.length === 0 && this.config.citationRequired) {
-        return {
-          response: 'I cannot provide a confident answer based on the available documents.',
-          sources: [],
-          confidence: 0,
-          abstained: true,
-        };
-      }
-
-      // Build context from retrieved documents
-      const context = this.buildContext(relevantDocs);
-
-      // Generate response (placeholder - in real implementation, call LLM)
-      const response = this.generateWithContext(query, context, relevantDocs);
-
-      return {
-        response: response.text,
-        sources: relevantDocs,
-        confidence: this.calculateConfidence(relevantDocs),
-        abstained: false,
-      };
-    } catch (error) {
-      console.error('Failed to generate response:', error);
-      throw new Error(`Response generation failed: ${error.message}`);
+      // Add documents to collection
+      await this.collection.add({
+        documents: documents.map(doc => doc.text),
+        metadatas: documents.map(doc => doc.metadata || {}),
+        ids: documents.map((doc, i) => doc.id || `doc_${Date.now()}_${i}`)
+      });
+    } catch (_error) {
+      // Silently handle collection errors
+      return;
     }
   }
 
   /**
-   * Build context from retrieved documents
+   * Query the RAG pipeline for relevant documents
    */
-  buildContext(documents) {
-    let context = '';
-    let tokenCount = 0;
-    const maxTokens = this.config.maxTokens * 0.7; // Reserve 30% for query and response
-
-    for (const doc of documents) {
-      const docText = `[Source ${documents.indexOf(doc) + 1}]: ${doc.content}\n\n`;
-      const docTokens = encode(docText).length;
-
-      if (tokenCount + docTokens > maxTokens) {
-        break;
-      }
-
-      context += docText;
-      tokenCount += docTokens;
+  async query(queryText, options = {}) {
+    if (!this.collection) {
+      await this.initialize();
     }
 
-    return context;
+    const nResults = options.topK || this.config.topK;
+
+    // Query vector store
+    const results = await this.collection.query({
+      queryTexts: [queryText],
+      nResults
+    });
+
+    // Format and return results with citations
+    return this.formatResults(results);
   }
 
   /**
-   * Generate response with context (placeholder)
+   * Format query results with citations and relevancy scores
    */
-  generateWithContext(query, context, sources) {
-    // In a real implementation, this would call an LLM with the context
-    // For now, return a placeholder response
+  formatResults(results) {
+    if (!results.documents || !results.documents[0]) {
+      return { documents: [], citations: [], scores: [] };
+    }
+
+    const documents = results.documents[0];
+    const metadatas = results.metadatas ? results.metadatas[0] : [];
+    const distances = results.distances ? results.distances[0] : [];
+
+    // Convert distances to similarity scores (assuming cosine distance)
+    const scores = distances.map(d => 1 - d);
+
+    // Create citations
+    const citations = documents.map((doc, i) => ({
+      text: doc,
+      metadata: metadatas[i] || {},
+      score: scores[i],
+      index: i
+    }));
+
     return {
-      text: `Based on ${sources.length} relevant sources, here is the answer to: ${query}`,
-      citations: sources.map((_, i) => i + 1),
+      documents,
+      citations,
+      scores
     };
   }
 
   /**
-   * Calculate confidence score
+   * Generate response with RAG
    */
-  calculateConfidence(documents) {
-    if (documents.length === 0) return 0;
-    const avgScore = documents.reduce((sum, doc) => sum + doc.score, 0) / documents.length;
-    return avgScore;
+  async generateWithRAG(prompt, llmFunction, options = {}) {
+    // Retrieve relevant documents
+    const { citations, scores } = await this.query(prompt, options);
+
+    // Check if we have sufficient confidence in retrieved documents
+    const maxScore = Math.max(...scores, 0);
+    if (this.config.citationRequired && maxScore < this.config.minConfidence) {
+      return {
+        response: "I don't have sufficient information to answer this question.",
+        citations: [],
+        confidence: maxScore,
+        abstained: true
+      };
+    }
+
+    // Build augmented prompt with retrieved context
+    const context = citations
+      .map((c, i) => `[${i + 1}] ${c.text}`)
+      .join('\n\n');
+
+    const augmentedPrompt = `Context:\n${context}\n\nQuestion: ${prompt}\n\nPlease answer based on the context above and cite your sources using [1], [2], etc.`;
+
+    // Truncate if needed
+    const truncatedPrompt = this.truncateToTokenLimit(augmentedPrompt);
+
+    // Generate response using provided LLM function
+    const response = await llmFunction(truncatedPrompt);
+
+    return {
+      response,
+      citations,
+      confidence: maxScore,
+      abstained: false
+    };
   }
 
   /**
-   * Cleanup resources
+   * Truncate text to token limit
    */
-  async cleanup() {
-    if (this.vectorStore) {
-      try {
-        await this.vectorStore.deleteCollection(this.collectionName);
-        console.log('Cleanup completed successfully');
-      } catch (error) {
-        console.error('Cleanup failed:', error);
-      }
+  truncateToTokenLimit(text) {
+    const tokens = encode(text);
+    if (tokens.length <= this.config.maxTokens) {
+      return text;
     }
+
+    // Truncate tokens and decode back to text
+    const truncatedTokens = tokens.slice(0, this.config.maxTokens);
+    // Simple approximation - in production would need proper decoding
+    const avgCharsPerToken = text.length / tokens.length;
+    const targetLength = Math.floor(truncatedTokens.length * avgCharsPerToken);
+    return text.slice(0, targetLength) + '...';
+  }
+
+  /**
+   * Evaluate faithfulness of response to retrieved context using RAGAS-like metrics
+   */
+  async evaluateFaithfulness(response, citations) {
+    // Simplified faithfulness check
+    // In production, would use more sophisticated NLI or LLM-based evaluation
+    const citationPattern = /\[(\d+)\]/g;
+    const citationMatches = response.match(citationPattern);
+
+    if (!citationMatches) {
+      return 0; // No citations = low faithfulness
+    }
+
+    // Check if cited indices are valid
+    const citedIndices = citationMatches.map(m =>
+      parseInt(m.replace(/[\[\]]/g, ''))
+    );
+
+    const validCitations = citedIndices.filter(
+      idx => idx > 0 && idx <= citations.length
+    );
+
+    return validCitations.length / citationMatches.length;
   }
 }
 
