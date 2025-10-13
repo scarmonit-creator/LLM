@@ -113,11 +113,13 @@ class RAGPipeline {
           nResults: topK,
         });
 
-        return results.documents?.[0]?.map((doc, i) => ({
-          text: doc,
-          metadata: results.metadatas?.[0]?.[i] || {},
-          score: results.distances?.[0]?.[i] || 0,
-        })) || [];
+        return (
+          results.documents?.[0]?.map((doc, i) => ({
+            text: doc,
+            metadata: results.metadatas?.[0]?.[i] || {},
+            score: results.distances?.[0]?.[i] || 0,
+          })) || []
+        );
       }
       return [];
     }
@@ -131,7 +133,7 @@ class RAGPipeline {
     const citations = await this.retrieve(prompt, options);
 
     // Check confidence threshold
-    const maxScore = citations.length > 0 ? Math.max(...citations.map(c => c.score)) : 0;
+    const maxScore = citations.length > 0 ? Math.max(...citations.map((c) => c.score)) : 0;
     if (maxScore < this.config.minConfidence && this.config.citationRequired) {
       return {
         response: "I don't have enough information to answer this question confidently.",
@@ -171,11 +173,11 @@ class RAGPipeline {
 
     // Truncate tokens and decode back to text
     const truncatedTokens = tokens.slice(0, this.config.maxTokens);
-    
+
     // Simple approximation - in production would need proper decoding
     const avgCharsPerToken = text.length / tokens.length;
     const targetLength = Math.floor(truncatedTokens.length * avgCharsPerToken);
-    
+
     return text.slice(0, targetLength) + '...';
   }
 
