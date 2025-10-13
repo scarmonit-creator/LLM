@@ -69,15 +69,11 @@ export default class BrowserHistoryTool implements Tool {
     const paths = new Map<string, string[]>();
 
     if (platform === 'win32') {
-      paths.set(BrowserType.CHROME, [
-        path.join(homeDir, 'AppData/Local/Google/Chrome/User Data'),
-      ]);
+      paths.set(BrowserType.CHROME, [path.join(homeDir, 'AppData/Local/Google/Chrome/User Data')]);
       paths.set(BrowserType.FIREFOX, [
         path.join(homeDir, 'AppData/Roaming/Mozilla/Firefox/Profiles'),
       ]);
-      paths.set(BrowserType.EDGE, [
-        path.join(homeDir, 'AppData/Local/Microsoft/Edge/User Data'),
-      ]);
+      paths.set(BrowserType.EDGE, [path.join(homeDir, 'AppData/Local/Microsoft/Edge/User Data')]);
       paths.set(BrowserType.BRAVE, [
         path.join(homeDir, 'AppData/Local/BraveSoftware/Brave-Browser/User Data'),
       ]);
@@ -91,9 +87,7 @@ export default class BrowserHistoryTool implements Tool {
       paths.set(BrowserType.FIREFOX, [
         path.join(homeDir, 'Library/Application Support/Firefox/Profiles'),
       ]);
-      paths.set(BrowserType.SAFARI, [
-        path.join(homeDir, 'Library/Safari'),
-      ]);
+      paths.set(BrowserType.SAFARI, [path.join(homeDir, 'Library/Safari')]);
       paths.set(BrowserType.EDGE, [
         path.join(homeDir, 'Library/Application Support/Microsoft Edge'),
       ]);
@@ -105,30 +99,17 @@ export default class BrowserHistoryTool implements Tool {
       ]);
     } else {
       // Linux
-      paths.set(BrowserType.CHROME, [
-        path.join(homeDir, '.config/google-chrome'),
-      ]);
-      paths.set(BrowserType.FIREFOX, [
-        path.join(homeDir, '.mozilla/firefox'),
-      ]);
-      paths.set(BrowserType.EDGE, [
-        path.join(homeDir, '.config/microsoft-edge'),
-      ]);
-      paths.set(BrowserType.BRAVE, [
-        path.join(homeDir, '.config/BraveSoftware/Brave-Browser'),
-      ]);
-      paths.set(BrowserType.OPERA, [
-        path.join(homeDir, '.config/opera'),
-      ]);
+      paths.set(BrowserType.CHROME, [path.join(homeDir, '.config/google-chrome')]);
+      paths.set(BrowserType.FIREFOX, [path.join(homeDir, '.mozilla/firefox')]);
+      paths.set(BrowserType.EDGE, [path.join(homeDir, '.config/microsoft-edge')]);
+      paths.set(BrowserType.BRAVE, [path.join(homeDir, '.config/BraveSoftware/Brave-Browser')]);
+      paths.set(BrowserType.OPERA, [path.join(homeDir, '.config/opera')]);
     }
 
     return paths;
   }
 
-  private async findHistoryDatabases(
-    browserPath: string,
-    browserType: string
-  ): Promise<string[]> {
+  private async findHistoryDatabases(browserPath: string, browserType: string): Promise<string[]> {
     const historyFiles: string[] = [];
 
     if (!fs.existsSync(browserPath)) {
@@ -168,10 +149,7 @@ export default class BrowserHistoryTool implements Tool {
 
       for (const browserPath of paths) {
         try {
-          const historyDbs = await this.findHistoryDatabases(
-            browserPath,
-            browserType
-          );
+          const historyDbs = await this.findHistoryDatabases(browserPath, browserType);
           for (const dbPath of historyDbs) {
             const history = await this.readBrowserHistory(dbPath, browserType);
             allHistory.push(...history);
@@ -190,10 +168,7 @@ export default class BrowserHistoryTool implements Tool {
     return allHistory.slice(0, maxEntries);
   }
 
-  private async readBrowserHistory(
-    dbPath: string,
-    browserType: string
-  ): Promise<HistoryEntry[]> {
+  private async readBrowserHistory(dbPath: string, browserType: string): Promise<HistoryEntry[]> {
     // This is a simplified implementation
     // In production, you'd use sqlite3 or similar to read the database
     const entries: HistoryEntry[] = [];
