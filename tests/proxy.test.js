@@ -32,7 +32,7 @@ describe('Obfuscation Proxy Tests', () => {
 
     it('should validate configuration', () => {
       const config = new ProxyConfig();
-      
+
       // Valid config
       const validConfig = { port: 8080, host: '0.0.0.0', maxConnections: 100 };
       assert.doesNotThrow(() => config.validateConfig(validConfig));
@@ -51,8 +51,8 @@ describe('Obfuscation Proxy Tests', () => {
         simulateChrome: true,
         obfuscation: {
           enabled: true,
-          rotationInterval: 60000
-        }
+          rotationInterval: 60000,
+        },
       };
       proxy = new ObfuscationProxy(config);
       await proxy.start();
@@ -74,7 +74,7 @@ describe('Obfuscation Proxy Tests', () => {
         hostname: testHost,
         port: testPort,
         path: '/test',
-        method: 'GET'
+        method: 'GET',
       };
 
       const req = http.request(options, (res) => {
@@ -95,7 +95,7 @@ describe('Obfuscation Proxy Tests', () => {
         hostname: testHost,
         port: testPort,
         path: '/test',
-        method: 'GET'
+        method: 'GET',
       };
 
       const req = http.request(options, (res) => {
