@@ -2,7 +2,7 @@ export function toEnvelope(system: string, user: string) {
   return {
     protocol: "multiagent-1.0",
     role: "agent",
-    agent: { id: "gpt5.generic", name: "GPT‑5", model: "gpt-5" },
+    agent: { id: "gpt5.generic", name: "GPT‑4o", model: "gpt-4o" },
     timestamp: new Date().toISOString(),
     intent: "plan",
     task: user.slice(0, 160),
