@@ -3,6 +3,11 @@
  * A collection of reusable tools for LLM agent workflows
  */
 import BrowserHistoryTool from './browser-history';
+import gitOperations from './git-operations.js';
+import emailIntegration from './email-integration.js';
+import apiOrchestration from './api-orchestration.js';
+import codeAnalysis from './code-analysis.js';
+import testVerification from './test-verification.js';
 
 export interface ToolDefinition {
   name: string;
@@ -124,11 +129,9 @@ const generatePasswordTool: ToolDefinition = {
     const upper = lower.toUpperCase();
     const digits = '0123456789';
     const sym = '!@#$%^&*()-_=+[]{};:,.<>/?';
-
     let charset = lower + upper;
     if (numbers) charset += digits;
     if (symbols) charset += sym;
-
     let password = '';
     for (let i = 0; i < length; i++) {
       const idx = Math.floor(Math.random() * charset.length);
@@ -181,7 +184,7 @@ const browserHistoryTool: ToolDefinition = {
 };
 
 /**
- * Export all tool definitions in a single object keyed by name.  New tools
+ * Export all tool definitions in a single object keyed by name. New tools
  * should be added to this object so they can be discovered by the
  * orchestrator or agents that need to call them.
  */
@@ -191,6 +194,12 @@ const tools: Record<string, ToolDefinition> = {
   [wordCountTool.name]: wordCountTool,
   [generatePasswordTool.name]: generatePasswordTool,
   [browserHistoryTool.name]: browserHistoryTool,
+  // New autonomous agent tools
+  [gitOperations.name]: gitOperations,
+  [emailIntegration.name]: emailIntegration,
+  [apiOrchestration.name]: apiOrchestration,
+  [codeAnalysis.name]: codeAnalysis,
+  [testVerification.name]: testVerification,
 };
 
 export default tools;
