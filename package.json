@@ -20,7 +20,8 @@
     "coverage:e2e": "c8 npm run test:e2e",
     "coverage:full": "c8 npm run test:full",
     "coverage:all": "c8 npm run test:all",
-    "build": "tsc --noEmit",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint src/ tests/ tools/ --fix",
     "format": "prettier --write \"src/**/*.{js,ts}\" \"tests/**/*.{js,ts}\" \"tools/**/*.{js,ts}\" \"*.{js,ts,json}\"",
     "autofix": "npm run lint && npm run format",
@@ -74,20 +75,13 @@
   "c8": {
     "reporter": [
       "text",
-      "lcov"
+      "lcov",
+      "html"
     ],
     "exclude": [
       "tests/**",
       "coverage/**",
-      "node_modules/**",
-      "*.config.js",
-      "orchestrator.ts"
-    ],
-    "all": true,
-    "check-coverage": false,
-    "lines": 80,
-    "functions": 80,
-    "branches": 80,
-    "statements": 80
+      "node_modules/**"
+    ]
   }
 }
