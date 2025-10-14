@@ -2,6 +2,18 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { Tool } from './types';
 const execAsync = promisify(exec);
+
+interface TestResult {
+  success: boolean;
+  command: string;
+  output: string;
+  errors: string;
+  timestamp: string;
+  passed?: string;
+  failed?: string;
+  coverage?: string;
+}
+
 /**
  * Test & Verification Tool - Comprehensive testing and validation
  * Enables autonomous test execution, coverage analysis, and verification
@@ -44,7 +56,7 @@ export const testVerification: Tool = {
     },
     required: ['operation'],
   },
-  async execute(args: any): Promise<any> {
+  async execute(args: any): Promise<TestResult | { success: false; error: string; output: string; errors: string; timestamp: string; }> {
     const {
       operation,
       path = '',
@@ -54,6 +66,7 @@ export const testVerification: Tool = {
       timeout,
       coverage = false,
     } = args;
+
     try {
       // Build command based on operation
       let command = '';
@@ -82,21 +95,25 @@ export const testVerification: Tool = {
         default:
           throw new Error(`Unknown operation: ${operation}`);
       }
+
       // Add path if specified
       if (path) {
         command += ` ${path}`;
       }
+
       // Add flags
       if (watch) command += ' --watch';
       if (bail) command += ' --bail';
       if (timeout) command += ` --testTimeout=${timeout}`;
       if (coverage) command += ' --coverage';
+
       console.log(`Executing: ${command}`);
       const { stdout, stderr } = await execAsync(command, {
         maxBuffer: 10 * 1024 * 1024, // 10MB buffer
       });
-      // Parse test results
-      const results: any = {
+
+      // Parse test results with proper type annotation
+      const results: TestResult = {
         success: true,
         command,
         output: stdout,
@@ -106,13 +123,16 @@ export const testVerification: Tool = {
         failed: undefined,
         coverage: undefined,
       };
+
       // Extract test metrics from output
       const testsPassed = (stdout.match(/\d+ passing/i) || [])[0];
       const testsFailed = (stdout.match(/\d+ failing/i) || [])[0];
       const coverage_match = stdout.match(/All files[^\n]*?([\d.]+)%/);
+
       if (testsPassed) results.passed = testsPassed;
       if (testsFailed) results.failed = testsFailed;
       if (coverage_match) results.coverage = coverage_match[1] + '%';
+
       return results;
     } catch (error: any) {
       return {
