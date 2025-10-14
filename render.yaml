@@ -1,42 +1,36 @@
 services:
   - type: web
     name: llm-ai-bridge
-    env: node
+    runtime: node
     region: oregon
-    plan: free
-    buildCommand: npm install
+    plan: starter
+    buildCommand: npm install --production
     startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: AI_BRIDGE_PORT
-        value: 4567
-      - key: AI_BRIDGE_HTTP_PORT
-        sync: false
-        generateValue: true
       - key: PORT
-        sync: false
-        generateValue: true
+        fromService:
+          type: web
+          name: llm-ai-bridge
+          property: port
+      - key: AI_BRIDGE_HISTORY_LIMIT
+        value: "500"
+      - key: AI_BRIDGE_MAX_QUEUE
+        value: "1000"
+      - key: AI_BRIDGE_CORS_ORIGINS
+        value: "*"
+      - key: AI_BRIDGE_CLIENT_TTL_MS
+        value: "600000"
+      - key: AI_BRIDGE_CLEANUP_INTERVAL_MS
+        value: "30000"
+      - key: AI_BRIDGE_RATE_WINDOW_MS
+        value: "60000"
+      - key: AI_BRIDGE_RATE_MAX
+        value: "120"
     autoDeploy: true
     disk:
       name: llm-data
       mountPath: /opt/render/project/data
       sizeGB: 1
-
-  # Alternative WebSocket service configuration
-  - type: background_worker
-    name: llm-websocket-worker
-    env: node
-    region: oregon  
-    plan: free
-    buildCommand: npm install
-    startCommand: node src/ai-bridge.js
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: AI_BRIDGE_PORT
-        value: 4567
-      - key: AI_BRIDGE_HTTP_PORT
-        value: 4568
-    autoDeploy: false  # Manual deploy for worker service
