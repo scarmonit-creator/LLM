@@ -1,5 +1,4 @@
 name: Perry-Jest Flaky Interaction Detection
-
 on:
   schedule:
     - cron: '0 3 * * *' # nightly at 03:00 UTC
@@ -12,19 +11,15 @@ on:
       - 'src/**'
       - 'package*.json'
       - '.github/workflows/perry-jest.yml'
-
 permissions:
   contents: read
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 env:
   NODE_ENV: test
   CI: true
   CACHE_VERSION: v1
-
 jobs:
   preflight:
     name: Pre-flight Change Detection
@@ -46,9 +41,8 @@ jobs:
           else
             echo "should-run=false" >> $GITHUB_OUTPUT
           fi
-
   perry:
-    name: Detect Flaky Interactions (Shard ${{ matrix.shardIndex + 1 }}/${{ matrix.shards }})
+    name: Detect Flaky Interactions (Shard ${{ matrix.shardIndex }}/${{ matrix.shards }})
     runs-on: ubuntu-latest
     needs: preflight
     if: needs.preflight.outputs.should-run == 'true'
@@ -106,7 +100,6 @@ jobs:
             echo "Detected flaky interactions in one or more shards." >> $GITHUB_STEP_SUMMARY
           else
             echo "No flaky interactions detected in this shard." >> $GITHUB_STEP_SUMMARY
-
   aggregate:
     name: Aggregate Results
     runs-on: ubuntu-latest
