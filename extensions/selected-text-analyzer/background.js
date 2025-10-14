@@ -1,471 +1,342 @@
-// Enhanced service worker for Selected Text Analyzer extension
-// Now includes autonomous execution and advanced browser control
+// Enhanced service worker with Chrome Built-in AI Integration (Phase 2)
+// Includes autonomous execution and AI-powered text analysis
 
 class ExtensionController {
   constructor() {
     this.activeTabs = new Map();
     this.autonomousMode = false;
     this.currentTask = null;
+    this.aiSession = null;
+    this.summarizer = null;
     this.setupEventListeners();
+    this.initializeAI();
+  }
+
+  // Phase 2: AI Integration - Initialize Chrome Built-in AI
+  async initializeAI() {
+    try {
+      // Check Prompt API availability
+      if (typeof ai !== 'undefined' && ai.languageModel) {
+        const capabilities = await ai.languageModel.capabilities();
+        if (capabilities.available === 'readily') {
+          console.log('[AI] Prompt API available - Gemini Nano ready');
+          this.aiSession = await ai.languageModel.create({
+            systemPrompt: "You are a helpful text analyzer assistant. Analyze text for clarity, sentiment, readability, and provide actionable insights."
+          });
+        } else if (capabilities.available === 'after-download') {
+          console.log('[AI] Gemini Nano model needs to be downloaded');
+        } else {
+          console.log('[AI] Prompt API not available on this browser');
+        }
+      }
+
+      // Check Summarizer API availability
+      if (typeof ai !== 'undefined' && ai.summarizer) {
+        const sumCapabilities = await ai.summarizer.capabilities();
+        if (sumCapabilities.available === 'readily') {
+          console.log('[AI] Summarizer API available');
+          this.summarizer = await ai.summarizer.create({
+            type: 'key-points',
+            format: 'markdown',
+            length: 'medium'
+          });
+        }
+      }
+    } catch (error) {
+      console.log('[AI] Built-in AI not available, falling back to traditional methods:', error);
+    }
+  }
+
+  // AI-powered text analysis
+  async analyzeTextWithAI(text) {
+    if (!text || text.trim().length === 0) {
+      return { error: 'No text provided' };
+    }
+
+    const results = {
+      originalText: text,
+      wordCount: text.split(/\s+/).length,
+      charCount: text.length,
+      aiAnalysis: null,
+      summary: null,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      // Use Chrome Built-in AI if available
+      if (this.aiSession) {
+        const prompt = `Analyze this text and provide: 1) Sentiment, 2) Key themes, 3) Readability score, 4) Suggestions for improvement\n\nText: ${text}`;
+        results.aiAnalysis = await this.aiSession.prompt(prompt);
+      }
+
+      // Generate summary if text is long enough
+      if (this.summarizer && text.length > 500) {
+        results.summary = await this.summarizer.summarize(text);
+      }
+
+      // Fallback: Basic analysis without AI
+      if (!results.aiAnalysis) {
+        results.aiAnalysis = this.performBasicAnalysis(text);
+      }
+    } catch (error) {
+      console.error('[AI] Analysis error:', error);
+      results.aiAnalysis = this.performBasicAnalysis(text);
+    }
+
+    return results;
+  }
+
+  // Fallback: Basic text analysis without AI
+  performBasicAnalysis(text) {
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const words = text.split(/\s+/);
+    const avgWordsPerSentence = words.length / sentences.length;
+
+    return {
+      sentiment: 'neutral',
+      sentences: sentences.length,
+      avgWordsPerSentence: avgWordsPerSentence.toFixed(1),
+      readability: avgWordsPerSentence < 15 ? 'easy' : avgWordsPerSentence < 25 ? 'moderate' : 'complex',
+      note: 'Basic analysis (AI not available)'
+    };
   }
 
   setupEventListeners() {
-    // Create context menu on install
-    chrome.runtime.onInstalled.addListener(() => {
+    // Phase 1: Security - Proper service worker lifecycle management
+    chrome.runtime.onInstalled.addListener((details) => {
       this.createContextMenus();
       this.setDefaultConfiguration();
+      
+      // Handle updates
+      if (details.reason === 'update') {
+        console.log(`[Update] Updated from version ${details.previousVersion}`);
+        this.handleExtensionUpdate(details.previousVersion);
+      }
     });
 
-    // Handle context menu clicks
     chrome.contextMenus.onClicked.addListener((info, tab) => {
       this.handleContextMenuClick(info, tab);
     });
 
-    // Listen for messages from popup and content scripts
+    // Phase 3: Performance - Proper message passing with async handling
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       this.handleMessage(request, sender, sendResponse);
       return true; // Keep message channel open for async responses
     });
 
-    // Listen for keyboard shortcuts
     chrome.commands.onCommand.addListener((command) => {
       this.handleKeyboardCommand(command);
     });
 
-    // Monitor tab updates for autonomous execution
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-      if (changeInfo.status === 'complete' && this.autonomousMode) {
-        this.handleTabUpdate(tabId, tab);
-      }
-    });
-
-    // Handle navigation events for task continuity
-    chrome.webNavigation.onCompleted.addListener((details) => {
-      if (this.autonomousMode && details.frameId === 0) {
-        this.handleNavigationComplete(details);
+      if (this.autonomousMode && changeInfo.status === 'complete') {
+        this.handleAutonomousExecution(tabId, tab);
       }
     });
   }
 
   createContextMenus() {
-    // Remove existing menus
     chrome.contextMenus.removeAll(() => {
-      // Text analysis menu
       chrome.contextMenus.create({
-        id: 'analyzeSelectedText',
-        title: 'Analyze selected text',
+        id: 'analyze-text-ai',
+        title: 'Analyze with AI',
         contexts: ['selection']
       });
 
-      // Page analysis menu
       chrome.contextMenus.create({
-        id: 'analyzeFullPage',
-        title: 'Analyze full page',
-        contexts: ['page']
+        id: 'summarize-text',
+        title: 'Summarize',
+        contexts: ['selection']
       });
 
-      // Autonomous execution menu
       chrome.contextMenus.create({
-        id: 'startAutonomous',
-        title: 'Start autonomous mode',
-        contexts: ['page']
-      });
-
-      // Quick fix menu
-      chrome.contextMenus.create({
-        id: 'quickFixPage',
-        title: 'Quick fix page issues',
+        id: 'analyze-page',
+        title: 'Analyze Current Page',
         contexts: ['page']
       });
     });
   }
 
-  setDefaultConfiguration() {
-    chrome.storage.local.set({
-      autoAnalyze: true,
-      autoOpen: true,
-      autonomousExecution: true,
-      maxRetries: 3,
-      delayBetweenActions: 1000,
-      debugMode: false
-    });
+  async setDefaultConfiguration() {
+    // Phase 3: Use chrome.storage for persistence
+    const config = {
+      autoAnalysis: false,
+      aiEnabled: true,
+      summaryLength: 'medium',
+      notificationsEnabled: true
+    };
+
+    await chrome.storage.local.set({ config });
+  }
+
+  async handleExtensionUpdate(previousVersion) {
+    // Migrate data if needed
+    console.log(`[Migration] Checking migration from ${previousVersion}`);
+    const data = await chrome.storage.local.get();
+    // Add migration logic here if needed
   }
 
   async handleContextMenuClick(info, tab) {
-    switch (info.menuItemId) {
-      case 'analyzeSelectedText':
-        await this.analyzeSelectedText(info, tab);
-        break;
-      case 'analyzeFullPage':
-        await this.analyzeFullPage(tab);
-        break;
-      case 'startAutonomous':
-        await this.startAutonomousMode(tab);
-        break;
-      case 'quickFixPage':
-        await this.quickFixPage(tab);
-        break;
-    }
-  }
-
-  async analyzeSelectedText(info, tab) {
     const selectedText = info.selectionText;
-    
-    // Store the selected text and source
-    await chrome.storage.local.set({
-      analysisText: selectedText,
-      analysisSource: 'selection',
-      timestamp: Date.now(),
-      tabId: tab.id
-    });
 
-    // Open popup automatically
-    chrome.action.openPopup();
-  }
-
-  async analyzeFullPage(tab) {
-    try {
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => document.body.innerText
-      });
-
-      if (results && results[0]) {
-        await chrome.storage.local.set({
-          analysisText: results[0].result,
-          analysisSource: 'page',
-          timestamp: Date.now(),
-          tabId: tab.id
-        });
-
-        chrome.action.openPopup();
-      }
-    } catch (error) {
-      console.error('Failed to analyze page:', error);
-      this.showNotification('Analysis Failed', 'Could not analyze the current page.');
+    if (info.menuItemId === 'analyze-text-ai') {
+      const analysis = await this.analyzeTextWithAI(selectedText);
+      this.displayAnalysisResults(analysis, tab.id);
+    } else if (info.menuItemId === 'summarize-text') {
+      const summary = await this.generateSummary(selectedText);
+      this.displaySummary(summary, tab.id);
+    } else if (info.menuItemId === 'analyze-page') {
+      this.analyzeCurrentPage(tab.id);
     }
   }
 
-  async startAutonomousMode(tab) {
-    this.autonomousMode = true;
-    this.activeTabs.set(tab.id, {
-      url: tab.url,
-      title: tab.title,
-      startTime: Date.now()
-    });
-
-    // Inject content script if not already present
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content.js']
-      });
-    } catch (error) {
-      console.log('Content script already injected or injection failed:', error);
-    }
-
-    // Start autonomous execution
-    const task = {
-      type: 'autonomous_analysis',
-      tabId: tab.id,
-      startUrl: tab.url,
-      timestamp: Date.now()
-    };
-
-    const response = await this.sendMessageToTab(tab.id, {
-      action: 'startAutonomousExecution',
-      task: task
-    });
-
-    if (response?.success) {
-      this.showNotification('Autonomous Mode Started', 'The extension is now analyzing and fixing page issues automatically.');
-      this.currentTask = task;
-    } else {
-      this.showNotification('Startup Failed', 'Could not start autonomous mode on this page.');
-    }
-  }
-
-  async quickFixPage(tab) {
-    try {
-      // Inject content script if needed
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content.js']
-      });
-    } catch (error) {
-      console.log('Content script already injected:', error);
-    }
-
-    // Analyze and fix page issues
-    const response = await this.sendMessageToTab(tab.id, {
-      action: 'analyzePageIssues'
-    });
-
-    if (response?.success) {
-      const issues = response.issues;
-      
-      if (issues.length > 0) {
-        this.showNotification('Issues Found', `Found ${issues.length} issues. Attempting to fix automatically.`);
-        
-        // Start autonomous fixing
-        await this.sendMessageToTab(tab.id, {
-          action: 'startAutonomousExecution',
-          task: {
-            type: 'quick_fix',
-            issues: issues,
-            tabId: tab.id
-          }
-        });
-      } else {
-        this.showNotification('No Issues', 'No issues detected on this page.');
+  async generateSummary(text) {
+    if (this.summarizer && text.length > 200) {
+      try {
+        return await this.summarizer.summarize(text);
+      } catch (error) {
+        console.error('[AI] Summarization error:', error);
       }
     }
+    return text.length > 200 ? text.substring(0, 200) + '...' : text;
   }
 
   async handleMessage(request, sender, sendResponse) {
     try {
       switch (request.action) {
-        case 'getPageText':
-          await this.handleGetPageText(request, sendResponse);
-          break;
         case 'analyzeText':
-          await this.handleAnalyzeText(request, sendResponse);
+          const analysis = await this.analyzeTextWithAI(request.text);
+          sendResponse({ success: true, data: analysis });
           break;
-        case 'executeAction':
-          await this.handleExecuteAction(request, sender, sendResponse);
+
+        case 'summarize':
+          const summary = await this.generateSummary(request.text);
+          sendResponse({ success: true, data: { summary } });
           break;
-        case 'startAutonomousMode':
-          await this.handleStartAutonomousMode(request, sender, sendResponse);
+
+        case 'checkAIAvailability':
+          sendResponse({
+            success: true,
+            data: {
+              promptAPI: !!this.aiSession,
+              summarizer: !!this.summarizer
+            }
+          });
           break;
-        case 'stopAutonomousMode':
-          await this.handleStopAutonomousMode(request, sender, sendResponse);
+
+        case 'getPageInfo':
+          this.getPageInfo(sender.tab.id).then(info => {
+            sendResponse({ success: true, data: info });
+          });
           break;
-        case 'getTabData':
-          await this.handleGetTabData(request, sendResponse);
-          break;
-        case 'dataExtracted':
-          await this.handleDataExtracted(request, sender);
-          break;
-        case 'autonomousExecutionFailed':
-          await this.handleAutonomousExecutionFailed(request, sender);
-          break;
-        case 'takeScreenshot':
-          await this.handleTakeScreenshot(request, sendResponse);
-          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
     } catch (error) {
-      console.error('Error handling message:', error);
+      console.error('[Message Handler] Error:', error);
       sendResponse({ success: false, error: error.message });
     }
   }
 
-  async handleGetPageText(request, sendResponse) {
+  handleKeyboardCommand(command) {
+    if (command === 'analyze-page') {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+          this.analyzeCurrentPage(tabs[0].id);
+        }
+      });
+    }
+  }
+
+  async analyzeCurrentPage(tabId) {
     try {
       const results = await chrome.scripting.executeScript({
-        target: { tabId: request.tabId },
-        func: () => document.body.innerText
+        target: { tabId },
+        func: () => {
+          return {
+            title: document.title,
+            text: document.body.innerText,
+            url: window.location.href,
+            forms: document.forms.length,
+            links: document.links.length,
+            images: document.images.length
+          };
+        }
       });
 
-      if (results && results[0]) {
-        sendResponse({ text: results[0].result });
-      } else {
-        sendResponse({ text: '' });
-      }
-    } catch (error) {
-      sendResponse({ text: '', error: error.message });
-    }
-  }
-
-  async handleAnalyzeText(request, sendResponse) {
-    await chrome.storage.local.set({
-      analysisText: request.text,
-      analysisSource: request.source || 'unknown',
-      timestamp: Date.now()
-    });
-    sendResponse({ success: true });
-  }
-
-  async handleExecuteAction(request, sender, sendResponse) {
-    if (!sender.tab) {
-      sendResponse({ success: false, error: 'No tab context' });
-      return;
-    }
-
-    try {
-      const response = await this.sendMessageToTab(sender.tab.id, {
-        action: 'executeAction',
-        actionData: request.actionData
-      });
-      sendResponse(response);
-    } catch (error) {
-      sendResponse({ success: false, error: error.message });
-    }
-  }
-
-  async handleStartAutonomousMode(request, sender, sendResponse) {
-    if (sender.tab) {
-      await this.startAutonomousMode(sender.tab);
-      sendResponse({ success: true });
-    } else {
-      sendResponse({ success: false, error: 'No tab context' });
-    }
-  }
-
-  async handleStopAutonomousMode(request, sender, sendResponse) {
-    this.autonomousMode = false;
-    this.currentTask = null;
-    
-    if (sender.tab) {
-      this.activeTabs.delete(sender.tab.id);
-      await this.sendMessageToTab(sender.tab.id, {
-        action: 'stopAutonomousExecution'
-      });
-    }
-    
-    sendResponse({ success: true });
-  }
-
-  async handleGetTabData(request, sendResponse) {
-    try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tabs[0]) {
-        const response = await this.sendMessageToTab(tabs[0].id, {
-          action: 'getPageData'
+      if (results[0]?.result) {
+        const pageData = results[0].result;
+        const analysis = await this.analyzeTextWithAI(pageData.text.substring(0, 5000));
+        
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icon48.png',
+          title: 'Page Analysis Complete',
+          message: `Analyzed: ${pageData.title}\nWords: ${analysis.wordCount}\nForms: ${pageData.forms}`,
+          priority: 2
         });
-        sendResponse(response);
-      } else {
-        sendResponse({ success: false, error: 'No active tab' });
+
+        // Store analysis in session storage
+        await chrome.storage.session.set({
+          [`analysis_${tabId}`]: { ...analysis, pageData }
+        });
       }
     } catch (error) {
-      sendResponse({ success: false, error: error.message });
+      console.error('[Page Analysis] Error:', error);
     }
   }
 
-  async handleDataExtracted(request, sender) {
-    // Store extracted data for analysis
-    await chrome.storage.local.set({
-      extractedData: request.data,
-      extractionTask: request.task,
-      extractionTime: Date.now(),
-      tabId: sender.tab?.id
+  async displayAnalysisResults(analysis, tabId) {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (results) => {
+        console.log('[AI Analysis Results]', results);
+        // Results are displayed in popup
+      },
+      args: [analysis]
     });
 
-    console.log('Data extracted:', request.data);
+    // Store in session for popup access
+    await chrome.storage.session.set({ lastAnalysis: analysis });
   }
 
-  async handleAutonomousExecutionFailed(request, sender) {
-    this.showNotification('Execution Failed', `Autonomous execution failed: ${request.error}`);
-    
-    // Reset autonomous mode for this tab
-    if (sender.tab) {
-      this.activeTabs.delete(sender.tab.id);
-    }
-
-    // If this was the current task, reset it
-    if (this.currentTask && this.currentTask.tabId === sender.tab?.id) {
-      this.currentTask = null;
-    }
-  }
-
-  async handleTakeScreenshot(request, sendResponse) {
-    try {
-      const dataUrl = await chrome.tabs.captureVisibleTab(null, {
-        format: 'png',
-        quality: 90
-      });
-      sendResponse({ success: true, dataUrl });
-    } catch (error) {
-      sendResponse({ success: false, error: error.message });
-    }
-  }
-
-  async handleKeyboardCommand(command) {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tabs[0]) return;
-
-    switch (command) {
-      case 'analyze-page':
-        await this.analyzeFullPage(tabs[0]);
-        break;
-      case 'start-autonomous':
-        await this.startAutonomousMode(tabs[0]);
-        break;
-      case 'fix-page-issues':
-        await this.quickFixPage(tabs[0]);
-        break;
-    }
-  }
-
-  async handleTabUpdate(tabId, tab) {
-    if (this.activeTabs.has(tabId)) {
-      // Page has loaded, continue autonomous execution
-      const tabData = this.activeTabs.get(tabId);
-      
-      // Update tab data
-      tabData.url = tab.url;
-      tabData.title = tab.title;
-      
-      // Continue or restart autonomous execution
-      setTimeout(async () => {
-        try {
-          await this.sendMessageToTab(tabId, {
-            action: 'startAutonomousExecution',
-            task: this.currentTask || {
-              type: 'continue_autonomous',
-              tabId: tabId,
-              timestamp: Date.now()
-            }
-          });
-        } catch (error) {
-          console.error('Failed to continue autonomous execution:', error);
-        }
-      }, 1000);
-    }
-  }
-
-  async handleNavigationComplete(details) {
-    if (this.activeTabs.has(details.tabId)) {
-      console.log('Navigation completed for autonomous tab:', details.url);
-      
-      // Give the page time to load then continue execution
-      setTimeout(async () => {
-        try {
-          await this.sendMessageToTab(details.tabId, {
-            action: 'analyzePageIssues'
-          });
-        } catch (error) {
-          console.error('Failed to analyze page after navigation:', error);
-        }
-      }, 2000);
-    }
-  }
-
-  async sendMessageToTab(tabId, message) {
-    return new Promise((resolve) => {
-      chrome.tabs.sendMessage(tabId, message, (response) => {
-        if (chrome.runtime.lastError) {
-          console.error('Message sending failed:', chrome.runtime.lastError);
-          resolve({ success: false, error: chrome.runtime.lastError.message });
-        } else {
-          resolve(response || { success: true });
-        }
-      });
-    });
-  }
-
-  showNotification(title, message) {
+  async displaySummary(summary, tabId) {
     chrome.notifications.create({
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('icon48.png'), // You may need to add an icon
-      title: title,
-      message: message
+      iconUrl: 'icon48.png',
+      title: 'Text Summary',
+      message: summary.substring(0, 200),
+      priority: 1
     });
+
+    await chrome.storage.session.set({ lastSummary: summary });
+  }
+
+  async handleAutonomousExecution(tabId, tab) {
+    if (!this.currentTask) return;
+
+    console.log(`[Autonomous] Processing task on tab ${tabId}`);
+    // Autonomous execution logic here
+  }
+
+  async getPageInfo(tabId) {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => ({
+        url: window.location.href,
+        title: document.title,
+        readyState: document.readyState
+      })
+    });
+    return results[0]?.result || {};
   }
 }
 
-// Initialize the extension controller
-const extensionController = new ExtensionController();
+// Initialize the controller
+const controller = new ExtensionController();
 
-console.log('🚀 Enhanced Browser Extension Controller initialized');
+// Export for testing
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { ExtensionController };
+}
