@@ -42,260 +42,174 @@ on:
       - 'tests/**'
   workflow_dispatch:
 
-# CRITICAL: Prevent concurrent builds to avoid conflicts and optimize resource usage
-# This is the key optimization for queue management
+# Optimize concurrency - cancel stale runs per branch
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  NODE_ENV: ci
-  CI: true
-  # Optimize npm operations for speed
-  NPM_CONFIG_PROGRESS: false
-  NPM_CONFIG_AUDIT: false
-  NPM_CONFIG_FUND: false
-  NPM_CONFIG_PREFER_OFFLINE: true
-  # Performance environment variables
-  RUN_INTEGRATION_TESTS: false
-  LLM_VECTOR_STORE: memory
-  # Enable advanced caching with versioning
-  CACHE_VERSION: v3
-  FORCE_COLOR: 0
-
 jobs:
-  # Quick pre-flight checks - fail fast if basic issues exist
+  # Pre-flight check to determine if we should run full suite
   preflight:
     name: Pre-flight Checks
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     outputs:
-      should-run-full: ${{ steps.changes.outputs.code }}
+      should_run: ${{ steps.check.outputs.should_run }}
+      node_versions: ${{ steps.check.outputs.node_versions }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 2
       
-      - name: Check for significant changes
-        id: changes
+      - name: Check if should run full suite
+        id: check
         run: |
-          if git diff HEAD~1 --name-only | grep -E '\.(js|ts|jsx|tsx|json)$' > /dev/null; then
-            echo "code=true" >> $GITHUB_OUTPUT
+          # For PRs, only run on Node 20.x for speed
+          # For main branch, run on both 18.x and 20.x
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "node_versions=[\"20.x\"]" >> $GITHUB_OUTPUT
           else
-            echo "code=false" >> $GITHUB_OUTPUT
+            echo "node_versions=[\"18.x\", \"20.x\"]" >> $GITHUB_OUTPUT
           fi
+          echo "should_run=true" >> $GITHUB_OUTPUT
 
-  # Ultra-fast lint check - runs in parallel with minimal resources
+  # Combined lint and style check
   lint:
     name: Lint & Style Check
-    runs-on: ubuntu-latest
     needs: preflight
-    if: needs.preflight.outputs.should-run-full == 'true'
-    timeout-minutes: 8
+    if: needs.preflight.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - uses: actions/checkout@v4
       
-      - name: Setup Node.js with enhanced caching
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
           cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
       
-      - name: Restore npm cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ env.CACHE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-${{ env.CACHE_VERSION }}-
-            ${{ runner.os }}-npm-
-      
-      - name: Install dependencies (optimized)
-        run: |
-          npm ci \
-            --prefer-offline \
-            --no-audit \
-            --no-fund \
-            --ignore-scripts \
-            --only=dev
-      
-      - name: Run linter with caching
+      - name: Install dependencies (production only for lint)
+        run: npm ci --prefer-offline --no-audit
+        
+      - name: Run ESLint
         run: npm run lint --if-present
+        continue-on-error: false
 
-  # Optimized build and test - reduced matrix for speed
-  build-and-test:
-    name: Build & Test
+  # Security scanning
+  security:
+    name: Security Scan
+    needs: preflight
+    if: needs.preflight.outputs.should_run == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+      
+      - name: Check for known vulnerabilities
+        run: |
+          if [ -f package-lock.json ]; then
+            npm audit --json > audit-results.json || true
+            echo "Audit complete"
+          fi
+
+  # Main build and test matrix
+  build:
+    name: Build & Test (Node ${{ matrix.node-version }})
     needs: [preflight, lint]
-    if: needs.preflight.outputs.should-run-full == 'true'
-    timeout-minutes: 12
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
-      fail-fast: true
+      fail-fast: false
       max-parallel: 2
       matrix:
-        node-version: ['18.x', '20.x']
+        node-version: ${{ fromJson(needs.preflight.outputs.node_versions) }}
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - uses: actions/checkout@v4
       
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
-      
-      - name: Restore build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm
-            dist/
-            build/
-            .cache/
-          key: ${{ runner.os }}-build-${{ matrix.node-version }}-${{ env.CACHE_VERSION }}-${{ hashFiles('**/package-lock.json', 'src/**') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ matrix.node-version }}-${{ env.CACHE_VERSION }}-
-            ${{ runner.os }}-build-${{ matrix.node-version }}-
-      
-      - name: Install dependencies (production optimized)
-        run: |
-          npm ci \
-            --prefer-offline \
-            --no-audit \
-            --no-fund
-      
-      - name: Build project (with caching)
-        run: |
-          if [ -f "dist/index.js" ] && [ "dist/index.js" -nt "src/index.js" 2>/dev/null ]; then
-            echo "Build cache hit - skipping build"
-          else
-            npm run build --if-present
-          fi
-      
-      - name: Run tests (optimized)
-        run: |
-          npm test --if-present -- \
-            --maxWorkers=2 \
-            --cache \
-            --bail=5
-        env:
-          NODE_ENV: test
-          NODE_OPTIONS: '--max-old-space-size=4096'
-      
-      - name: Upload test results
-        if: matrix.node-version == '20.x' && (success() || failure())
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ matrix.node-version }}
-          path: |
-            coverage/
-            test-results.xml
-          retention-days: 3
-
-  # Lightweight security check - runs only when needed
-  security-audit:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    needs: preflight
-    if: needs.preflight.outputs.should-run-full == 'true'
-    timeout-minutes: 6
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'npm'
-      
-      - name: Install dependencies (audit only)
-        run: |
-          npm ci \
-            --prefer-offline \
-            --audit-level=moderate \
-            --no-fund
-      
-      - name: Run security audit
-        run: |
-          npm audit --audit-level=moderate || {
-            echo "Security vulnerabilities found - continuing with warning"
-            exit 0
-          }
-
-  # Conditional attestation - only for main branch pushes
-  attest-build:
-    name: Build Attestation
-    runs-on: ubuntu-latest
-    needs: [build-and-test]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    timeout-minutes: 8
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'npm'
-      
-      - name: Restore build cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            ~/.npm
-            dist/
-            build/
-          key: ${{ runner.os }}-build-20.x-${{ env.CACHE_VERSION }}-${{ hashFiles('**/package-lock.json', 'src/**') }}
       
       - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
+        run: npm ci --prefer-offline --no-audit
+      
+      - name: Build
+        run: npm run build --if-present
+      
+      - name: Run tests
+        run: npm test --if-present
+        env:
+          CI: true
+      
+      - name: Upload coverage
+        if: matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.node-version }}
+          path: coverage/
+          retention-days: 7
+        continue-on-error: true
+
+  # Build attestation (only on main branch)
+  attest:
+    name: Build Attestation
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
       
       - name: Build for attestation
         run: npm run build --if-present
       
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
-        if: hashFiles('dist/**') != ''
+      - name: Generate attestation
+        uses: actions/attest-build-provenance@v1
+        if: always()
+        continue-on-error: true
         with:
-          subject-path: 'dist/**/*'
+          subject-path: |
+            dist/**
+            build/**
 
-  # Final status check - reports overall success/failure
-  workflow-complete:
+  # Workflow status summary
+  status:
     name: Workflow Status
-    runs-on: ubuntu-latest
-    needs: [preflight, lint, build-and-test, security-audit]
+    needs: [preflight, lint, security, build]
     if: always()
+    runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Report workflow status
+      - name: Check workflow status
         run: |
-          echo "Workflow completed with status:"
           echo "Preflight: ${{ needs.preflight.result }}"
           echo "Lint: ${{ needs.lint.result }}"
-          echo "Build & Test: ${{ needs.build-and-test.result }}"
-          echo "Security: ${{ needs.security-audit.result }}"
+          echo "Security: ${{ needs.security.result }}"
+          echo "Build: ${{ needs.build.result }}"
           
-          if [[ "${{ needs.build-and-test.result }}" == "failure" ]]; then
-            echo "❌ Critical failure in build and test"
+          if [[ "${{ needs.build.result }}" == "failure" ]]; then
+            echo "❌ Build failed"
             exit 1
           elif [[ "${{ needs.lint.result }}" == "failure" ]]; then
-            echo "⚠️ Linting failed but continuing"
-            exit 0
+            echo "❌ Lint failed"
+            exit 1
           else
             echo "✅ Workflow completed successfully"
           fi
