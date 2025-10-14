@@ -46,12 +46,11 @@ export const testVerification: Tool = {
     },
     required: ['operation'],
   },
-
   async execute(args: any): Promise<any> {
     const {
       operation,
       path = '',
-      pattern,
+      _pattern,
       watch = false,
       bail = false,
       timeout,
@@ -60,132 +59,78 @@ export const testVerification: Tool = {
 
     try {
       let command = '';
-      let result: any = {};
 
-      const watchFlag = watch ? '--watch' : '';
-      const bailFlag = bail ? '--bail' : '';
-      const timeoutFlag = timeout ? `--timeout ${timeout}` : '';
-
+      // Build test command based on operation
       switch (operation) {
         case 'test':
-          // Run all tests
-          command = `npm test ${path} ${watchFlag} ${bailFlag} ${timeoutFlag}`;
-          if (coverage) {
-            command = `npm test -- --coverage ${path}`;
-          }
+          command = 'npm test';
           break;
-
-        case 'unit':
-          // Run unit tests
-          command = `npm test -- --testPathPattern=".*\\.(test|spec)\\.(ts|js)$" ${path} ${bailFlag}`;
-          break;
-
-        case 'integration':
-          // Run integration tests
-          command = `npm test -- --testPathPattern=".*\\.integration\\.(test|spec)\\.(ts|js)$" ${path} ${bailFlag}`;
-          break;
-
-        case 'e2e':
-          // Run end-to-end tests
-          command = `npm run test:e2e ${path} ${bailFlag}`;
-          break;
-
         case 'coverage':
-          // Generate coverage report
-          command = `npm test -- --coverage ${path}`;
+          command = 'npm run coverage';
           break;
-
+        case 'e2e':
+          command = 'npm run test:e2e';
+          break;
+        case 'unit':
+          command = 'npm run test:unit';
+          break;
+        case 'integration':
+          command = 'npm run test:integration';
+          break;
         case 'verify':
-          // Comprehensive verification
-          const verificationSteps = [
-            { name: 'lint', cmd: 'npm run lint' },
-            { name: 'type-check', cmd: 'npm run type-check' },
-            { name: 'test', cmd: 'npm test' },
-            { name: 'build', cmd: 'npm run build' },
-          ];
-
-          const results = [];
-          for (const step of verificationSteps) {
-            try {
-              const { stdout, stderr } = await execAsync(step.cmd);
-              results.push({
-                step: step.name,
-                success: true,
-                output: stdout,
-                errors: stderr || null,
-              });
-            } catch (error: any) {
-              results.push({
-                step: step.name,
-                success: false,
-                error: error.message,
-              });
-              if (bail) break;
-            }
-          }
-
-          return {
-            success: results.every((r) => r.success),
-            operation,
-            verification: results,
-            timestamp: new Date().toISOString(),
-          };
-
-        case 'benchmark':
-          // Run performance benchmarks
-          command = `npm run benchmark ${path}`;
+          command = 'npm run verify:all';
           break;
-
+        case 'benchmark':
+          command = 'npm run test:benchmark';
+          break;
         default:
           throw new Error(`Unknown operation: ${operation}`);
       }
 
-      // Execute command if not handled by switch statement
-      if (command) {
-        try {
-          const { stdout, stderr } = await execAsync(command, {
-            maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-          });
-
-          // Parse test results
-          const testsPassed = stdout.match(/\d+ passed/)?.[0];
-          const testsFailed = stdout.match(/\d+ failed/)?.[0];
-          const testsTotal = stdout.match(/\d+ total/)?.[0];
-
-          result = {
-            success: !stderr && !testsFailed,
-            output: stdout,
-            errors: stderr || null,
-            summary: {
-              passed: testsPassed || '0 passed',
-              failed: testsFailed || '0 failed',
-              total: testsTotal || '0 total',
-            },
-          };
-        } catch (error: any) {
-          result = {
-            success: false,
-            output: error.stdout || '',
-            error: error.message,
-            stderr: error.stderr || null,
-          };
-        }
+      // Add path if specified
+      if (path) {
+        command += ` ${path}`;
       }
 
-      return {
-        success: result.success || false,
-        operation,
+      // Add flags
+      if (watch) command += ' --watch';
+      if (bail) command += ' --bail';
+      if (timeout) command += ` --testTimeout=${timeout}`;
+      if (coverage) command += ' --coverage';
+
+      console.log(`Executing: ${command}`);
+
+      const { stdout, stderr } = await execAsync(command, {
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+      });
+
+      // Parse test results
+      const results = {
+        success: true,
+        command,
+        output: stdout,
+        errors: stderr || '',
         timestamp: new Date().toISOString(),
-        ...result,
       };
+
+      // Extract test metrics from output
+      const testsPassed = (stdout.match(/\d+ passing/i) || [])[0];
+      const testsFailed = (stdout.match(/\d+ failing/i) || [])[0];
+      const coverage_match = stdout.match(/All files[^\n]*?([\d.]+)%/);
+
+      if (testsPassed) results.passed = testsPassed;
+      if (testsFailed) results.failed = testsFailed;
+      if (coverage_match) results.coverage = coverage_match[1] + '%';
+
+      return results;
     } catch (error: any) {
       return {
         success: false,
-        operation,
         error: error.message,
+        output: error.stdout || '',
+        errors: error.stderr || error.message,
+        timestamp: new Date().toISOString(),
       };
     }
   },
 };
-
-export default testVerification;
