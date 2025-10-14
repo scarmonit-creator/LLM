@@ -1,171 +1,537 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Text Analyzer</title>
-  <style>
-    body {
-      width: 500px;
-      padding: 20px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      font-size: 14px;
-      margin: 0;
-    }
-    h1 {
-      font-size: 20px;
-      margin: 0 0 20px 0;
-      color: #333;
-    }
-    .info-section {
-      background: #f5f5f5;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-    }
-    .info-item {
-      margin-bottom: 10px;
-    }
-    .info-item:last-child {
-      margin-bottom: 0;
-    }
-    .label {
-      font-weight: 600;
-      color: #555;
-      margin-right: 8px;
-    }
-    .value {
-      color: #333;
-    }
-    .text-preview {
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 10px;
-      max-height: 150px;
-      overflow-y: auto;
-      margin-top: 10px;
-      word-wrap: break-word;
-      white-space: pre-wrap;
-      font-size: 13px;
-      color: #666;
-    }
-    .analysis-section {
-      margin-bottom: 20px;
-    }
-    .analysis-results {
-      background: #f9f9f9;
-      border: 1px solid #e0e0e0;
-      border-radius: 4px;
-      padding: 15px;
-      margin-top: 10px;
-    }
-    .result-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid #e8e8e8;
-    }
-    .result-item:last-child {
-      border-bottom: none;
-    }
-    .result-label {
-      font-weight: 500;
-      color: #555;
-    }
-    .result-value {
-      font-weight: 600;
-      color: #0066cc;
-    }
-    .button-group {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    button {
-      flex: 1;
-      background: #0066cc;
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      transition: background 0.2s;
-    }
-    button:hover {
-      background: #0052a3;
-    }
-    button:active {
-      background: #003d7a;
-    }
-    button.secondary {
-      background: #6c757d;
-    }
-    button.secondary:hover {
-      background: #5a6268;
-    }
-    .no-data {
-      text-align: center;
-      color: #999;
-      padding: 40px 20px;
-    }
-  </style>
+    <meta charset="utf-8">
+    <style>
+        body {
+            width: 400px;
+            min-height: 500px;
+            margin: 0;
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 15px;
+        }
+        
+        .header h1 {
+            margin: 0 0 5px 0;
+            font-size: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 600;
+        }
+        
+        .header .version {
+            font-size: 12px;
+            color: #888;
+            font-weight: normal;
+        }
+        
+        .page-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .page-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #333;
+        }
+        
+        .page-url {
+            font-size: 11px;
+            color: #666;
+            word-break: break-all;
+        }
+        
+        .status {
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status.active {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+        
+        .status.inactive {
+            background: #e9ecef;
+            color: #666;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .issue-count {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            display: inline-block;
+            margin-bottom: 16px;
+        }
+        
+        .issue-count.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .issue-count.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+        }
+        
+        .control-section h3 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .button-grid-single {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #e9ecef;
+            color: #495057;
+            border: 1px solid #dee2e6;
+        }
+        
+        .analysis-container {
+            display: none;
+        }
+        
+        .text-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .text-source {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .text-length {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .text-preview {
+            font-size: 12px;
+            color: #666;
+            max-height: 60px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+        
+        .analysis-results {
+            display: none;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #667eea;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .issues-container {
+            display: none;
+            margin-top: 16px;
+        }
+        
+        .issue-item {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .issue-type {
+            font-weight: 600;
+            font-size: 12px;
+            color: #dc3545;
+            text-transform: capitalize;
+            margin-bottom: 4px;
+        }
+        
+        .issue-description {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        
+        .issue-count-small {
+            font-size: 10px;
+            color: #888;
+        }
+        
+        .extracted-data-container {
+            display: none;
+            background: #e8f5e8;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 16px;
+            font-size: 12px;
+        }
+        
+        .extracted-data-container h3 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            color: #2e7d32;
+        }
+        
+        .extracted-data-container div {
+            margin-bottom: 4px;
+        }
+        
+        .settings-panel {
+            display: none;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .settings-item {
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .settings-item label {
+            font-size: 12px;
+            color: #333;
+            flex-grow: 1;
+        }
+        
+        .settings-item input[type="checkbox"] {
+            margin-left: 8px;
+        }
+        
+        .settings-item input[type="number"] {
+            width: 60px;
+            padding: 4px 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .message {
+            display: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .content {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+        }
+        
+        .content .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .content h2 {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .content p {
+            font-size: 13px;
+            line-height: 1.4;
+            margin-bottom: 16px;
+        }
+    </style>
 </head>
 <body>
-  <h1>Text Analyzer</h1>
-  
-  <div id="content">
-    <div class="no-data">
-      <p>No text to analyze.</p>
-      <p>Right-click selected text or click the extension icon to capture text.</p>
+    <div class="container">
+        <div class="header">
+            <h1>Text Analyzer <span class="version">v2.0</span></h1>
+        </div>
+        
+        <div id="message" class="message"></div>
+        
+        <div class="page-info">
+            <div class="page-title" id="page-title">Loading...</div>
+            <div class="page-url" id="page-url"></div>
+        </div>
+        
+        <div id="autonomous-status" class="status inactive">Autonomous Mode: INACTIVE</div>
+        
+        <div id="issue-count" class="issue-count success">Checking for issues...</div>
+        
+        <!-- Autonomous Controls -->
+        <div class="control-section">
+            <h3>🤖 Autonomous Controls</h3>
+            <div class="button-grid">
+                <button id="start-autonomous-btn" class="btn-success">Start Autonomous</button>
+                <button id="stop-autonomous-btn" class="btn-danger" style="display: none;">Stop Autonomous</button>
+                <button id="fix-issues-btn" class="btn-warning">Fix Page Issues</button>
+                <button id="extract-data-btn" class="btn-primary">Extract Data</button>
+            </div>
+        </div>
+        
+        <!-- Text Analysis Controls -->
+        <div class="control-section">
+            <h3>📊 Text Analysis</h3>
+            <div class="button-grid">
+                <button id="analyze-page-btn" class="btn-primary">Analyze Page</button>
+                <button id="analyze-btn" class="btn-secondary">Analyze Text</button>
+            </div>
+        </div>
+        
+        <!-- Utility Controls -->
+        <div class="control-section">
+            <h3>🔧 Utilities</h3>
+            <div class="button-grid">
+                <button id="screenshot-btn" class="btn-secondary">Screenshot</button>
+                <button id="copy-btn" class="btn-secondary">Copy Text</button>
+                <button id="settings-btn" class="btn-secondary">Settings</button>
+                <button id="clear-storage-btn" class="btn-secondary">Clear Data</button>
+            </div>
+        </div>
+        
+        <!-- No Data Message -->
+        <div id="content" class="content">
+            <div class="icon">📝</div>
+            <h2>Ready to Analyze</h2>
+            <p>Select text on any webpage and right-click to analyze, or use the controls above to start autonomous mode.</p>
+            <div class="button-grid-single">
+                <button id="analyze-current-page" class="btn-primary">Analyze Current Page</button>
+            </div>
+        </div>
+        
+        <!-- Analysis Container -->
+        <div id="analysis-container" class="analysis-container">
+            <div class="text-info">
+                <div class="text-source" id="source">Unknown Source</div>
+                <div class="text-length" id="length">0 characters</div>
+                <div class="text-preview" id="text-preview">No preview available</div>
+            </div>
+            
+            <div id="analysis-results" class="analysis-results">
+                <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #333;">📈 Analysis Results</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="char-count">0</span>
+                        <div class="stat-label">Characters</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="char-no-space-count">0</span>
+                        <div class="stat-label">No Spaces</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="word-count">0</span>
+                        <div class="stat-label">Words</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="sentence-count">0</span>
+                        <div class="stat-label">Sentences</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="line-count">0</span>
+                        <div class="stat-label">Lines</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="paragraph-count">0</span>
+                        <div class="stat-label">Paragraphs</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="avg-word-length">0</span>
+                        <div class="stat-label">Avg Word Length</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="reading-time">0 min</span>
+                        <div class="stat-label">Reading Time</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Issues Container -->
+        <div id="issues-container" class="issues-container"></div>
+        
+        <!-- Extracted Data Container -->
+        <div id="extracted-data-container" class="extracted-data-container"></div>
+        
+        <!-- Settings Panel -->
+        <div id="settings-panel" class="settings-panel">
+            <h3 style="margin: 0 0 16px 0; font-size: 14px; color: #333;">⚙️ Settings</h3>
+            
+            <div class="settings-item">
+                <label>Auto-analyze text</label>
+                <input type="checkbox" id="auto-analyze">
+            </div>
+            
+            <div class="settings-item">
+                <label>Enable autonomous execution</label>
+                <input type="checkbox" id="autonomous-execution">
+            </div>
+            
+            <div class="settings-item">
+                <label>Max retry attempts</label>
+                <input type="number" id="max-retries" min="1" max="10" value="3">
+            </div>
+            
+            <div class="settings-item">
+                <label>Delay between actions (ms)</label>
+                <input type="number" id="delay-between-actions" min="100" max="5000" step="100" value="1000">
+            </div>
+            
+            <div class="settings-item">
+                <label>Debug mode</label>
+                <input type="checkbox" id="debug-mode">
+            </div>
+            
+            <div style="margin-top: 16px;">
+                <button id="save-settings-btn" class="btn-primary" style="width: 100%;">Save Settings</button>
+            </div>
+        </div>
     </div>
-  </div>
-
-  <div id="analysis-container" style="display: none;">
-    <div class="info-section">
-      <div class="info-item">
-        <span class="label">Source:</span>
-        <span class="value" id="source"></span>
-      </div>
-      <div class="info-item">
-        <span class="label">Length:</span>
-        <span class="value" id="length"></span>
-      </div>
-      <div class="info-item">
-        <span class="label">Text Preview:</span>
-        <div class="text-preview" id="text-preview"></div>
-      </div>
-    </div>
-
-    <div class="analysis-section">
-      <div class="button-group">
-        <button id="analyze-btn">Run Analysis</button>
-        <button id="copy-btn" class="secondary">Copy Text</button>
-      </div>
-
-      <div id="analysis-results" class="analysis-results" style="display: none;">
-        <div class="result-item">
-          <span class="result-label">Characters:</span>
-          <span class="result-value" id="char-count"></span>
-        </div>
-        <div class="result-item">
-          <span class="result-label">Characters (no spaces):</span>
-          <span class="result-value" id="char-no-space-count"></span>
-        </div>
-        <div class="result-item">
-          <span class="result-label">Words:</span>
-          <span class="result-value" id="word-count"></span>
-        </div>
-        <div class="result-item">
-          <span class="result-label">Lines:</span>
-          <span class="result-value" id="line-count"></span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="popup.js"></script>
+    
+    <script src="popup.js"></script>
 </body>
 </html>
