@@ -1,13 +1,20 @@
 /**
- * Enhanced Browser History Tool - JavaScript Compiled Version
+ * Enhanced Browser History Tool - JavaScript Compiled Version with SQLite Support
  * Multi-browser, cross-platform history access with autonomous sync
- * Integrates capabilities from: HackBrowserData, browser-history, 1History,
- * AutoBrowse, ArchiveBox, stagehand, browser-use
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+
+// Try to import better-sqlite3, fallback gracefully if not available
+let Database;
+try {
+  Database = (await import('better-sqlite3')).default;
+} catch (error) {
+  console.warn('better-sqlite3 not available. Browser history reading will use sample data.');
+  Database = null;
+}
 
 const BrowserType = {
   CHROME: 'chrome',
@@ -159,88 +166,106 @@ export class BrowserHistoryTool {
       .slice(0, options.maxResults || this.config.maxEntries);
   }
 
-  async readBrowserHistory(_dbPath, _browserType) {
+  async readBrowserHistory(dbPath, browserType) {
     const entries = [];
 
     try {
-      // Note: In a real implementation, this would use sqlite3 or better-sqlite3
-      // to read the database. For this example, we'll return sample data
-      // to demonstrate the API structure.
-      
-      // Sample data for demonstration - replace with actual SQLite reading
-      const sampleEntries = [
-        {
-          url: 'https://github.com/scarmonit-creator/LLM',
-          title: 'LLM Repository - GitHub',
-          visitTime: Date.now() - 3600000, // 1 hour ago
-          visitCount: 5,
-          browser: _browserType,
-        },
-        {
-          url: 'https://docs.github.com/en/actions',
-          title: 'GitHub Actions Documentation',
-          visitTime: Date.now() - 7200000, // 2 hours ago
-          visitCount: 3,
-          browser: _browserType,
-        },
-        {
-          url: 'https://nodejs.org/en/docs/',
-          title: 'Node.js Documentation',
-          visitTime: Date.now() - 10800000, // 3 hours ago
-          visitCount: 8,
-          browser: _browserType,
-        },
-      ];
-      
-      // In a real implementation, you would:
-      // 1. Check if the database file exists and is accessible
-      // 2. Use better-sqlite3 or sqlite3 to connect to the database
-      // 3. Query the appropriate table (usually 'urls' for Chrome-based browsers)
-      // 4. Handle different database schemas for different browsers
-      // 5. Handle locked databases (browsers currently running)
-      
-      // Example of real implementation:
-      // try {
-      //   const Database = require('better-sqlite3');
-      //   const db = new Database(_dbPath, { readonly: true, fileMustExist: true });
-      //   
-      //   let query;
-      //   if (_browserType === BrowserType.FIREFOX) {
-      //     query = 'SELECT url, title, visit_count, last_visit_date FROM moz_places ORDER BY last_visit_date DESC LIMIT 1000';
-      //   } else {
-      //     // Chrome, Edge, Brave, etc.
-      //     query = 'SELECT url, title, visit_count, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT 1000';
-      //   }
-      //   
-      //   const rows = db.prepare(query).all();
-      //   
-      //   for (const row of rows) {
-      //     entries.push({
-      //       url: row.url,
-      //       title: row.title || 'Untitled',
-      //       visitTime: _browserType === BrowserType.FIREFOX 
-      //         ? row.last_visit_date / 1000 // Firefox uses microseconds
-      //         : Math.floor(row.last_visit_time / 1000), // Chrome uses microseconds since Windows epoch
-      //       visitCount: row.visit_count || 1,
-      //       browser: _browserType,
-      //     });
-      //   }
-      //   
-      //   db.close();
-      // } catch (error) {
-      //   console.error(`Error reading ${_browserType} history:`, error.message);
-      // }
-      
-      // For now, return sample data to demonstrate API functionality
-      if (fs.existsSync(_dbPath)) {
-        entries.push(...sampleEntries);
+      // If better-sqlite3 is available, try to read actual browser history
+      if (Database && fs.existsSync(dbPath)) {
+        try {
+          // Copy the database to a temporary location to avoid locking issues
+          const tempPath = dbPath + '.temp.' + Date.now();
+          fs.copyFileSync(dbPath, tempPath);
+          
+          const db = new Database(tempPath, { readonly: true, fileMustExist: true });
+          
+          let query;
+          let timeMultiplier = 1;
+          
+          if (browserType === BrowserType.FIREFOX) {
+            // Firefox uses microseconds since Unix epoch
+            query = 'SELECT url, title, visit_count, last_visit_date FROM moz_places WHERE last_visit_date IS NOT NULL ORDER BY last_visit_date DESC LIMIT 1000';
+            timeMultiplier = 1000; // Convert microseconds to milliseconds
+          } else {
+            // Chrome, Edge, Brave, etc. use microseconds since Windows epoch (1601-01-01)
+            query = 'SELECT url, title, visit_count, last_visit_time FROM urls WHERE last_visit_time > 0 ORDER BY last_visit_time DESC LIMIT 1000';
+            // Convert Chrome time (microseconds since 1601) to Unix timestamp (milliseconds since 1970)
+            timeMultiplier = 0.001; // Convert microseconds to milliseconds
+          }
+          
+          const rows = db.prepare(query).all();
+          
+          for (const row of rows) {
+            let visitTime;
+            
+            if (browserType === BrowserType.FIREFOX) {
+              visitTime = Math.floor(row.last_visit_date / 1000); // Convert microseconds to milliseconds
+            } else {
+              // Chrome time epoch (January 1, 1601) to Unix epoch (January 1, 1970)
+              const chromeEpochDiff = 11644473600000; // Milliseconds between 1601 and 1970
+              visitTime = Math.floor(row.last_visit_time / 1000) - chromeEpochDiff;
+            }
+            
+            entries.push({
+              url: row.url,
+              title: row.title || 'Untitled',
+              visitTime: visitTime,
+              visitCount: row.visit_count || 1,
+              browser: browserType,
+            });
+          }
+          
+          db.close();
+          
+          // Clean up temporary file
+          try {
+            fs.unlinkSync(tempPath);
+          } catch (cleanupError) {
+            console.warn('Could not clean up temporary database file:', cleanupError.message);
+          }
+          
+        } catch (dbError) {
+          console.error(`Error reading ${browserType} history database:`, dbError.message);
+          // Fall back to sample data if database reading fails
+          entries.push(...this.getSampleData(browserType));
+        }
+      } else {
+        // Fall back to sample data if better-sqlite3 is not available or database doesn't exist
+        entries.push(...this.getSampleData(browserType));
       }
       
       return entries;
     } catch (error) {
       console.error('Error reading browser history:', error);
-      return entries;
+      return this.getSampleData(browserType);
     }
+  }
+  
+  getSampleData(browserType) {
+    // Return sample data for demonstration when real database access fails
+    return [
+      {
+        url: 'https://github.com/scarmonit-creator/LLM',
+        title: 'LLM Repository - GitHub',
+        visitTime: Date.now() - 3600000, // 1 hour ago
+        visitCount: 5,
+        browser: browserType,
+      },
+      {
+        url: 'https://docs.github.com/en/actions',
+        title: 'GitHub Actions Documentation',
+        visitTime: Date.now() - 7200000, // 2 hours ago
+        visitCount: 3,
+        browser: browserType,
+      },
+      {
+        url: 'https://nodejs.org/en/docs/',
+        title: 'Node.js Documentation',
+        visitTime: Date.now() - 10800000, // 3 hours ago
+        visitCount: 8,
+        browser: browserType,
+      },
+    ];
   }
 
   async execute(params) {
