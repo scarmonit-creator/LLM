@@ -1,6 +1,5 @@
 // Ultra-Optimized Popup with Real-time Analysis Dashboard
-// Features advanced metrics, performance monitoring, and beautiful UI
-
+// Fixed version with corrected string templates and improved performance
 class UltraOptimizedPopup {
   constructor() {
     this.currentAnalysis = null;
@@ -18,14 +17,19 @@ class UltraOptimizedPopup {
   }
 
   async initialize() {
-    await this.loadCurrentTab();
-    await this.loadStoredAnalysis();
-    this.setupEventListeners();
-    this.createAdvancedUI();
-    await this.loadPerformanceMetrics();
-    this.startRealTimeUpdates();
-    
-    console.log('🚀 Ultra-Optimized Popup initialized');
+    try {
+      await this.loadCurrentTab();
+      await this.loadStoredAnalysis();
+      this.setupEventListeners();
+      this.createAdvancedUI();
+      await this.loadPerformanceMetrics();
+      this.startRealTimeUpdates();
+      
+      console.log('🚀 Ultra-Optimized Popup initialized successfully');
+    } catch (error) {
+      console.error('❌ Popup initialization failed:', error);
+      this.showError('Failed to initialize popup: ' + error.message);
+    }
   }
 
   async loadCurrentTab() {
@@ -49,7 +53,7 @@ class UltraOptimizedPopup {
       }
       
       if (result.analysisHistory) {
-        this.analysisHistory = result.analysisHistory.slice(-10); // Keep last 10
+        this.analysisHistory = result.analysisHistory.slice(-10);
       }
       
       if (result.performanceMetrics) {
@@ -62,34 +66,58 @@ class UltraOptimizedPopup {
 
   setupEventListeners() {
     // Main action buttons
-    document.getElementById('analyze-selection-btn')?.addEventListener('click', () => this.analyzeSelection());
-    document.getElementById('analyze-page-btn')?.addEventListener('click', () => this.analyzePage());
-    document.getElementById('analyze-custom-btn')?.addEventListener('click', () => this.analyzeCustomText());
+    this.addEventListenerSafely('analyze-selection-btn', 'click', () => this.analyzeSelection());
+    this.addEventListenerSafely('analyze-page-btn', 'click', () => this.analyzePage());
+    this.addEventListenerSafely('analyze-custom-btn', 'click', () => this.analyzeCustomText());
     
     // Real-time toggle
-    document.getElementById('realtime-toggle')?.addEventListener('change', (e) => {
+    this.addEventListenerSafely('realtime-toggle', 'change', (e) => {
       this.toggleRealTimeMode(e.target.checked);
     });
     
     // Analysis options
-    document.getElementById('include-summary')?.addEventListener('change', () => this.updateAnalysisOptions());
-    document.getElementById('keyword-limit')?.addEventListener('input', () => this.updateAnalysisOptions());
+    this.addEventListenerSafely('include-summary', 'change', () => this.updateAnalysisOptions());
+    this.addEventListenerSafely('keyword-limit', 'input', () => this.updateAnalysisOptions());
     
     // Export and clear buttons
-    document.getElementById('export-btn')?.addEventListener('click', () => this.exportAnalysis());
-    document.getElementById('clear-history-btn')?.addEventListener('click', () => this.clearHistory());
+    this.addEventListenerSafely('export-btn', 'click', () => this.exportAnalysis());
+    this.addEventListenerSafely('clear-history-btn', 'click', () => this.clearHistory());
     
-    // Performance tab
-    document.getElementById('performance-tab')?.addEventListener('click', () => this.showPerformanceTab());
-    document.getElementById('analysis-tab')?.addEventListener('click', () => this.showAnalysisTab());
-    document.getElementById('history-tab')?.addEventListener('click', () => this.showHistoryTab());
+    // Tab navigation
+    this.addEventListenerSafely('performance-tab', 'click', () => this.showPerformanceTab());
+    this.addEventListenerSafely('analysis-tab', 'click', () => this.showAnalysisTab());
+    this.addEventListenerSafely('history-tab', 'click', () => this.showHistoryTab());
+  }
+
+  addEventListenerSafely(elementId, event, handler) {
+    const element = document.getElementById(elementId);
+    if (element) {
+      element.addEventListener(event, handler);
+    } else {
+      console.warn(`Element not found: ${elementId}`);
+    }
   }
 
   createAdvancedUI() {
     const container = document.getElementById('app-container');
-    if (!container) return;
+    if (!container) {
+      console.error('App container not found');
+      return;
+    }
     
-    container.innerHTML = `
+    try {
+      container.innerHTML = this.getUITemplate();
+      this.addAdvancedStyles();
+      this.setupAdvancedEventListeners();
+      console.log('✅ Advanced UI created successfully');
+    } catch (error) {
+      console.error('❌ Failed to create UI:', error);
+      container.innerHTML = '<div class="error-message">Failed to load interface</div>';
+    }
+  }
+
+  getUITemplate() {
+    return `
       <div class="ultra-popup">
         <!-- Header -->
         <div class="popup-header">
@@ -205,9 +233,6 @@ class UltraOptimizedPopup {
         </div>
       </div>
     `;
-    
-    this.addAdvancedStyles();
-    this.setupAdvancedEventListeners();
   }
 
   addAdvancedStyles() {
@@ -221,6 +246,7 @@ class UltraOptimizedPopup {
         border-radius: 12px;
         overflow: hidden;
         color: #2d3748;
+        position: relative;
       }
       
       .popup-header {
@@ -297,12 +323,6 @@ class UltraOptimizedPopup {
       
       #realtime-toggle:checked + .switch-slider::before {
         transform: translateX(20px);
-      }
-      
-      .switch-label {
-        font-size: 12px;
-        font-weight: 500;
-        color: #4a5568;
       }
       
       .tab-nav {
@@ -436,40 +456,6 @@ class UltraOptimizedPopup {
         margin-bottom: 8px;
       }
       
-      .analysis-display {
-        display: grid;
-        gap: 16px;
-      }
-      
-      .metric-card {
-        background: white;
-        padding: 16px;
-        border-radius: 8px;
-        border: 1px solid #e5e7eb;
-      }
-      
-      .metric-title {
-        font-size: 12px;
-        font-weight: 600;
-        color: #6b7280;
-        margin-bottom: 8px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      
-      .metric-value {
-        font-size: 24px;
-        font-weight: 700;
-        color: #1f2937;
-      }
-      
-      .metric-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 16px;
-      }
-      
       .loading-overlay {
         position: absolute;
         top: 0;
@@ -484,6 +470,10 @@ class UltraOptimizedPopup {
         z-index: 1000;
       }
       
+      .loading-overlay.hidden {
+        display: none;
+      }
+      
       .loading-spinner {
         width: 40px;
         height: 40px;
@@ -491,12 +481,6 @@ class UltraOptimizedPopup {
         border-top: 3px solid #667eea;
         border-radius: 50%;
         animation: spin 1s linear infinite;
-      }
-      
-      .loading-text {
-        margin-top: 12px;
-        color: #4a5568;
-        font-weight: 500;
       }
       
       @keyframes spin {
@@ -558,6 +542,7 @@ class UltraOptimizedPopup {
         font-family: inherit;
         font-size: 14px;
         resize: vertical;
+        box-sizing: border-box;
       }
       
       .modal-actions {
@@ -584,6 +569,48 @@ class UltraOptimizedPopup {
         background: #f3f4f6;
         color: #374151;
       }
+      
+      .error-message {
+        color: #dc2626;
+        text-align: center;
+        padding: 20px;
+        font-weight: 600;
+      }
+      
+      .metric-card {
+        background: white;
+        padding: 16px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 12px;
+      }
+      
+      .metric-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7280;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      
+      .metric-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1f2937;
+      }
+      
+      .analysis-display {
+        display: grid;
+        gap: 16px;
+      }
+      
+      .metric-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
     `;
     
     document.head.appendChild(style);
@@ -591,44 +618,53 @@ class UltraOptimizedPopup {
 
   setupAdvancedEventListeners() {
     // Custom text modal
-    document.getElementById('analyze-custom-btn')?.addEventListener('click', () => {
-      document.getElementById('custom-text-modal').classList.remove('hidden');
+    this.addEventListenerSafely('analyze-custom-btn', 'click', () => {
+      const modal = document.getElementById('custom-text-modal');
+      if (modal) modal.classList.remove('hidden');
     });
     
-    document.getElementById('modal-close')?.addEventListener('click', () => {
-      document.getElementById('custom-text-modal').classList.add('hidden');
+    this.addEventListenerSafely('modal-close', 'click', () => {
+      const modal = document.getElementById('custom-text-modal');
+      if (modal) modal.classList.add('hidden');
     });
     
-    document.getElementById('modal-cancel')?.addEventListener('click', () => {
-      document.getElementById('custom-text-modal').classList.add('hidden');
+    this.addEventListenerSafely('modal-cancel', 'click', () => {
+      const modal = document.getElementById('custom-text-modal');
+      if (modal) modal.classList.add('hidden');
     });
     
-    document.getElementById('modal-analyze')?.addEventListener('click', () => {
-      const text = document.getElementById('custom-text-input').value;
-      if (text.trim()) {
-        this.analyzeCustomText(text);
-        document.getElementById('custom-text-modal').classList.add('hidden');
-        document.getElementById('custom-text-input').value = '';
+    this.addEventListenerSafely('modal-analyze', 'click', () => {
+      const textInput = document.getElementById('custom-text-input');
+      const modal = document.getElementById('custom-text-modal');
+      
+      if (textInput && textInput.value.trim()) {
+        this.analyzeCustomText(textInput.value);
+        if (modal) modal.classList.add('hidden');
+        textInput.value = '';
       }
     });
     
     // Keyword limit slider
-    document.getElementById('keyword-limit')?.addEventListener('input', (e) => {
-      document.getElementById('keyword-limit-value').textContent = e.target.value;
+    this.addEventListenerSafely('keyword-limit', 'input', (e) => {
+      const valueElement = document.getElementById('keyword-limit-value');
+      if (valueElement) valueElement.textContent = e.target.value;
     });
   }
 
   async analyzeSelection() {
-    if (!this.currentTab) return;
-    
+    if (!this.currentTab) {
+      this.showError('No active tab found');
+      return;
+    }
+
     this.showLoading();
-    
+
     try {
       const response = await chrome.tabs.sendMessage(this.currentTab.id, {
         action: 'analyzeSelectedText',
         data: this.getAnalysisOptions()
       });
-      
+
       if (response?.success) {
         this.displayAnalysis(response.data);
         this.saveAnalysis(response.data);
@@ -643,16 +679,19 @@ class UltraOptimizedPopup {
   }
 
   async analyzePage() {
-    if (!this.currentTab) return;
-    
+    if (!this.currentTab) {
+      this.showError('No active tab found');
+      return;
+    }
+
     this.showLoading();
-    
+
     try {
       const response = await chrome.tabs.sendMessage(this.currentTab.id, {
         action: 'analyzePageText',
         data: this.getAnalysisOptions()
       });
-      
+
       if (response?.success) {
         this.displayAnalysis(response.data);
         this.saveAnalysis(response.data);
@@ -667,17 +706,18 @@ class UltraOptimizedPopup {
   }
 
   async analyzeCustomText(text) {
-    if (!text && document.getElementById('custom-text-input')) {
-      text = document.getElementById('custom-text-input').value;
+    if (!text) {
+      const textInput = document.getElementById('custom-text-input');
+      text = textInput?.value;
     }
-    
+
     if (!text?.trim()) {
       this.showError('Please enter text to analyze');
       return;
     }
-    
+
     this.showLoading();
-    
+
     try {
       const response = await chrome.tabs.sendMessage(this.currentTab.id, {
         action: 'analyzeCustomText',
@@ -686,7 +726,7 @@ class UltraOptimizedPopup {
           options: this.getAnalysisOptions()
         }
       });
-      
+
       if (response?.success) {
         this.displayAnalysis(response.data);
         this.saveAnalysis(response.data);
@@ -701,9 +741,12 @@ class UltraOptimizedPopup {
   }
 
   getAnalysisOptions() {
+    const includeSummary = document.getElementById('include-summary');
+    const keywordLimit = document.getElementById('keyword-limit');
+    
     return {
-      includeSummary: document.getElementById('include-summary')?.checked || false,
-      keywordLimit: parseInt(document.getElementById('keyword-limit')?.value) || 10
+      includeSummary: includeSummary?.checked || false,
+      keywordLimit: parseInt(keywordLimit?.value) || 10
     };
   }
 
@@ -712,17 +755,16 @@ class UltraOptimizedPopup {
       this.showError(analysis?.error || 'Analysis data is invalid');
       return;
     }
-    
+
     this.currentAnalysis = analysis;
     const resultsContainer = document.getElementById('analysis-results');
-    
+
     if (!resultsContainer) return;
-    
+
     const { basic, advanced, readability, ai, content } = analysis;
-    
+
     resultsContainer.innerHTML = `
       <div class="analysis-display">
-        <!-- Basic Metrics Grid -->
         <div class="metric-grid">
           <div class="metric-card">
             <div class="metric-title">Words</div>
@@ -742,96 +784,86 @@ class UltraOptimizedPopup {
           </div>
         </div>
         
-        <!-- Readability Card -->
         ${readability && !readability.error ? `
           <div class="metric-card">
             <div class="metric-title">Readability Analysis</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
-              <div>
-                <div class="metric-title" style="margin-bottom: 4px;">Flesch Score</div>
-                <div class="metric-value" style="font-size: 18px;">${readability.flesch?.score || '0'}</div>
-                <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">${readability.flesch?.level || 'Unknown'}</div>
+            <div class="readability-info">
+              <div class="readability-score">
+                <span class="score-label">Flesch Score</span>
+                <span class="score-value">${readability.flesch?.score || '0'}</span>
+                <span class="score-level">${readability.flesch?.level || 'Unknown'}</span>
               </div>
-              <div>
-                <div class="metric-title" style="margin-bottom: 4px;">Grade Level</div>
-                <div class="metric-value" style="font-size: 18px;">${readability.gradeLevel?.average || '0'}</div>
-                <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">Average Grade</div>
+              <div class="grade-level">
+                <span class="grade-label">Grade Level</span>
+                <span class="grade-value">${readability.gradeLevel?.average || '0'}</span>
+                <span class="grade-desc">Average Grade</span>
               </div>
             </div>
           </div>
         ` : ''}
         
-        <!-- AI Analysis Card -->
         ${ai ? `
           <div class="metric-card">
             <div class="metric-title">AI Analysis</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
-              <div>
-                <div class="metric-title" style="margin-bottom: 4px;">Sentiment</div>
-                <div class="metric-value" style="font-size: 16px; text-transform: capitalize;">${ai.sentiment?.sentiment || 'neutral'}</div>
+            <div class="ai-metrics">
+              <div class="ai-metric">
+                <span class="ai-label">Sentiment</span>
+                <span class="ai-value">${ai.sentiment?.sentiment || 'neutral'}</span>
               </div>
-              <div>
-                <div class="metric-title" style="margin-bottom: 4px;">Language</div>
-                <div class="metric-value" style="font-size: 16px; text-transform: capitalize;">${ai.language?.primary || 'unknown'}</div>
+              <div class="ai-metric">
+                <span class="ai-label">Language</span>
+                <span class="ai-value">${ai.language?.primary || 'unknown'}</span>
               </div>
             </div>
             
-            <!-- Keywords -->
             ${ai.keywords && ai.keywords.length > 0 ? `
-              <div style="margin-top: 16px;">
-                <div class="metric-title" style="margin-bottom: 8px;">Top Keywords</div>
-                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                  ${ai.keywords.slice(0, 8).map(k => 
-                    `<span style="background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 12px; font-size: 11px;">${k.word}</span>`
-                  ).join('')}
+              <div class="keywords-section">
+                <div class="section-title">Top Keywords</div>
+                <div class="keywords-list">
+                  ${ai.keywords.slice(0, 8).map(k => `
+                    <span class="keyword-tag">${k.word}</span>
+                  `).join('')}
                 </div>
               </div>
             ` : ''}
           </div>
         ` : ''}
         
-        <!-- Content Analysis Card -->
         ${content ? `
           <div class="metric-card">
             <div class="metric-title">Content Analysis</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
-              <div>
-                <div class="metric-title" style="margin-bottom: 4px;">Content Type</div>
-                <div class="metric-value" style="font-size: 16px; text-transform: capitalize;">${content.primaryType || 'general'}</div>
-                <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">${content.confidence || 'low'} confidence</div>
+            <div class="content-metrics">
+              <div class="content-metric">
+                <span class="content-label">Content Type</span>
+                <span class="content-value">${content.primaryType || 'general'}</span>
+                <span class="confidence">${content.confidence || 'low'} confidence</span>
               </div>
-              <div>
-                <div class="metric-title" style="margin-bottom: 4px;">Topics</div>
-                <div style="font-size: 12px;">${ai.topics?.join(', ') || 'General'}</div>
+              <div class="content-metric">
+                <span class="content-label">Topics</span>
+                <span class="content-value">${ai.topics?.join(', ') || 'General'}</span>
               </div>
             </div>
           </div>
         ` : ''}
         
-        <!-- Summary Card -->
         ${ai?.summary ? `
           <div class="metric-card">
             <div class="metric-title">AI Summary</div>
-            <div style="margin-top: 12px; font-size: 14px; line-height: 1.5; color: #374151;">
-              ${ai.summary.summary || 'Summary not available'}
-            </div>
-            <div style="font-size: 12px; color: #6b7280; margin-top: 8px;">
-              Generated from ${ai.summary.originalSentences || 0} sentences using ${ai.summary.method || 'AI'} method
+            <div class="summary-content">
+              <p class="summary-text">${ai.summary.summary || 'Summary not available'}</p>
+              <div class="summary-meta">
+                Generated from ${ai.summary.originalSentences || 0} sentences using ${ai.summary.method || 'AI'} method
+              </div>
             </div>
           </div>
         ` : ''}
         
-        <!-- Performance Info -->
-        <div class="metric-card" style="background: #f0f9ff; border-color: #bae6fd;">
-          <div class="metric-title" style="color: #0369a1;">Performance</div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-            <span style="font-size: 12px; color: #0369a1;">
-              ⚡ ${analysis.processingTime?.toFixed(2) || '0.00'}ms
-              ${analysis.fromCache ? ' 📋 Cache Hit' : ''}
-            </span>
-            <span style="font-size: 11px; color: #0369a1;">
-              v${analysis.metadata?.analysisVersion || '3.0.0'}
-            </span>
+        <div class="metric-card">
+          <div class="metric-title">Performance</div>
+          <div class="performance-info">
+            ⚡ ${analysis.processingTime?.toFixed(2) || '0.00'}ms
+            ${analysis.fromCache ? ' 📋 Cache Hit' : ''}
+            v${analysis.metadata?.analysisVersion || '3.0.0'}
           </div>
         </div>
       </div>
@@ -846,14 +878,14 @@ class UltraOptimizedPopup {
         timestamp: Date.now(),
         source: analysis.metadata?.source || 'unknown'
       });
-      
+
       // Keep only last 10 analyses
       this.analysisHistory = this.analysisHistory.slice(0, 10);
-      
+
       // Update performance metrics
       this.performanceMetrics.totalAnalyses++;
       this.performanceMetrics.lastAnalysis = Date.now();
-      
+
       // Save to storage
       await chrome.storage.local.set({
         lastAnalysis: analysis,
@@ -871,7 +903,7 @@ class UltraOptimizedPopup {
         const response = await chrome.tabs.sendMessage(this.currentTab.id, {
           action: 'getPerformanceStats'
         });
-        
+
         if (response?.success) {
           this.performanceMetrics = { ...this.performanceMetrics, ...response.data };
         }
@@ -900,37 +932,37 @@ class UltraOptimizedPopup {
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.classList.remove('active');
     });
-    document.getElementById(`${tabName}-tab`).classList.add('active');
-    
+    const activeTab = document.getElementById(`${tabName}-tab`);
+    if (activeTab) activeTab.classList.add('active');
+
     // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => {
       content.classList.add('hidden');
     });
-    document.getElementById(`${tabName}-content`).classList.remove('hidden');
+    const activeContent = document.getElementById(`${tabName}-content`);
+    if (activeContent) activeContent.classList.remove('hidden');
   }
 
   displayPerformanceMetrics() {
     const container = document.getElementById('perf-metrics-grid');
     if (!container) return;
-    
+
     container.innerHTML = `
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-        <div class="metric-card">
-          <div class="metric-title">Total Analyses</div>
-          <div class="metric-value">${this.performanceMetrics.totalAnalyses || 0}</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Cache Hit Rate</div>
-          <div class="metric-value">${this.performanceMetrics.cacheHitRate || 0}%</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Avg Analysis Time</div>
-          <div class="metric-value">${(this.performanceMetrics.avgAnalysisTime || 0).toFixed(1)}ms</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-title">Cache Size</div>
-          <div class="metric-value">${this.performanceMetrics.cacheSize || 0}</div>
-        </div>
+      <div class="metric-card">
+        <div class="metric-title">Total Analyses</div>
+        <div class="metric-value">${this.performanceMetrics.totalAnalyses || 0}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Cache Hit Rate</div>
+        <div class="metric-value">${this.performanceMetrics.cacheHitRate || 0}%</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Avg Analysis Time</div>
+        <div class="metric-value">${(this.performanceMetrics.avgAnalysisTime || 0).toFixed(1)}ms</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Cache Size</div>
+        <div class="metric-value">${this.performanceMetrics.cacheSize || 0}</div>
       </div>
     `;
   }
@@ -938,24 +970,24 @@ class UltraOptimizedPopup {
   displayHistory() {
     const container = document.getElementById('history-list');
     if (!container) return;
-    
+
     if (this.analysisHistory.length === 0) {
       container.innerHTML = `
-        <div style="text-align: center; color: #9ca3af; padding: 40px;">
-          <div style="font-size: 32px; margin-bottom: 8px;">📜</div>
-          <div>No analysis history yet</div>
+        <div class="no-history">
+          <div class="no-history-icon">📜</div>
+          <div class="no-history-text">No analysis history yet</div>
         </div>
       `;
       return;
     }
-    
+
     container.innerHTML = this.analysisHistory.map((analysis, index) => `
-      <div class="history-item" style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; cursor: pointer;" onclick="ultraPopup.loadHistoryItem(${index})">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <span style="font-weight: 600; font-size: 14px;">${analysis.metadata?.source || 'Unknown'}</span>
-          <span style="font-size: 12px; color: #6b7280;">${new Date(analysis.timestamp).toLocaleTimeString()}</span>
+      <div class="history-item" onclick="window.ultraPopup.loadHistoryItem(${index})">
+        <div class="history-header">
+          <span class="history-source">${analysis.metadata?.source || 'Unknown'}</span>
+          <span class="history-time">${new Date(analysis.timestamp).toLocaleTimeString()}</span>
         </div>
-        <div style="font-size: 12px; color: #9ca3af;">
+        <div class="history-summary">
           ${analysis.basic?.words?.total || 0} words • ${analysis.basic?.readingTime?.average || '0 min'}
         </div>
       </div>
@@ -971,11 +1003,11 @@ class UltraOptimizedPopup {
   }
 
   startRealTimeUpdates() {
-    // Placeholder for real-time updates
     setInterval(async () => {
       if (this.isRealTimeMode) {
         await this.loadPerformanceMetrics();
-        if (document.getElementById('performance-content').classList.contains('hidden') === false) {
+        const perfContent = document.getElementById('performance-content');
+        if (perfContent && !perfContent.classList.contains('hidden')) {
           this.displayPerformanceMetrics();
         }
       }
@@ -987,25 +1019,33 @@ class UltraOptimizedPopup {
     console.log(`Real-time mode: ${enabled ? 'enabled' : 'disabled'}`);
   }
 
+  updateAnalysisOptions() {
+    // Placeholder for analysis options update logic
+    console.log('Analysis options updated');
+  }
+
   showLoading() {
-    document.getElementById('loading-overlay')?.classList.remove('hidden');
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.classList.remove('hidden');
   }
 
   hideLoading() {
-    document.getElementById('loading-overlay')?.classList.add('hidden');
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.classList.add('hidden');
   }
 
   showError(message) {
     const resultsContainer = document.getElementById('analysis-results');
     if (resultsContainer) {
       resultsContainer.innerHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 160px; color: #dc2626;">
-          <div style="font-size: 32px; margin-bottom: 8px;">❌</div>
-          <div style="font-weight: 600; margin-bottom: 4px;">Analysis Error</div>
-          <div style="font-size: 12px; text-align: center;">${message}</div>
+        <div class="error-display">
+          <div class="error-icon">❌</div>
+          <div class="error-title">Analysis Error</div>
+          <div class="error-message">${message}</div>
         </div>
       `;
     }
+    console.error('Popup Error:', message);
   }
 
   async exportAnalysis() {
@@ -1013,7 +1053,7 @@ class UltraOptimizedPopup {
       alert('No analysis history to export');
       return;
     }
-    
+
     const exportData = {
       exportDate: new Date().toISOString(),
       version: '3.0.0',
@@ -1021,30 +1061,44 @@ class UltraOptimizedPopup {
       performanceMetrics: this.performanceMetrics,
       analyses: this.analysisHistory
     };
-    
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `text-analysis-export-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    
-    URL.revokeObjectURL(url);
+
+    try {
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `text-analysis-export-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export failed: ' + error.message);
+    }
   }
 
   async clearHistory() {
     if (confirm('Are you sure you want to clear all analysis history?')) {
-      this.analysisHistory = [];
-      await chrome.storage.local.set({ analysisHistory: [] });
-      this.displayHistory();
+      try {
+        this.analysisHistory = [];
+        await chrome.storage.local.set({ analysisHistory: [] });
+        this.displayHistory();
+      } catch (error) {
+        console.error('Failed to clear history:', error);
+        alert('Failed to clear history: ' + error.message);
+      }
     }
   }
 }
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-  window.ultraPopup = new UltraOptimizedPopup();
+  try {
+    window.ultraPopup = new UltraOptimizedPopup();
+  } catch (error) {
+    console.error('Failed to initialize Ultra-Optimized Popup:', error);
+  }
 });
 
 // Export for global access
