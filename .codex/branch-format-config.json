@@ -1,0 +1,56 @@
+{
+  "branchFormats": {
+    "standard": {
+      "format": "codex/{feature}",
+      "description": "Standard branch format for feature development",
+      "tags": ["{feature}", "{date}", "{time}"],
+      "examples": [
+        "codex/unit-tests-for-feature",
+        "codex/api-optimization",
+        "codex/security-enhancement"
+      ]
+    },
+    "optimized": {
+      "format": "feat/{category}-{feature}-{timestamp}",
+      "description": "Optimized branch format with categorization and timestamping",
+      "categories": ["fix", "feature", "optimize", "security", "docs"],
+      "tags": ["{category}", "{feature}", "{timestamp}", "{author}"],
+      "examples": [
+        "feat/optimize-branch-format-20251014",
+        "feat/fix-ci-pipeline-20251014",
+        "feat/security-auth-enhancement-20251014"
+      ]
+    },
+    "automated": {
+      "format": "auto/{type}/{issue-id}-{description}",
+      "description": "Automated branch format for issue-driven development",
+      "types": ["bug", "enhancement", "task", "hotfix"],
+      "tags": ["{type}", "{issue-id}", "{description}", "{priority}"],
+      "examples": [
+        "auto/bug/123-fix-memory-leak",
+        "auto/enhancement/456-add-caching",
+        "auto/task/789-update-dependencies"
+      ]
+    }
+  },
+  "rules": {
+    "maxLength": 50,
+    "allowedCharacters": "a-z0-9-",
+    "required": ["type", "description"],
+    "validation": {
+      "pattern": "^(codex|feat|auto)/[a-z0-9-]+$",
+      "caseSensitive": false
+    }
+  },
+  "automation": {
+    "autoGenerate": true,
+    "useTimestamp": true,
+    "includeAuthor": false,
+    "preventDuplicates": true,
+    "cleanupStale": {
+      "enabled": true,
+      "daysOld": 30,
+      "excludePatterns": ["main", "develop", "release/*"]
+    }
+  }
+}
