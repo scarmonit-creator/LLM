@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { WebSocketServer } from 'ws';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
@@ -9,7 +10,12 @@ import path from 'node:path';
 
 dotenv.config();
 
-const DEFAULT_HISTORY_LIMIT = 500;
+const DEFAULT_HISTORY_LIMIT = Number(process.env.AI_BRIDGE_HISTORY_LIMIT) || 500;
+const MAX_QUEUE_PER_CLIENT = Number(process.env.AI_BRIDGE_MAX_QUEUE) || 1000;
+const TOKEN_AUTH_ENABLED = process.env.AI_BRIDGE_AUTH_TOKEN ? true : false;
+const ALLOWED_ORIGINS = (process.env.AI_BRIDGE_CORS_ORIGINS || '*')
+  .split(',')
+  .map((s) => s.trim());
 
 function previewPayload(payload, length = 80) {
   try {
@@ -20,13 +26,33 @@ function previewPayload(payload, length = 80) {
   }
 }
 
+class CircularBuffer {
+  constructor(limit) {
+    this.limit = limit;
+    this.buf = [];
+  }
+  push(item) {
+    this.buf.push(item);
+    if (this.buf.length > this.limit) this.buf.splice(0, this.buf.length - this.limit);
+  }
+  toArray() {
+    return this.buf.slice();
+  }
+  filter(fn) {
+    return this.buf.filter(fn);
+  }
+  get length() {
+    return this.buf.length;
+  }
+}
+
 export class AIBridge {
   constructor({ logger = console, historyLimit = DEFAULT_HISTORY_LIMIT } = {}) {
     this.logger = logger;
     this.historyLimit = historyLimit;
     this.clients = new Map(); // clientId -> { ws, meta }
     this.messageQueue = new Map(); // clientId -> envelope[] waiting delivery
-    this.history = []; // chronological list of envelopes
+    this.history = new CircularBuffer(historyLimit); // chronological list of envelopes
     this.startTime = Date.now();
     this.stats = {
       messagesProcessed: 0,
@@ -34,9 +60,29 @@ export class AIBridge {
       errors: 0,
       lastError: null
     };
+    // Cleanup timer
+    const interval = Number(process.env.AI_BRIDGE_CLEANUP_INTERVAL_MS) || 30000;
+    this.cleanupTimer = setInterval(() => this._cleanup(), interval);
+    this.cleanupTimer.unref?.();
+  }
+
+  _isOriginAllowed(origin) {
+    if (!origin || ALLOWED_ORIGINS.includes('*')) return true;
+    return ALLOWED_ORIGINS.includes(origin);
+  }
+
+  _authOk(token) {
+    if (!TOKEN_AUTH_ENABLED) return true;
+    return token === process.env.AI_BRIDGE_AUTH_TOKEN;
   }
 
   registerClient(ws, registration) {
+    if (!this._authOk(registration?.authToken)) {
+      ws.send(JSON.stringify({ type: 'error', error: 'unauthorized' }));
+      ws.close(1008, 'Unauthorized');
+      return {};
+    }
+
     const clientId = registration.clientId || randomUUID();
     const meta = {
       id: clientId,
@@ -57,7 +103,7 @@ export class AIBridge {
 
     const queued = this.messageQueue.get(clientId);
     if (queued?.length) {
-      queued.forEach((envelope) => {
+      queued.splice(0, MAX_QUEUE_PER_CLIENT).forEach((envelope) => {
         this._sendEnvelope(clientId, envelope);
       });
       this.messageQueue.delete(clientId);
@@ -77,7 +123,7 @@ export class AIBridge {
   }
 
   getHistory({ limit, agentId, taskId, intent } = {}) {
-    let result = this.history;
+    let result = this.history.toArray();
     if (agentId) {
       result = result.filter((item) => item.from === agentId || item.to === agentId);
     }
@@ -108,17 +154,15 @@ export class AIBridge {
       const enriched = this._enrichEnvelope(envelope);
       this.history.push(enriched);
       this.stats.messagesProcessed++;
-      
-      if (this.history.length > this.historyLimit) {
-        this.history.splice(0, this.history.length - this.historyLimit);
-      }
 
       if (enriched.to) {
         if (!this._sendEnvelope(enriched.to, enriched) && allowQueue) {
-          if (!this.messageQueue.has(enriched.to)) {
-            this.messageQueue.set(enriched.to, []);
+          const q = this.messageQueue.get(enriched.to) || [];
+          if (q.length >= MAX_QUEUE_PER_CLIENT) {
+            q.shift(); // drop oldest
           }
-          this.messageQueue.get(enriched.to).push(enriched);
+          q.push(enriched);
+          this.messageQueue.set(enriched.to, q);
           this.logger.log(`[Bridge] Queued envelope ${enriched.id} for ${enriched.to} (offline)`);
         }
       } else {
@@ -137,6 +181,25 @@ export class AIBridge {
       this.stats.lastError = error.message;
       this.logger.error(`[Bridge] Error processing envelope: ${error.message}`);
       throw error;
+    }
+  }
+
+  _cleanup() {
+    // remove queues for disconnected clients
+    for (const [clientId, queue] of this.messageQueue.entries()) {
+      const client = this.clients.get(clientId);
+      if (!client || client.ws.readyState !== 1) {
+        if (queue.length > MAX_QUEUE_PER_CLIENT) queue.splice(0, queue.length - MAX_QUEUE_PER_CLIENT);
+      }
+    }
+    // expire clients not seen for 10 minutes
+    const ttlMs = Number(process.env.AI_BRIDGE_CLIENT_TTL_MS) || 10 * 60 * 1000;
+    const now = Date.now();
+    for (const [clientId, { meta }] of this.clients.entries()) {
+      if (meta.lastSeen && now - Date.parse(meta.lastSeen) > ttlMs) {
+        this.logger.log(`[Bridge] Expiring idle client ${clientId}`);
+        this.unregisterClient(clientId);
+      }
     }
   }
 
@@ -161,54 +224,14 @@ export class AIBridge {
     };
   }
 
-  /**
-   * Expected payload structures for task-related intents:
-   *
-   * intent: 'task.assign'
-   * payload: {
-   *   taskDescription: string,
-   *   context: object, // e.g., file paths, code snippets, relevant data
-   *   successCriteria: string | string[],
-   *   // Optional:
-   *   toolPermissions: string[], // List of tools the agent is allowed to call
-   *   deadline: string, // ISO date string
-   * }
-   *
-   * intent: 'task.progress'
-   * payload: {
-   *   status: 'in-progress' | 'waiting' | 'blocked',
-   *   message: string,
-   *   artifacts: object, // e.g., { file: 'path/to/file.js', content: '...' }
-   *   // Optional:
-   *   eta: string, // Estimated time of arrival for completion
-   *   blockingReason: string, // If status is 'blocked'
-   * }
-   *
-   * intent: 'task.complete'
-   * payload: {
-   *   message: string,
-   *   artifacts: object, // Final deliverables
-   *   // Optional:
-   *   summary: string,
-   *   metrics: object, // e.g., performance data, test results
-   * }
-   *
-   * intent: 'task.blocked'
-   * payload: {
-   *   reason: string,
-   *   // Optional:
-   *   details: string,
-   *   suggestedAction: string,
-   * }
-   */
-
   _sendEnvelope(targetId, envelope) {
     const target = this.clients.get(targetId);
     if (!target || target.ws.readyState !== 1) {
       return false;
     }
     try {
-      target.ws.send(JSON.stringify({ type: 'envelope', envelope }));
+      // Minimal wrapper to reduce JSON size
+      target.ws.send(JSON.stringify(['env', envelope]));
       return true;
     } catch (error) {
       this.logger.error(`[Bridge] Failed to send envelope to ${targetId}: ${error.message}`);
@@ -219,16 +242,16 @@ export class AIBridge {
   }
 
   _broadcast(senderId, envelope) {
-    this.clients.forEach(({ ws }, clientId) => {
-      if (clientId === senderId || ws.readyState !== 1) return;
+    for (const [clientId, { ws }] of this.clients.entries()) {
+      if (clientId === senderId || ws.readyState !== 1) continue;
       try {
-        ws.send(JSON.stringify({ type: 'envelope', envelope }));
+        ws.send(JSON.stringify(['env', envelope]));
       } catch (error) {
         this.logger.error(`[Bridge] Failed broadcast to ${clientId}: ${error.message}`);
         this.stats.errors++;
         this.stats.lastError = error.message;
       }
-    });
+    }
   }
 }
 
@@ -240,21 +263,39 @@ export async function createAIBridgeServer({
 } = {}) {
   const bridge = new AIBridge({ logger, historyLimit });
   const app = express();
-  app.use(express.json());
+  app.use(express.json({ limit: '1mb' }));
 
-  // Add CORS headers for web browser access
+  // Basic rate limiting
+  const limiter = rateLimit({
+    windowMs: Number(process.env.AI_BRIDGE_RATE_WINDOW_MS) || 60 * 1000,
+    max: Number(process.env.AI_BRIDGE_RATE_MAX) || 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use(limiter);
+
+  // CORS
   app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    if (ALLOWED_ORIGINS.includes('*') || (origin && ALLOWED_ORIGINS.includes(origin))) {
+      res.header('Access-Control-Allow-Origin', origin || '*');
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    if (req.method === 'OPTIONS') {
-      res.sendStatus(200);
-    } else {
-      next();
-    }
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    next();
   });
 
-  // Health endpoint for deployment platforms
+  // Simple auth middleware for HTTP
+  app.use((req, res, next) => {
+    if (!TOKEN_AUTH_ENABLED) return next();
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (token === process.env.AI_BRIDGE_AUTH_TOKEN) return next();
+    return res.status(401).json({ error: 'unauthorized' });
+  });
+
+  // Health endpoint
   app.get('/health', (req, res) => {
     const stats = bridge.getStats();
     res.json({
@@ -265,19 +306,19 @@ export async function createAIBridgeServer({
       connectedClients: bridge.clients.size,
       historySize: bridge.history.length,
       uptime: stats.uptime,
-      version: '1.0.0',
+      version: '1.1.0',
       environment: process.env.NODE_ENV || 'development'
     });
   });
 
-  // API status endpoint as mentioned in requirements
+  // Status endpoint
   app.get('/api/status', (req, res) => {
     const stats = bridge.getStats();
     res.json({
       service: 'AI Bridge Server',
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      version: '1.0.0',
+      version: '1.1.0',
       uptime: stats.uptime,
       performance: {
         connectedClients: stats.connectedClients,
@@ -287,19 +328,9 @@ export async function createAIBridgeServer({
         errors: stats.errors,
         lastError: stats.lastError
       },
-      websocket: {
-        port: wsPort,
-        enabled: true,
-        connections: stats.connectedClients
-      },
-      http: {
-        port: httpPort,
-        enabled: true
-      },
-      storage: {
-        historySize: stats.historySize,
-        historyLimit
-      },
+      websocket: { port: wsPort, enabled: true, connections: stats.connectedClients },
+      http: { port: httpPort, enabled: true },
+      storage: { historySize: stats.historySize, historyLimit },
       environment: process.env.NODE_ENV || 'development'
     });
   });
@@ -341,7 +372,7 @@ export async function createAIBridgeServer({
 
   app.get('/tasks', (req, res) => {
     const tasks = new Map();
-    bridge.history.forEach((envelope) => {
+    bridge.history.toArray().forEach((envelope) => {
       if (!envelope.taskId) return;
       const task = tasks.get(envelope.taskId) || {
         taskId: envelope.taskId,
@@ -369,41 +400,35 @@ export async function createAIBridgeServer({
     });
   });
 
-  // Root endpoint for basic info
-  app.get('/', (req, res) => {
-    const stats = bridge.getStats();
-    res.json({
-      service: 'AI Bridge Server',
-      version: '1.0.0',
-      status: 'running',
-      uptime: stats.uptime,
-      endpoints: {
-        health: '/health',
-        status: '/api/status',
-        agents: '/agents',
-        history: '/history',
-        tasks: '/tasks'
-      },
-      websocket: {
-        enabled: true,
-        port: wsPort
-      },
-      documentation: 'https://github.com/scarmonit-creator/LLM'
-    });
-  });
-
-  // For deployment platforms that need a single port
+  // Single port mode
   const deploymentPort = Number(process.env.PORT);
   if (deploymentPort) {
     httpPort = deploymentPort;
     wsPort = deploymentPort;
   }
 
-  const wss = new WebSocketServer({ port: wsPort });
+  // WebSocket server with permessage-deflate compression
+  const wss = new WebSocketServer({
+    port: wsPort,
+    perMessageDeflate: {
+      zlibDeflateOptions: { level: 6 },
+      zlibInflateOptions: { chunkSize: 16 * 1024 },
+      clientNoContextTakeover: true,
+      serverNoContextTakeover: true,
+      concurrencyLimit: 10,
+      threshold: 1024, // only compress bigger frames
+    },
+  });
   await once(wss, 'listening');
   logger.log(`[Bridge] WebSocket listening on ws://localhost:${wss.address().port}`);
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
+    const origin = req.headers.origin;
+    if (!this?._isOriginAllowed?.(origin)) {
+      ws.close(1008, 'Origin not allowed');
+      return;
+    }
+
     let clientId = null;
 
     ws.on('message', (raw) => {
@@ -446,9 +471,7 @@ export async function createAIBridgeServer({
     });
 
     ws.on('close', () => {
-      if (clientId) {
-        bridge.unregisterClient(clientId);
-      }
+      if (clientId) bridge.unregisterClient(clientId);
     });
 
     ws.on('error', (error) => {
@@ -466,6 +489,7 @@ export async function createAIBridgeServer({
   async function close() {
     if (closed) return;
     closed = true;
+    clearInterval(bridge.cleanupTimer);
     await new Promise((resolve) => wss.close(resolve));
     await new Promise((resolve) => httpServer.close(resolve));
   }
@@ -474,10 +498,7 @@ export async function createAIBridgeServer({
     bridge,
     wss,
     httpServer,
-    ports: {
-      ws: wss.address().port,
-      http: httpServer.address().port,
-    },
+    ports: { ws: wss.address().port, http: httpServer.address().port },
     close,
   };
 }
@@ -486,7 +507,7 @@ async function startCli() {
   const server = await createAIBridgeServer();
   const banner = `
 ========================================
-   AI Bridge Server v1.0.0
+   AI Bridge Server v1.1.0
 ========================================
   WebSocket: ws://localhost:${server.ports.ws}
   HTTP API:  http://localhost:${server.ports.http}
