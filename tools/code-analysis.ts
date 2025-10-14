@@ -5,6 +5,29 @@ import { Tool } from './types.js';
 
 const execAsync = promisify(exec);
 
+interface CodeAnalysisParams {
+  operation: 'lint' | 'format' | 'test' | 'fix' | 'analyze' | 'read' | 'write' | 'patch';
+  path?: string;
+  content?: string;
+  pattern?: string;
+  autoFix?: boolean;
+  config?: Record<string, any>;
+}
+
+interface CodeAnalysisResult {
+  success: boolean;
+  operation: string;
+  path?: string;
+  output?: string;
+  errors?: string;
+  issues?: any[];
+  content?: string;
+  message?: string;
+  error?: string;
+  analysis?: any;
+  timestamp: string;
+}
+
 /**
  * Code Analysis Tool - Autonomous code analysis and fixing
  * Enables problem identification, code analysis, and automated fixes
@@ -43,12 +66,12 @@ export const codeAnalysis: Tool = {
     },
     required: ['operation'],
   },
-  async execute(args: any): Promise<any> {
-    const { operation, path = '.', content, _pattern, autoFix = false, _config } = args;
+  async execute(args: CodeAnalysisParams): Promise<CodeAnalysisResult> {
+    const { operation, path = '.', content, autoFix = false } = args;
 
     try {
       let command = '';
-      let result: any = {};
+      let result: CodeAnalysisResult;
 
       switch (operation) {
         case 'lint':
@@ -123,12 +146,12 @@ export const codeAnalysis: Tool = {
               errors: stderr || '',
               timestamp: new Date().toISOString(),
             };
-          } catch (_e) {
+          } catch (error: any) {
             result = {
               success: false,
               operation: 'test',
               path,
-              error: 'Test execution failed',
+              error: `Test execution failed: ${error.message}`,
               timestamp: new Date().toISOString(),
             };
           }
@@ -188,12 +211,12 @@ export const codeAnalysis: Tool = {
               content: fileContent,
               timestamp: new Date().toISOString(),
             };
-          } catch (_e) {
+          } catch (error: any) {
             result = {
               success: false,
               operation: 'read',
               path,
-              error: 'Failed to read file',
+              error: `Failed to read file: ${error.message}`,
               timestamp: new Date().toISOString(),
             };
           }
@@ -220,12 +243,12 @@ export const codeAnalysis: Tool = {
               message: 'File written successfully',
               timestamp: new Date().toISOString(),
             };
-          } catch (_e) {
+          } catch (error: any) {
             result = {
               success: false,
               operation: 'write',
               path,
-              error: 'Failed to write file',
+              error: `Failed to write file: ${error.message}`,
               timestamp: new Date().toISOString(),
             };
           }
@@ -271,6 +294,7 @@ export const codeAnalysis: Tool = {
         default:
           result = {
             success: false,
+            operation: operation,
             error: `Unknown operation: ${operation}`,
             timestamp: new Date().toISOString(),
           };
@@ -280,6 +304,7 @@ export const codeAnalysis: Tool = {
     } catch (error: any) {
       return {
         success: false,
+        operation: operation,
         error: error.message,
         timestamp: new Date().toISOString(),
       };
