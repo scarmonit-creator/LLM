@@ -106,7 +106,13 @@ const generatePasswordTool: ToolDefinition = {
     },
     required: [],
   },
-  execute: ({ length = 16, includeSymbols = true }: { length?: number; includeSymbols?: boolean }) => {
+  execute: ({
+    length = 16,
+    includeSymbols = true,
+  }: {
+    length?: number;
+    includeSymbols?: boolean;
+  }) => {
     const lowercase = 'abcdefghijklmnopqrstuvwxyz';
     const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
