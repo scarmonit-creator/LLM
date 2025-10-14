@@ -16,6 +16,9 @@
     "bridge:optimized": "node src/ai-bridge-optimized.js",
     "bridge:selection-wiring": "node src/wiring/selection-wiring.js",
     "agents:coordinator": "node src/agents/agent-coordinator.js",
+    "optimize:text-selection": "node scripts/optimize-text-selection.js",
+    "optimize:current-tab": "node scripts/optimize-text-selection.js",
+    "performance:analyze": "node scripts/optimize-text-selection.js",
     "test:bridge": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test tests/ai-bridge.test.js",
     "pretest": "npm run build --silent",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test tests || echo 'No tests found'",
@@ -55,7 +58,9 @@
     "agent",
     "a2a",
     "browser-history",
-    "automation"
+    "automation",
+    "optimization",
+    "performance"
   ],
   "author": "",
   "license": "MIT",
