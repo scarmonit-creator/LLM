@@ -1,12 +1,12 @@
 {
   "name": "llm",
-  "version": "1.0.0",
-  "description": "LLM integration project with Claude, A2A, and browser history access",
+  "version": "2.0.0",
+  "description": "LLM integration project with Claude, A2A, and browser history access - Enhanced with SQLite Integration",
   "main": "src/ai-bridge.js",
   "type": "module",
   "scripts": {
     "start": "node src/ai-bridge.js",
-    "start:server": "node server.js",
+    "start:server": "node server.mjs",
     "start:bridge": "node src/ai-bridge.js",
     "start:orchestrator": "tsx orchestrator.ts",
     "start:a2a": "tsx src/a2a-agent-server.ts",
@@ -19,8 +19,12 @@
     "optimize:text-selection": "node scripts/optimize-text-selection.js",
     "optimize:current-tab": "node scripts/optimize-text-selection.js",
     "performance:analyze": "node scripts/optimize-text-selection.js",
+    "performance:optimize": "node scripts/performance-optimizer.js",
     "cloud-sql:setup": "node scripts/cloud-sql-setup.js",
     "cloud-sql:persist": "node scripts/cloud-sql-setup.js",
+    "perry-jest": "node scripts/perry-jest.js",
+    "perry-jest:enhanced": "node scripts/perry-jest-enhanced.js",
+    "perry-jest:intelligent": "node scripts/perry-jest-enhanced.js --intelligent-pairing --risk-analysis --parallel-execution --generate-report",
     "test:bridge": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test tests/ai-bridge.test.js",
     "pretest": "npm run build --silent",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test tests || echo 'No tests found'",
@@ -33,6 +37,7 @@
     "test:orchestrator": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --loader=tsx\" node --test tests/orchestrator.test.js",
     "test:a2a": "tsx --test tests/a2a-agent-server.test.ts",
     "test:history": "tsx --test tests/browser-history.test.js",
+    "test:flaky": "npm run perry-jest:intelligent",
     "pretest:full": "npm run build --silent",
     "test:full": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --loader=tsx\" node --test tests || echo 'No tests found'",
     "pretest:all": "npm run build --silent",
@@ -54,7 +59,9 @@
     "autofix": "npm run lint && npm run format",
     "verify": "npm run build && npm run test:full",
     "verify:e2e": "npm run build && npm run test:e2e",
-    "verify:all": "npm run build && npm run test:all"
+    "verify:all": "npm run build && npm run test:all",
+    "verify:enhanced": "npm run build && npm run test:all && npm run test:flaky",
+    "dev": "node --watch server.mjs"
   },
   "keywords": [
     "llm",
@@ -68,14 +75,19 @@
     "optimization",
     "performance",
     "cloud-sql",
-    "persistence"
+    "persistence",
+    "sqlite",
+    "perry-jest",
+    "flaky-tests",
+    "testing"
   ],
-  "author": "",
+  "author": "scarmonit-creator",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.7.9",
+    "better-sqlite3": "^11.5.0",
     "chromadb": "^1.9.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -88,6 +100,7 @@
   "devDependencies": {
     "@eslint/js": "^9.18.0",
     "@jest/globals": "^29.7.0",
+    "@types/better-sqlite3": "^7.6.11",
     "@types/express": "^4.17.21",
     "@types/node": "^22.10.2",
     "@types/nodemailer": "^6.4.14",
@@ -109,6 +122,9 @@
     "typescript": "^5.7.2",
     "vitest": "^3.2.4"
   },
+  "optionalDependencies": {
+    "better-sqlite3": "^11.5.0"
+  },
   "pkg": {
     "scripts": [
       "build/chat-launcher.cjs"
@@ -126,7 +142,8 @@
     "exclude": [
       "tests/**",
       "coverage/**",
-      "node_modules/**"
+      "node_modules/**",
+      "perry-results*/**"
     ]
   }
 }
