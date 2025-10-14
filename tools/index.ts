@@ -2,13 +2,12 @@
  * Tools Orchestration
  * A collection of reusable tools for LLM agent workflows
  */
-
 import BrowserHistoryTool from './browser-history';
 import gitOperations from './git-operations.js';
 import emailIntegration from './email-integration.js';
 import apiOrchestration from './api-orchestration.js';
 import { codeAnalysis } from './code-analysis.js';
-import testVerification from './test-verification.js';
+import { testVerification } from './test-verification.js';
 
 export interface ToolDefinition {
   name: string;
