@@ -1,10 +1,11 @@
 /**
  * Scarmonit Website - Modern JavaScript Implementation
- * Following proven business design best practices for user experience
+ * Integrated with existing backend API and form handling
  */
 
 class ScarmonitWebsite {
   constructor() {
+    this.config = window.ScarmonitConfig || {};
     this.init();
   }
 
@@ -14,10 +15,11 @@ class ScarmonitWebsite {
     this.setupAnimations();
     this.setupAnalytics();
     this.setupAccessibility();
+    this.setupBackendIntegration();
   }
 
   /**
-   * Navigation functionality
+   * Navigation functionality with mobile menu
    */
   setupNavigation() {
     const nav = document.querySelector('.nav');
@@ -31,6 +33,14 @@ class ScarmonitWebsite {
         navMenu.classList.toggle('nav-menu--open');
         navToggle.classList.toggle('nav-toggle--open');
       });
+
+      // Close mobile menu when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!nav.contains(e.target) && navMenu.classList.contains('nav-menu--open')) {
+          navMenu.classList.remove('nav-menu--open');
+          navToggle.classList.remove('nav-toggle--open');
+        }
+      });
     }
 
     // Smooth scrolling for navigation links
@@ -41,10 +51,15 @@ class ScarmonitWebsite {
           e.preventDefault();
           const target = document.querySelector(href);
           if (target) {
-            target.scrollIntoView({
-              behavior: 'smooth',
-              block: 'start'
+            const headerOffset = 80;
+            const elementPosition = target.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+            window.scrollTo({
+              top: offsetPosition,
+              behavior: 'smooth'
             });
+
             // Close mobile menu if open
             if (navMenu && navMenu.classList.contains('nav-menu--open')) {
               navMenu.classList.remove('nav-menu--open');
@@ -57,7 +72,7 @@ class ScarmonitWebsite {
 
     // Navigation scroll effect
     let lastScrollY = window.scrollY;
-    window.addEventListener('scroll', () => {
+    const scrollHandler = this.debounce(() => {
       const currentScrollY = window.scrollY;
       
       if (currentScrollY > 100) {
@@ -74,16 +89,19 @@ class ScarmonitWebsite {
       }
       
       lastScrollY = currentScrollY;
-    });
+    }, 10);
+
+    window.addEventListener('scroll', scrollHandler, { passive: true });
   }
 
   /**
-   * Form handling with validation and submission
+   * Enhanced form handling with backend integration
    */
   setupFormHandling() {
     const waitlistForm = document.getElementById('waitlist-form');
     
     if (waitlistForm) {
+      // Handle form submission
       waitlistForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         await this.handleWaitlistSubmission(waitlistForm);
@@ -95,12 +113,21 @@ class ScarmonitWebsite {
         input.addEventListener('blur', () => this.validateField(input));
         input.addEventListener('input', () => this.clearFieldError(input));
       });
+
+      // Handle Netlify form if deployed on Netlify
+      if (waitlistForm.hasAttribute('data-netlify')) {
+        waitlistForm.addEventListener('submit', this.handleNetlifyForm.bind(this));
+      }
     }
   }
 
   async handleWaitlistSubmission(form) {
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
+    
+    // Remove Netlify-specific fields
+    delete data['bot-field'];
+    delete data['form-name'];
     
     // Validate form
     if (!this.validateForm(form)) {
@@ -111,38 +138,61 @@ class ScarmonitWebsite {
     const originalText = submitButton.innerHTML;
     
     // Show loading state
-    submitButton.disabled = true;
-    submitButton.innerHTML = `
-      <svg class="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle>
-        <path fill="currentColor" class="opacity-75" d="m15.5 12a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"></path>
-      </svg>
-      <span>Joining...</span>
-    `;
+    this.setButtonLoading(submitButton, true);
 
     try {
-      // Simulate API call (replace with actual endpoint)
-      await this.submitToWaitlist(data);
+      // Try backend API first
+      if (this.config.api && this.config.api.baseUrl) {
+        await this.submitToBackend(data);
+      } else {
+        // Fallback to Netlify forms or local storage
+        await this.submitToWaitlist(data);
+      }
       
       // Success state
       this.showFormSuccess(form);
-      this.trackEvent('waitlist_signup', { priority: data.priority });
+      this.trackEvent('waitlist_signup', { 
+        priority: data.priority,
+        source: 'website',
+        timestamp: new Date().toISOString()
+      });
       
     } catch (error) {
       // Error state
       this.showFormError(form, 'Something went wrong. Please try again.');
       console.error('Waitlist submission error:', error);
+      this.trackEvent('form_error', { 
+        error: error.message,
+        form: 'waitlist'
+      });
       
     } finally {
       // Reset button
-      submitButton.disabled = false;
-      submitButton.innerHTML = originalText;
+      this.setButtonLoading(submitButton, false, originalText);
     }
   }
 
+  async submitToBackend(data) {
+    const endpoint = this.config.api.baseUrl + this.config.api.endpoints.waitlist;
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
   async submitToWaitlist(data) {
-    // This would integrate with your backend API
-    // For now, simulate a successful submission
+    // Fallback for local development or Netlify forms
     return new Promise((resolve) => {
       setTimeout(() => {
         // Store in localStorage for demo purposes
@@ -154,8 +204,30 @@ class ScarmonitWebsite {
         });
         localStorage.setItem('waitlistEntries', JSON.stringify(waitlistEntries));
         resolve({ success: true });
-      }, 2000);
+      }, 1500);
     });
+  }
+
+  handleNetlifyForm(e) {
+    // Let Netlify handle the form submission
+    // This will redirect to a thank you page or show success message
+    console.log('Form submitted via Netlify');
+  }
+
+  setButtonLoading(button, loading, originalText = '') {
+    if (loading) {
+      button.disabled = true;
+      button.innerHTML = `
+        <svg class="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle>
+          <path fill="currentColor" class="opacity-75" d="m15.5 12a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"></path>
+        </svg>
+        <span>Joining...</span>
+      `;
+    } else {
+      button.disabled = false;
+      button.innerHTML = originalText;
+    }
   }
 
   validateForm(form) {
@@ -193,7 +265,7 @@ class ScarmonitWebsite {
         isValid = false;
       }
     }
-    // Name validation (no numbers or special characters)
+    // Name validation (no numbers or special characters except spaces, hyphens, apostrophes)
     else if (field.name === 'name' && value) {
       const nameRegex = /^[a-zA-Z\s'-]+$/;
       if (!nameRegex.test(value)) {
@@ -222,7 +294,6 @@ class ScarmonitWebsite {
     const errorElement = document.createElement('span');
     errorElement.className = 'field-error-message';
     errorElement.textContent = message;
-    errorElement.style.cssText = 'color: #ef4444; font-size: 0.875rem; margin-top: 0.25rem; display: block;';
     
     field.parentNode.appendChild(errorElement);
   }
@@ -237,16 +308,21 @@ class ScarmonitWebsite {
 
   showFormSuccess(form) {
     const formContainer = form.parentNode;
+    const queuePosition = Math.floor(Math.random() * 1000) + 2000;
+    
     formContainer.innerHTML = `
       <div class="success-message text-center">
-        <div class="success-icon" style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+        <div class="success-icon">✅</div>
         <h3 style="margin-bottom: 1rem; color: var(--color-text);">Welcome to Scarmonit!</h3>
         <p style="color: var(--color-text-light); margin-bottom: 1.5rem;">
           You're on the waitlist! We'll send you exclusive updates and early access when available.
         </p>
         <div style="padding: 1rem; background: rgba(16, 185, 129, 0.1); border-radius: 0.5rem; border: 1px solid rgba(16, 185, 129, 0.2);">
           <p style="color: var(--color-secondary); font-weight: 600; margin: 0;">
-            🎉 Position #${Math.floor(Math.random() * 1000) + 2000} in queue
+            🎉 Position #${queuePosition.toLocaleString()} in queue
+          </p>
+          <p style="color: var(--color-text-light); font-size: 0.875rem; margin: 0.5rem 0 0 0;">
+            Alpha launches October 2025
           </p>
         </div>
       </div>
@@ -259,16 +335,47 @@ class ScarmonitWebsite {
     if (!errorElement) {
       errorElement = document.createElement('div');
       errorElement.className = 'form-error-message';
-      errorElement.style.cssText = 'color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; text-align: center;';
       form.appendChild(errorElement);
     }
     errorElement.textContent = message;
   }
 
   /**
+   * Backend API integration setup
+   */
+  setupBackendIntegration() {
+    // Check if we're in development mode
+    const isDevelopment = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1' ||
+                         window.location.hostname.includes('github.io');
+
+    if (isDevelopment) {
+      console.log('Development mode detected. API calls will use mock responses.');
+    }
+
+    // Set up CSRF token if available
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (csrfToken) {
+      this.csrfToken = csrfToken.getAttribute('content');
+    }
+
+    // Set up default headers for API requests
+    this.defaultHeaders = {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+    };
+
+    if (this.csrfToken) {
+      this.defaultHeaders['X-CSRF-TOKEN'] = this.csrfToken;
+    }
+  }
+
+  /**
    * Intersection Observer for animations
    */
   setupAnimations() {
+    if (!this.config.ui?.animations?.enabled) return;
+
     const observerOptions = {
       threshold: 0.1,
       rootMargin: '0px 0px -50px 0px'
@@ -285,25 +392,18 @@ class ScarmonitWebsite {
 
     // Observe elements for animation
     const animatedElements = document.querySelectorAll(
-      '.feature-card, .metric-card, .section-header, .cta-content'
+      '.feature-card, .metric-card, .section-header, .cta-content, .flow-step, .security-item'
     );
     
     animatedElements.forEach(el => {
       observer.observe(el);
     });
 
-    // Dashboard preview hover effect
+    // Dashboard preview hover effects
     const dashboardPreview = document.querySelector('.dashboard-preview');
     if (dashboardPreview) {
-      let isHovering = false;
-      
       dashboardPreview.addEventListener('mouseenter', () => {
-        isHovering = true;
         this.animateMetrics();
-      });
-      
-      dashboardPreview.addEventListener('mouseleave', () => {
-        isHovering = false;
       });
     }
   }
@@ -321,13 +421,14 @@ class ScarmonitWebsite {
   }
 
   /**
-   * Analytics tracking
+   * Analytics tracking with multiple providers
    */
   setupAnalytics() {
     // Track page views
     this.trackEvent('page_view', {
       page: window.location.pathname,
-      title: document.title
+      title: document.title,
+      referrer: document.referrer
     });
 
     // Track CTA clicks
@@ -336,7 +437,8 @@ class ScarmonitWebsite {
       button.addEventListener('click', () => {
         this.trackEvent('cta_click', {
           text: button.textContent.trim(),
-          location: this.getElementLocation(button)
+          location: this.getElementLocation(button),
+          href: button.getAttribute('href')
         });
       });
     });
@@ -345,9 +447,10 @@ class ScarmonitWebsite {
     const sections = document.querySelectorAll('section[id]');
     const sectionObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
-        if (entry.isIntersecting) {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
           this.trackEvent('section_view', {
-            section: entry.target.id
+            section: entry.target.id,
+            time_viewed: Date.now()
           });
         }
       });
@@ -356,20 +459,60 @@ class ScarmonitWebsite {
     sections.forEach(section => {
       sectionObserver.observe(section);
     });
+
+    // Track scroll depth
+    let maxScroll = 0;
+    const scrollHandler = this.debounce(() => {
+      const scrollPercentage = Math.round(
+        (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100
+      );
+      
+      if (scrollPercentage > maxScroll) {
+        maxScroll = scrollPercentage;
+        
+        // Track milestone scroll depths
+        if ([25, 50, 75, 90].includes(scrollPercentage)) {
+          this.trackEvent('scroll_depth', {
+            percentage: scrollPercentage
+          });
+        }
+      }
+    }, 500);
+
+    window.addEventListener('scroll', scrollHandler, { passive: true });
   }
 
   trackEvent(eventName, data = {}) {
-    // Integration with analytics services (GA4, Mixpanel, etc.)
-    if (window.gtag) {
-      window.gtag('event', eventName, data);
+    const eventData = {
+      ...data,
+      timestamp: new Date().toISOString(),
+      user_agent: navigator.userAgent,
+      url: window.location.href
+    };
+
+    // Google Analytics 4
+    if (window.gtag && this.config.analytics?.googleAnalytics?.enabled) {
+      window.gtag('event', eventName, eventData);
     }
     
-    if (window.mixpanel) {
-      window.mixpanel.track(eventName, data);
+    // Mixpanel
+    if (window.mixpanel && this.config.analytics?.mixpanel?.enabled) {
+      window.mixpanel.track(eventName, eventData);
     }
     
     // Console log for development
-    console.log('Analytics Event:', eventName, data);
+    if (this.config.development?.logAnalytics) {
+      console.log('Analytics Event:', eventName, eventData);
+    }
+
+    // Send to backend if available
+    if (this.config.api?.baseUrl && this.config.api?.endpoints?.analytics) {
+      fetch(this.config.api.baseUrl + this.config.api.endpoints.analytics, {
+        method: 'POST',
+        headers: this.defaultHeaders,
+        body: JSON.stringify({ event: eventName, data: eventData })
+      }).catch(err => console.warn('Analytics tracking failed:', err));
+    }
   }
 
   getElementLocation(element) {
@@ -396,30 +539,9 @@ class ScarmonitWebsite {
 
   createSkipLink() {
     const skipLink = document.createElement('a');
-    skipLink.href = '#main-content';
+    skipLink.href = '#hero';
     skipLink.textContent = 'Skip to main content';
-    skipLink.className = 'skip-link sr-only';
-    skipLink.style.cssText = `
-      position: absolute;
-      top: -40px;
-      left: 6px;
-      background: var(--color-primary);
-      color: white;
-      padding: 8px;
-      border-radius: 4px;
-      text-decoration: none;
-      font-weight: bold;
-      z-index: 1000;
-      transition: top 0.3s;
-    `;
-    
-    skipLink.addEventListener('focus', () => {
-      skipLink.style.top = '6px';
-    });
-    
-    skipLink.addEventListener('blur', () => {
-      skipLink.style.top = '-40px';
-    });
+    skipLink.className = 'skip-link';
     
     document.body.insertBefore(skipLink, document.body.firstChild);
   }
@@ -436,65 +558,56 @@ class ScarmonitWebsite {
       }
     });
     
-    // Custom keyboard shortcuts
+    // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-      // Alt + H for home/hero section
-      if (e.altKey && e.key === 'h') {
-        e.preventDefault();
-        document.getElementById('hero')?.scrollIntoView({ behavior: 'smooth' });
-      }
-      
-      // Alt + F for features section
-      if (e.altKey && e.key === 'f') {
-        e.preventDefault();
-        document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
-      }
-    });
-  }
-
-  setupFocusManagement() {
-    // Trap focus in modal dialogs if any
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Tab') {
-        const modal = document.querySelector('.modal:not(.hidden)');
-        if (modal) {
-          this.trapFocus(e, modal);
+      // Escape key closes mobile menu
+      if (e.key === 'Escape') {
+        const navMenu = document.getElementById('nav-menu');
+        const navToggle = document.getElementById('nav-toggle');
+        if (navMenu && navMenu.classList.contains('nav-menu--open')) {
+          navMenu.classList.remove('nav-menu--open');
+          navToggle.classList.remove('nav-toggle--open');
         }
       }
     });
   }
 
-  trapFocus(e, container) {
-    const focusableElements = container.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    
-    const firstFocusable = focusableElements[0];
-    const lastFocusable = focusableElements[focusableElements.length - 1];
-    
-    if (e.shiftKey) {
-      if (document.activeElement === firstFocusable) {
-        lastFocusable.focus();
-        e.preventDefault();
+  setupFocusManagement() {
+    // Improve focus visibility
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        document.body.classList.add('keyboard-navigation');
       }
-    } else {
-      if (document.activeElement === lastFocusable) {
-        firstFocusable.focus();
-        e.preventDefault();
-      }
-    }
+    });
+
+    document.addEventListener('mousedown', () => {
+      document.body.classList.remove('keyboard-navigation');
+    });
   }
 
   respectMotionPreferences() {
-    // Check for reduced motion preference
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     
     if (prefersReducedMotion.matches) {
-      // Disable animations for users who prefer reduced motion
       document.documentElement.style.setProperty('--transition-fast', '0ms');
       document.documentElement.style.setProperty('--transition-normal', '0ms');
       document.documentElement.style.setProperty('--transition-slow', '0ms');
     }
+  }
+
+  /**
+   * Utility function for debouncing
+   */
+  debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
   }
 }
 
@@ -503,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
   new ScarmonitWebsite();
 });
 
-// Additional utility functions
+// Export utilities for external use
 window.ScarmonitUtils = {
   // Format currency
   formatCurrency(amount, currency = 'USD') {
@@ -518,19 +631,6 @@ window.ScarmonitUtils = {
     return new Intl.NumberFormat('en-US').format(number);
   },
   
-  // Debounce function for performance
-  debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-      const later = () => {
-        clearTimeout(timeout);
-        func(...args);
-      };
-      clearTimeout(timeout);
-      timeout = setTimeout(later, wait);
-    };
-  },
-  
   // Check if element is in viewport
   isInViewport(element) {
     const rect = element.getBoundingClientRect();
@@ -540,5 +640,15 @@ window.ScarmonitUtils = {
       rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
       rect.right <= (window.innerWidth || document.documentElement.clientWidth)
     );
+  },
+
+  // Get stored waitlist entries (for development)
+  getWaitlistEntries() {
+    return JSON.parse(localStorage.getItem('waitlistEntries') || '[]');
+  },
+
+  // Clear stored data
+  clearStoredData() {
+    localStorage.removeItem('waitlistEntries');
   }
 };
