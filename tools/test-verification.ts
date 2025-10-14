@@ -1,6 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { Tool } from './types.js';
+import { Tool } from './types';
 
 const execAsync = promisify(exec);
 
@@ -58,24 +58,24 @@ export const testVerification: Tool = {
     } = args;
 
     try {
+      // Build command based on operation
       let command = '';
 
-      // Build test command based on operation
       switch (operation) {
         case 'test':
           command = 'npm test';
-          break;
-        case 'coverage':
-          command = 'npm run coverage';
-          break;
-        case 'e2e':
-          command = 'npm run test:e2e';
           break;
         case 'unit':
           command = 'npm run test:unit';
           break;
         case 'integration':
           command = 'npm run test:integration';
+          break;
+        case 'e2e':
+          command = 'npm run test:e2e';
+          break;
+        case 'coverage':
+          command = 'npm run test:coverage';
           break;
         case 'verify':
           command = 'npm run verify:all';
@@ -105,7 +105,7 @@ export const testVerification: Tool = {
       });
 
       // Parse test results
-      const results = {
+      const results: any = {
         success: true,
         command,
         output: stdout,
