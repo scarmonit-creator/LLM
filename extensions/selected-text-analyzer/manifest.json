@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Selected Text Analyzer",
-  "version": "1.1.0",
-  "description": "Analyze selected text or full page text with character, word, and line counts. Supports autonomous execution.",
+  "name": "Selected Text Analyzer Pro",
+  "version": "2.0.0",
+  "description": "Advanced text analysis with autonomous execution, performance optimization, and comprehensive metrics.",
   "permissions": [
     "activeTab",
     "scripting",
     "contextMenus",
     "storage",
-    "tabs"
+    "tabs",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -16,10 +17,18 @@
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Analyze Text"
+    "default_title": "Analyze Text - Advanced"
   },
+  "options_page": "options.html",
   "commands": {
     "analyze-page": {
       "suggested_key": {
@@ -28,11 +37,31 @@
       },
       "description": "Analyze current page text"
     },
+    "analyze-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Analyze selected text"
+    },
     "_execute_action": {
       "suggested_key": {
         "default": "Ctrl+Shift+T",
         "mac": "Command+Shift+T"
       }
+    },
+    "toggle-auto-analyze": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+X",
+        "mac": "Command+Shift+X"
+      },
+      "description": "Toggle auto-analyze mode"
     }
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.html", "options.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
