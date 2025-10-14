@@ -1,0 +1,68 @@
+{
+  "optimization_settings": {
+    "auto_sync_enabled": true,
+    "sync_interval_hours": 24,
+    "priority_file_patterns": [
+      "*.md",
+      "*.json",
+      "*.js",
+      "*.ts",
+      "*.py",
+      "README*",
+      "*config*"
+    ],
+    "exclude_patterns": [
+      "node_modules/*",
+      ".git/*",
+      "*.log",
+      "package-lock.json",
+      "*.tmp",
+      "*.cache"
+    ]
+  },
+  "perplexity_integration": {
+    "github_connector_enabled": true,
+    "file_categorization": {
+      "documentation": {
+        "patterns": ["*.md", "README*", "docs/*"],
+        "priority": "high"
+      },
+      "configuration": {
+        "patterns": ["*.json", "*config*", "*.env*"],
+        "priority": "critical"
+      },
+      "automation": {
+        "patterns": ["*ci*", "*workflow*", "*automation*"],
+        "priority": "high"
+      },
+      "business_logic": {
+        "patterns": ["*.py", "*.js", "*.ts", "src/*"],
+        "priority": "medium"
+      }
+    }
+  },
+  "monitoring": {
+    "change_detection_enabled": true,
+    "notification_webhooks": [],
+    "performance_tracking": {
+      "enabled": true,
+      "metrics": [
+        "sync_time",
+        "file_count",
+        "change_frequency",
+        "search_performance"
+      ]
+    }
+  },
+  "automation_workflows": {
+    "auto_categorization": true,
+    "smart_prioritization": true,
+    "duplicate_detection": true,
+    "content_indexing": true
+  },
+  "backup_settings": {
+    "enabled": true,
+    "retention_days": 30,
+    "backup_priority_files_only": false
+  }
+}
