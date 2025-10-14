@@ -1,0 +1,25 @@
+name: Bridge Demo Hardened CI
+
+on:
+  push:
+    branches: [ "feat/bridge-demo-hardened" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Run hardened demo (mock endpoints)
+        run: |
+          node examples/bridge-demo-hardened.js | tee demo.json
+          test -s demo.json
+      - name: Upload summary
+        run: |
+          echo "### Hardened Bridge Demo Output" >> $GITHUB_STEP_SUMMARY
+          cat demo.json >> $GITHUB_STEP_SUMMARY
