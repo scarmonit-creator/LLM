@@ -27,6 +27,13 @@ export class AIBridge {
     this.clients = new Map(); // clientId -> { ws, meta }
     this.messageQueue = new Map(); // clientId -> envelope[] waiting delivery
     this.history = []; // chronological list of envelopes
+    this.startTime = Date.now();
+    this.stats = {
+      messagesProcessed: 0,
+      totalConnections: 0,
+      errors: 0,
+      lastError: null
+    };
   }
 
   registerClient(ws, registration) {
@@ -39,9 +46,11 @@ export class AIBridge {
       intents: registration.intents || [],
       maxConcurrentTasks: registration.maxConcurrentTasks ?? 1,
       lastSeen: new Date().toISOString(),
+      connectedAt: new Date().toISOString()
     };
 
     this.clients.set(clientId, { ws, meta });
+    this.stats.totalConnections++;
     this.logger.log(
       `[Bridge] Registered ${clientId} (${meta.role}) – ${this.clients.size} connected`
     );
@@ -82,32 +91,53 @@ export class AIBridge {
     return result.slice(-max);
   }
 
+  getStats() {
+    const uptime = Date.now() - this.startTime;
+    return {
+      ...this.stats,
+      uptime: Math.floor(uptime / 1000),
+      connectedClients: this.clients.size,
+      queuedMessages: Array.from(this.messageQueue.values()).reduce((sum, queue) => sum + queue.length, 0),
+      historySize: this.history.length,
+      messagesPerSecond: this.stats.messagesProcessed / (uptime / 1000) || 0
+    };
+  }
+
   acceptEnvelope(envelope, { allowQueue = true } = {}) {
-    const enriched = this._enrichEnvelope(envelope);
-    this.history.push(enriched);
-    if (this.history.length > this.historyLimit) {
-      this.history.splice(0, this.history.length - this.historyLimit);
-    }
-
-    if (enriched.to) {
-      if (!this._sendEnvelope(enriched.to, enriched) && allowQueue) {
-        if (!this.messageQueue.has(enriched.to)) {
-          this.messageQueue.set(enriched.to, []);
-        }
-        this.messageQueue.get(enriched.to).push(enriched);
-        this.logger.log(`[Bridge] Queued envelope ${enriched.id} for ${enriched.to} (offline)`);
+    try {
+      const enriched = this._enrichEnvelope(envelope);
+      this.history.push(enriched);
+      this.stats.messagesProcessed++;
+      
+      if (this.history.length > this.historyLimit) {
+        this.history.splice(0, this.history.length - this.historyLimit);
       }
-    } else {
-      this._broadcast(enriched.from, enriched);
+
+      if (enriched.to) {
+        if (!this._sendEnvelope(enriched.to, enriched) && allowQueue) {
+          if (!this.messageQueue.has(enriched.to)) {
+            this.messageQueue.set(enriched.to, []);
+          }
+          this.messageQueue.get(enriched.to).push(enriched);
+          this.logger.log(`[Bridge] Queued envelope ${enriched.id} for ${enriched.to} (offline)`);
+        }
+      } else {
+        this._broadcast(enriched.from, enriched);
+      }
+
+      this.logger.log(
+        `[Bridge] Envelope ${enriched.intent || 'agent.message'} from ${enriched.from} -> ${
+          enriched.to || 'broadcast'
+        }: ${previewPayload(enriched.payload)}`
+      );
+
+      return enriched;
+    } catch (error) {
+      this.stats.errors++;
+      this.stats.lastError = error.message;
+      this.logger.error(`[Bridge] Error processing envelope: ${error.message}`);
+      throw error;
     }
-
-    this.logger.log(
-      `[Bridge] Envelope ${enriched.intent || 'agent.message'} from ${enriched.from} -> ${
-        enriched.to || 'broadcast'
-      }: ${previewPayload(enriched.payload)}`
-    );
-
-    return enriched;
   }
 
   _enrichEnvelope(envelope) {
@@ -182,6 +212,8 @@ export class AIBridge {
       return true;
     } catch (error) {
       this.logger.error(`[Bridge] Failed to send envelope to ${targetId}: ${error.message}`);
+      this.stats.errors++;
+      this.stats.lastError = error.message;
       return false;
     }
   }
@@ -193,14 +225,16 @@ export class AIBridge {
         ws.send(JSON.stringify({ type: 'envelope', envelope }));
       } catch (error) {
         this.logger.error(`[Bridge] Failed broadcast to ${clientId}: ${error.message}`);
+        this.stats.errors++;
+        this.stats.lastError = error.message;
       }
     });
   }
 }
 
 export async function createAIBridgeServer({
-  wsPort = Number(process.env.AI_BRIDGE_PORT) || 4567,
-  httpPort = Number(process.env.AI_BRIDGE_HTTP_PORT) || 4568,
+  wsPort = Number(process.env.AI_BRIDGE_PORT) || Number(process.env.PORT) || 4567,
+  httpPort = Number(process.env.AI_BRIDGE_HTTP_PORT) || Number(process.env.PORT) || 4568,
   historyLimit = DEFAULT_HISTORY_LIMIT,
   logger = console,
 } = {}) {
@@ -208,13 +242,65 @@ export async function createAIBridgeServer({
   const app = express();
   app.use(express.json());
 
+  // Add CORS headers for web browser access
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(200);
+    } else {
+      next();
+    }
+  });
+
+  // Health endpoint for deployment platforms
   app.get('/health', (req, res) => {
+    const stats = bridge.getStats();
     res.json({
       status: 'ok',
+      timestamp: new Date().toISOString(),
       wsPort,
       httpPort,
       connectedClients: bridge.clients.size,
       historySize: bridge.history.length,
+      uptime: stats.uptime,
+      version: '1.0.0',
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
+
+  // API status endpoint as mentioned in requirements
+  app.get('/api/status', (req, res) => {
+    const stats = bridge.getStats();
+    res.json({
+      service: 'AI Bridge Server',
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      uptime: stats.uptime,
+      performance: {
+        connectedClients: stats.connectedClients,
+        messagesProcessed: stats.messagesProcessed,
+        messagesPerSecond: Number(stats.messagesPerSecond.toFixed(2)),
+        queuedMessages: stats.queuedMessages,
+        errors: stats.errors,
+        lastError: stats.lastError
+      },
+      websocket: {
+        port: wsPort,
+        enabled: true,
+        connections: stats.connectedClients
+      },
+      http: {
+        port: httpPort,
+        enabled: true
+      },
+      storage: {
+        historySize: stats.historySize,
+        historyLimit
+      },
+      environment: process.env.NODE_ENV || 'development'
     });
   });
 
@@ -283,6 +369,36 @@ export async function createAIBridgeServer({
     });
   });
 
+  // Root endpoint for basic info
+  app.get('/', (req, res) => {
+    const stats = bridge.getStats();
+    res.json({
+      service: 'AI Bridge Server',
+      version: '1.0.0',
+      status: 'running',
+      uptime: stats.uptime,
+      endpoints: {
+        health: '/health',
+        status: '/api/status',
+        agents: '/agents',
+        history: '/history',
+        tasks: '/tasks'
+      },
+      websocket: {
+        enabled: true,
+        port: wsPort
+      },
+      documentation: 'https://github.com/scarmonit-creator/LLM'
+    });
+  });
+
+  // For deployment platforms that need a single port
+  const deploymentPort = Number(process.env.PORT);
+  if (deploymentPort) {
+    httpPort = deploymentPort;
+    wsPort = deploymentPort;
+  }
+
   const wss = new WebSocketServer({ port: wsPort });
   await once(wss, 'listening');
   logger.log(`[Bridge] WebSocket listening on ws://localhost:${wss.address().port}`);
@@ -296,6 +412,8 @@ export async function createAIBridgeServer({
         payload = JSON.parse(raw.toString());
       } catch (_error) {
         logger.error('[Bridge] Received invalid JSON payload');
+        bridge.stats.errors++;
+        bridge.stats.lastError = 'Invalid JSON payload';
         return;
       }
 
@@ -335,6 +453,8 @@ export async function createAIBridgeServer({
 
     ws.on('error', (error) => {
       logger.error('[Bridge] WebSocket error:', error.message);
+      bridge.stats.errors++;
+      bridge.stats.lastError = error.message;
     });
   });
 
@@ -366,12 +486,13 @@ async function startCli() {
   const server = await createAIBridgeServer();
   const banner = `
 ========================================
-   AI Bridge Server
+   AI Bridge Server v1.0.0
 ========================================
   WebSocket: ws://localhost:${server.ports.ws}
   HTTP API:  http://localhost:${server.ports.http}
 
   Health:    http://localhost:${server.ports.http}/health
+  Status:    http://localhost:${server.ports.http}/api/status
   Agents:    http://localhost:${server.ports.http}/agents
   History:   http://localhost:${server.ports.http}/history
   Tasks:     http://localhost:${server.ports.http}/tasks

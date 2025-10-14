@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: llm-ai-bridge
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AI_BRIDGE_PORT
+        value: 4567
+      - key: AI_BRIDGE_HTTP_PORT
+        sync: false
+        generateValue: true
+      - key: PORT
+        sync: false
+        generateValue: true
+    autoDeploy: true
+    disk:
+      name: llm-data
+      mountPath: /opt/render/project/data
+      sizeGB: 1
+
+  # Alternative WebSocket service configuration
+  - type: background_worker
+    name: llm-websocket-worker
+    env: node
+    region: oregon  
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/ai-bridge.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AI_BRIDGE_PORT
+        value: 4567
+      - key: AI_BRIDGE_HTTP_PORT
+        value: 4568
+    autoDeploy: false  # Manual deploy for worker service

@@ -15,43 +15,99 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       
+      - name: Check Event Context
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Ref: ${{ github.ref }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "PR number: ${{ github.event.number }}"
+            echo "PR head repo: ${{ github.event.pull_request.head.repo.full_name }}"
+            echo "PR base repo: ${{ github.event.pull_request.base.repo.full_name }}"
+          fi
+      
       - name: Verify SSH Private Key Secret
         run: |
+          # Check if secret is available (secrets are not accessible in PRs from forks)
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "⚠️  Skipping SSH_PRIVATE_KEY verification for external PR"
+            echo "Secrets are not accessible in pull requests from forked repositories"
+            exit 0
+          fi
+          
           if [ -z "$SSH_KEY" ]; then
-            echo "Error: SSH_PRIVATE_KEY secret is not set"
+            echo "❌ Error: SSH_PRIVATE_KEY secret is not set or not accessible"
+            echo "This could happen if:"
+            echo "  1. The secret is not configured in repository settings"
+            echo "  2. This is a pull request from a fork (secrets not accessible)"
+            echo "  3. Repository permissions don't allow secret access"
             exit 1
           fi
-          echo "SSH_PRIVATE_KEY secret is properly configured"
-          echo "SSH key length: ${#SSH_KEY} characters"
+          echo "✅ SSH_PRIVATE_KEY secret is properly configured"
+          echo "📊 SSH key length: ${#SSH_KEY} characters"
         env:
           SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       
       - name: Verify GPG Private Key Secret
         run: |
+          # Check if secret is available (secrets are not accessible in PRs from forks)
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "⚠️  Skipping GPG_PRIVATE_KEY verification for external PR"
+            exit 0
+          fi
+          
           if [ -z "$GPG_KEY" ]; then
-            echo "Error: GPG_PRIVATE_KEY secret is not set"
+            echo "❌ Error: GPG_PRIVATE_KEY secret is not set or not accessible"
             exit 1
           fi
-          echo "GPG_PRIVATE_KEY secret is properly configured"
-          echo "GPG key length: ${#GPG_KEY} characters"
+          echo "✅ GPG_PRIVATE_KEY secret is properly configured"
+          echo "📊 GPG key length: ${#GPG_KEY} characters"
         env:
           GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
       
       - name: Verify GH_TOKEN Secret
         run: |
+          # Check if secret is available (secrets are not accessible in PRs from forks)
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "⚠️  Skipping GH_TOKEN verification for external PR"
+            exit 0
+          fi
+          
           if [ -z "$GH_TOKEN" ]; then
-            echo "Error: GH_TOKEN secret is not set"
+            echo "❌ Error: GH_TOKEN secret is not set or not accessible"
             exit 1
           fi
-          echo "GH_TOKEN secret is properly configured"
+          echo "✅ GH_TOKEN secret is properly configured"
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
       
+      - name: Alternative Secret Verification (Using GITHUB_TOKEN)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "🔍 Alternative verification using GITHUB_TOKEN for external PR:"
+          if [ -n "$GITHUB_TOKEN" ]; then
+            echo "✅ GITHUB_TOKEN is available for external PR"
+            echo "📊 Token length: ${#GITHUB_TOKEN} characters"
+          else
+            echo "❌ GITHUB_TOKEN is not available"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
       - name: Summary
         run: |
-          echo "=================================="
-          echo "All repository secrets verified successfully!"
-          echo "  - SSH_PRIVATE_KEY: ✓"
-          echo "  - GPG_PRIVATE_KEY: ✓"
-          echo "  - GH_TOKEN: ✓"
-          echo "=================================="
+          echo "===================================="
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "🔒 External PR - Repository secrets verification skipped"
+            echo "  - SSH_PRIVATE_KEY: ⚠️  (Not accessible from forks)"
+            echo "  - GPG_PRIVATE_KEY: ⚠️  (Not accessible from forks)"
+            echo "  - GH_TOKEN: ⚠️  (Not accessible from forks)"
+            echo "  - GITHUB_TOKEN: ✅ (Available for external PRs)"
+          else
+            echo "🔓 Internal workflow - All repository secrets verified!"
+            echo "  - SSH_PRIVATE_KEY: ✅"
+            echo "  - GPG_PRIVATE_KEY: ✅"
+            echo "  - GH_TOKEN: ✅"
+          fi
+          echo "===================================="
