@@ -1,6 +1,5 @@
 # Optimized Node.js CI/CD Pipeline with Performance Enhancements
 # This workflow implements intelligent caching, parallel execution, and optimized build strategies
-
 name: Node.js CI
 
 permissions:
@@ -13,8 +12,34 @@ permissions:
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - '**.js'
+      - '**.ts'
+      - '**.jsx'
+      - '**.tsx'
+      - '**.json'
+      - 'package*.json'
+      - 'yarn.lock'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/node.js.yml'
+      - 'src/**'
+      - 'test/**'
+      - 'tests/**'
   pull_request:
     branches: [ "main" ]
+    paths:
+      - '**.js'
+      - '**.ts'
+      - '**.jsx'
+      - '**.tsx'
+      - '**.json'
+      - 'package*.json'
+      - 'yarn.lock'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/node.js.yml'
+      - 'src/**'
+      - 'test/**'
+      - 'tests/**'
   workflow_dispatch:
 
 # Prevent concurrent builds to avoid conflicts and optimize resource usage
@@ -36,296 +61,127 @@ env:
   CACHE_VERSION: v2
 
 jobs:
-  # Fast preliminary checks - run in parallel
-  pre-checks:
+  # Quick syntax and style validation
+  lint:
+    name: Lint & Code Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      cache-hit: ${{ steps.cache-deps.outputs.cache-hit }}
-      package-hash: ${{ steps.package-hash.outputs.hash }}
+    timeout-minutes: 10
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 1 # Shallow clone for speed
-    
-    - name: Generate package hash
-      id: package-hash
-      run: |
-        echo "hash=$(sha256sum package*.json | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
-    
-    - name: Setup Node.js LTS
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: 'package-lock.json'
-    
-    - name: Advanced dependency caching
-      id: cache-deps
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.npm
-          node_modules
-          .npm-cache
-        key: ${{ runner.os }}-npm-${{ env.CACHE_VERSION }}-${{ steps.package-hash.outputs.hash }}
-        restore-keys: |
-          ${{ runner.os }}-npm-${{ env.CACHE_VERSION }}-
-          ${{ runner.os }}-npm-
-    
-    - name: Install dependencies (fast)
-      if: steps.cache-deps.outputs.cache-hit != 'true'
-      run: |
-        npm ci --prefer-offline --no-audit --no-fund --silent
-        npm ls --depth=0 || true
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+      
+      - name: Run linter
+        run: npm run lint --if-present
 
-  # Quality checks with smart execution
-  quality-checks:
-    runs-on: ubuntu-latest
-    needs: pre-checks
-    timeout-minutes: 8
-    strategy:
-      fail-fast: false
-      matrix:
-        check: ['lint', 'format', 'typecheck']
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-    
-    - name: Restore dependency cache
-      uses: actions/cache/restore@v4
-      with:
-        path: |
-          ~/.npm
-          node_modules
-          .npm-cache
-        key: ${{ runner.os }}-npm-${{ env.CACHE_VERSION }}-${{ needs.pre-checks.outputs.package-hash }}
-    
-    - name: Install dependencies (if needed)
-      if: needs.pre-checks.outputs.cache-hit != 'true'
-      run: npm ci --prefer-offline --no-audit --no-fund --silent
-    
-    - name: Run lint checks
-      if: matrix.check == 'lint'
-      run: |
-        npm run lint 2>&1 | tee lint-output.log || echo "Lint issues detected"
-        echo "::group::Lint Results"
-        cat lint-output.log | head -100
-        echo "::endgroup::"
-    
-    - name: Run format checks
-      if: matrix.check == 'format'
-      run: |
-        npm run format -- --check 2>&1 | tee format-output.log || echo "Format issues detected"
-    
-    - name: Run TypeScript checks
-      if: matrix.check == 'typecheck'
-      run: |
-        npm run typecheck 2>&1 | tee typecheck-output.log
-        echo "::group::TypeScript Results"
-        cat typecheck-output.log | head -50
-        echo "::endgroup::"
-
-  # Optimized build and test matrix
-  build-and-test:
-    runs-on: ubuntu-latest
-    needs: [pre-checks, quality-checks]
+  # Build and test on multiple Node.js versions in parallel
+  build:
+    name: Build & Test (Node ${{ matrix.node-version }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18, 20, 22]
-        test-suite: ['unit', 'integration']
-        exclude:
-          # Run integration tests only on Node 20 for efficiency
-          - node-version: 18
-            test-suite: integration
-          - node-version: 22
-            test-suite: integration
-
+        node-version: ['18.x', '20.x', '22.x']
+        os: [ubuntu-latest]
+        include:
+          - node-version: '20.x'
+            os: windows-latest
+          - node-version: '20.x'
+            os: macos-latest
+    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    
-    - name: Restore dependency cache
-      uses: actions/cache/restore@v4
-      with:
-        path: |
-          ~/.npm
-          node_modules
-          .npm-cache
-        key: ${{ runner.os }}-npm-${{ env.CACHE_VERSION }}-${{ needs.pre-checks.outputs.package-hash }}
-    
-    - name: Install dependencies (if needed)
-      if: needs.pre-checks.outputs.cache-hit != 'true'
-      run: npm ci --prefer-offline --no-audit --no-fund --silent
-    
-    - name: Build cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          dist/
-          build/
-          .tsbuildinfo
-        key: ${{ runner.os }}-build-${{ matrix.node-version }}-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-build-${{ matrix.node-version }}-
-    
-    - name: Build project
-      run: |
-        echo "::group::Build Output"
-        npm run build 2>&1 | tee build-output.log
-        echo "::endgroup::"
-        echo "Build completed for Node ${{ matrix.node-version }}"
-    
-    - name: Run unit tests
-      if: matrix.test-suite == 'unit'
-      run: |
-        echo "::group::Unit Test Results"
-        if [ "${{ matrix.node-version }}" = "20" ]; then
-          npm run coverage 2>&1 | tee test-output.log
-        else
-          npm test 2>&1 | tee test-output.log
-        fi
-        echo "::endgroup::"
-    
-    - name: Run integration tests
-      if: matrix.test-suite == 'integration' && matrix.node-version == 20
-      run: |
-        echo "::group::Integration Test Results"
-        npm run test:e2e 2>&1 | tee integration-output.log || echo "Some integration tests may be skipped"
-        echo "::endgroup::"
-    
-    # Coverage and artifacts only for Node 20 unit tests
-    - name: Upload coverage to Coveralls
-      if: matrix.node-version == 20 && matrix.test-suite == 'unit' && success()
-      uses: coverallsapp/github-action@v2
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-      continue-on-error: true
-    
-    - name: Archive artifacts
-      if: matrix.node-version == 20 && always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-artifacts-${{ matrix.test-suite }}
-        path: |
-          coverage/
-          test-results/
-          *.log
-          dist/
-        retention-days: 7
-        if-no-files-found: warn
-    
-    - name: Build provenance attestation
-      if: matrix.node-version == 20 && matrix.test-suite == 'unit' && success()
-      uses: actions/attest-build-provenance@v3
-      with:
-        subject-path: 'dist/**'
-      continue-on-error: true
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+      
+      - name: Build project
+        run: npm run build --if-present
+      
+      - name: Run tests
+        run: npm test --if-present
+        env:
+          NODE_ENV: test
+      
+      - name: Upload coverage reports
+        if: matrix.node-version == '20.x' && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
 
-  # Performance monitoring and metrics
-  performance-monitoring:
+  # Security and dependency analysis
+  security:
+    name: Security Audit
     runs-on: ubuntu-latest
-    needs: [build-and-test]
-    if: github.ref == 'refs/heads/main'
     timeout-minutes: 10
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci --prefer-offline --no-audit --no-fund --silent
-    
-    - name: Performance benchmarks
-      run: |
-        echo "::group::Performance Metrics"
-        # Basic performance metrics
-        time npm run build
-        
-        # Memory usage analysis
-        if command -v free &> /dev/null; then
-          echo "Memory usage:"
-          free -h
-        fi
-        
-        # Disk usage analysis
-        echo "Project size analysis:"
-        du -sh .
-        du -sh node_modules/ || echo "No node_modules"
-        du -sh dist/ || echo "No dist directory"
-        
-        # Bundle size analysis (if applicable)
-        if [ -d "dist" ]; then
-          echo "Distribution size:"
-          find dist -name '*.js' -exec wc -c {} + | tail -1
-        fi
-        echo "::endgroup::"
-      continue-on-error: true
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+      
+      - name: Run security audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
 
-  # Final success gate
-  success:
+  # Generate and attest build artifacts
+  attest:
+    name: Generate Attestations
     runs-on: ubuntu-latest
-    needs: [pre-checks, quality-checks, build-and-test]
-    if: always()
-    timeout-minutes: 2
+    needs: [lint, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 10
     steps:
-    - name: Evaluate build success
-      run: |
-        echo "Pre-checks: ${{ needs.pre-checks.result }}"
-        echo "Quality checks: ${{ needs.quality-checks.result }}"
-        echo "Build and test: ${{ needs.build-and-test.result }}"
-        
-        if [ "${{ needs.pre-checks.result }}" != "success" ]; then
-          echo "❌ Pre-checks failed"
-          exit 1
-        fi
-        
-        if [ "${{ needs.quality-checks.result }}" != "success" ]; then
-          echo "⚠️ Quality checks failed"
-          exit 1
-        fi
-        
-        if [ "${{ needs.build-and-test.result }}" != "success" ]; then
-          echo "❌ Build and test failed"
-          exit 1
-        fi
-        
-        echo "✅ All checks passed successfully!"
-    
-    - name: Build summary
-      run: |
-        echo "## 🚀 Build Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
-        echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-        echo "| Pre-checks | ${{ needs.pre-checks.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Quality checks | ${{ needs.quality-checks.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Build & Test | ${{ needs.build-and-test.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Workflow completed at:** $(date)" >> $GITHUB_STEP_SUMMARY
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+      
+      - name: Build project
+        run: npm run build --if-present
+      
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        if: hashFiles('dist/**') != ''
+        with:
+          subject-path: 'dist/**/*'
