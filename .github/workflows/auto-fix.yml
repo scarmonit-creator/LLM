@@ -34,60 +34,61 @@ jobs:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Setup Node.js ${{ matrix.node-version }}
+    - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     
-    - name: Cache dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.npm
-          node_modules
-        key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-${{ matrix.node-version }}-
-          ${{ runner.os }}-node-
-    
     - name: Install dependencies
-      run: npm ci --prefer-offline --no-audit
+      run: |
+        npm ci --prefer-offline --no-audit
+        npm install -g eslint@latest
+      continue-on-error: false
     
-    - name: Run lint
-      run: npm run lint --if-present || true
+    - name: Run ESLint and auto-fix
+      id: eslint
+      run: |
+        npx eslint . --fix --ext .js,.jsx,.ts,.tsx || true
       continue-on-error: true
     
-    - name: Run lint fix
-      run: npm run lint:fix --if-present || true
+    - name: Run Prettier
+      id: prettier
+      run: |
+        npx prettier --write "**/*.{js,jsx,ts,tsx,json,css,md}" || true
       continue-on-error: true
     
-    - name: Run format
-      run: npm run format --if-present || true
-      continue-on-error: true
-    
-    - name: Run build
-      run: npm run build --if-present || true
-      continue-on-error: true
-    
-    - name: Run tests
-      run: npm test --if-present || true
-      continue-on-error: true
-    
-    - name: Check for changes
+    - name: Verify changed files
       id: verify-changed-files
       run: |
-        if [ -n "$(git status --porcelain)" ]; then
-          echo "changed=true" >> $GITHUB_OUTPUT
-          echo "Changes detected:"
-          git status --short
-        else
+        if git diff --quiet; then
           echo "changed=false" >> $GITHUB_OUTPUT
-          echo "No changes detected"
+          echo "No files were changed by auto-fix"
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "Files were changed by auto-fix:"
+          git diff --name-only
         fi
-    
-    - name: Commit and push changes
-      if: steps.verify-changed-files.outputs.changed == 'true' && github.event_name == 'push'
+
+    - name: Create Pull Request with fixes
+      if: steps.verify-changed-files.outputs.changed == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'Auto-fix: Apply automated fixes [skip ci]'
+        title: 'Auto-fix: Apply automated fixes'
+        body: |
+          This PR contains automated fixes from ESLint and Prettier.
+          
+          Changes were triggered by push to main branch.
+          
+          Please review the changes and merge if appropriate.
+        branch: auto-fix-${{ github.run_id }}
+        delete-branch: true
+        base: main
+
+    - name: Commit and push changes for non-main branches
+      if: steps.verify-changed-files.outputs.changed == 'true' && github.event_name == 'push' && github.ref != 'refs/heads/main'
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -95,27 +96,17 @@ jobs:
         git commit -m "Auto-fix: Apply automated fixes [skip ci]"
         git push
     
-    - name: Create Pull Request
-      if: steps.verify-changed-files.outputs.changed == 'true' && github.event_name == 'pull_request'
-      uses: peter-evans/create-pull-request@v6
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: 'Auto-fix: Apply automated fixes [skip ci]'
-        title: 'Auto-fix: Apply automated fixes'
-        body: |
-          ## Auto-fix Report
-          
-          This PR applies automated fixes from linting, formatting, and other automated tools.
-          
-          ### Changes Applied
-          - Linting fixes
-          - Code formatting
-          - Build optimizations
-          
-          **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        branch: auto-fix-${{ github.run_id }}
-        base: ${{ github.event.pull_request.head.ref || github.ref_name }}
-        delete-branch: true
-        labels: |
-          auto-fix
-          automated
+    - name: Run tests
+      run: npm test
+      continue-on-error: true
+    
+    - name: Summary
+      if: always()
+      run: |
+        echo "### Auto-Fix Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.verify-changed-files.outputs.changed }}" == "true" ]; then
+          echo "✅ Changes were made and committed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "ℹ️ No changes were needed" >> $GITHUB_STEP_SUMMARY
+        fi
