@@ -1,12 +1,12 @@
 {
   "name": "llm",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "LLM integration project with Claude, A2A, and browser history access - Optimized Version",
   "main": "src/ai-bridge.js",
   "type": "module",
   "scripts": {
     "start": "node src/ai-bridge.js",
-    "start:server": "node server.js",
+    "start:server": "npm run build && node server.js",
     "start:bridge": "node src/ai-bridge.js",
     "start:orchestrator": "tsx orchestrator.ts",
     "start:a2a": "tsx src/a2a-agent-server.ts",
@@ -70,7 +70,8 @@
     "security:audit": "npm audit",
     "security:fix": "npm audit fix",
     "dev": "tsx --watch src/ai-bridge.ts",
-    "dev:orchestrator": "tsx --watch orchestrator.ts"
+    "dev:orchestrator": "tsx --watch orchestrator.ts",
+    "dev:server": "npm run build:optimized && node --watch server.js"
   },
   "keywords": [
     "llm",
@@ -98,6 +99,7 @@
     "@anthropic-ai/sdk": "^0.32.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "axios": "^1.7.9",
+    "better-sqlite3": "^11.3.0",
     "chromadb": "^1.9.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -110,6 +112,7 @@
   "devDependencies": {
     "@eslint/js": "^9.18.0",
     "@jest/globals": "^29.7.0",
+    "@types/better-sqlite3": "^7.6.11",
     "@types/express": "^4.17.21",
     "@types/node": "^22.10.2",
     "@types/nodemailer": "^6.4.14",

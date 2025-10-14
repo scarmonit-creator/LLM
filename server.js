@@ -1,5 +1,9 @@
-const express = require('express');
-const { BrowserHistoryTool } = require('./tools/browser-history');
+import express from 'express';
+import { createRequire } from 'module';
+import BrowserHistoryTool from './dist/tools/browser-history.js';
+
+// For compatibility with CommonJS modules if needed
+const require = createRequire(import.meta.url);
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -36,7 +40,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     message: 'LLM AI Bridge Server',
-    version: '1.0.0',
+    version: '1.1.0',
     uptime: Math.floor((Date.now() - metrics.uptime) / 1000),
     endpoints: [
       { path: '/health', method: 'GET', description: 'Health check endpoint' },
@@ -172,11 +176,13 @@ app.get('/search', async (req, res) => {
 // Graceful shutdown handling
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully');
+  tool.destroy?.();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('SIGINT received, shutting down gracefully');
+  tool.destroy?.();
   process.exit(0);
 });
 
@@ -192,4 +198,4 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('  GET /search?query=term - Search browser history');
 });
 
-module.exports = app;
+export default app;
