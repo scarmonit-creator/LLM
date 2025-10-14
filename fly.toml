@@ -1,0 +1,35 @@
+app = "llm-ai-bridge"
+primary_region = "sjc"
+
+[build]
+  builder = "heroku/buildpacks:20"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  AI_BRIDGE_HISTORY_LIMIT = "500"
+  AI_BRIDGE_MAX_QUEUE = "1000"
+  AI_BRIDGE_CORS_ORIGINS = "*"
+  AI_BRIDGE_CLIENT_TTL_MS = "600000"
+  AI_BRIDGE_CLEANUP_INTERVAL_MS = "30000"
+  AI_BRIDGE_RATE_WINDOW_MS = "60000"
+  AI_BRIDGE_RATE_MAX = "120"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  
+  [http_service.checks]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
