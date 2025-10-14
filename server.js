@@ -1,5 +1,5 @@
 import express from 'express';
-import { BrowserHistoryTool } from './dist/tools/browser-history.js';
+import { BrowserHistoryTool } from './tools/browser-history.js';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -119,7 +119,7 @@ app.get('/history', async (req, res) => {
       success: true,
       count: history.length,
       data: history,
-      note: history.length === 0 ? 'No history data available. Browser history reading requires platform-specific database access.' : undefined
+      note: history.length === 0 ? 'No history data available. Install better-sqlite3 for full browser history access.' : undefined
     });
   } catch (error) {
     metrics.errors++;
@@ -150,7 +150,7 @@ app.get('/history/:count', async (req, res) => {
       success: true,
       count: history.length,
       data: history,
-      note: history.length === 0 ? 'No history data available. Browser history reading requires platform-specific database access.' : undefined
+      note: history.length === 0 ? 'No history data available. Install better-sqlite3 for full browser history access.' : undefined
     });
   } catch (error) {
     metrics.errors++;
@@ -190,7 +190,7 @@ app.get('/search', async (req, res) => {
       query: query,
       count: Array.isArray(results) ? results.length : 0,
       data: results,
-      note: (!Array.isArray(results) || results.length === 0) ? 'No history data available. Browser history reading requires platform-specific database access.' : undefined
+      note: (!Array.isArray(results) || results.length === 0) ? 'No history data available. Install better-sqlite3 for full browser history access.' : undefined
     });
   } catch (error) {
     metrics.errors++;
@@ -265,6 +265,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('  ?count=number (max results)');
   console.log('  ?startTime=timestamp');
   console.log('  ?endTime=timestamp');
+  console.log('\nNote: Install better-sqlite3 for full browser history access.');
 });
 
 export default app;
