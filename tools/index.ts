@@ -57,7 +57,7 @@ const testRepoTool: ToolDefinition = {
     required: ['repo'],
   },
   execute: async (params: { repo: string; prNumber?: number }) => {
-    return testVerification(params.repo, params.prNumber);
+    return testVerification.execute(params);
   },
 };
 
