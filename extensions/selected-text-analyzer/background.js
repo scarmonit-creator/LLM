@@ -1,342 +1,247 @@
-// Enhanced service worker with Chrome Built-in AI Integration (Phase 2)
-// Includes autonomous execution and AI-powered text analysis
+// Optimized service worker for selected-text-analyzer
+// Focus: low-latency selection/page extraction, robust messaging, graceful AI fallback
 
 class ExtensionController {
   constructor() {
-    this.activeTabs = new Map();
     this.autonomousMode = false;
-    this.currentTask = null;
     this.aiSession = null;
     this.summarizer = null;
+    this.init();
+  }
+
+  async init() {
     this.setupEventListeners();
-    this.initializeAI();
+    // Don't block startup on AI init; fire-and-forget to reduce cold-start latency
+    this.initializeAI().catch(err => console.warn('[AI:init] skipped', err));
   }
 
-  // Phase 2: AI Integration - Initialize Chrome Built-in AI
+  // Initialize Chrome Built-in AI, if available
   async initializeAI() {
+    if (typeof ai === 'undefined') return;
     try {
-      // Check Prompt API availability
-      if (typeof ai !== 'undefined' && ai.languageModel) {
-        const capabilities = await ai.languageModel.capabilities();
-        if (capabilities.available === 'readily') {
-          console.log('[AI] Prompt API available - Gemini Nano ready');
+      if (ai.languageModel) {
+        const caps = await ai.languageModel.capabilities();
+        if (caps.available === 'readily') {
           this.aiSession = await ai.languageModel.create({
-            systemPrompt: "You are a helpful text analyzer assistant. Analyze text for clarity, sentiment, readability, and provide actionable insights."
-          });
-        } else if (capabilities.available === 'after-download') {
-          console.log('[AI] Gemini Nano model needs to be downloaded');
-        } else {
-          console.log('[AI] Prompt API not available on this browser');
-        }
-      }
-
-      // Check Summarizer API availability
-      if (typeof ai !== 'undefined' && ai.summarizer) {
-        const sumCapabilities = await ai.summarizer.capabilities();
-        if (sumCapabilities.available === 'readily') {
-          console.log('[AI] Summarizer API available');
-          this.summarizer = await ai.summarizer.create({
-            type: 'key-points',
-            format: 'markdown',
-            length: 'medium'
+            systemPrompt: 'You are a concise, actionable text analysis assistant.'
           });
         }
       }
-    } catch (error) {
-      console.log('[AI] Built-in AI not available, falling back to traditional methods:', error);
+      if (ai.summarizer) {
+        const sumCaps = await ai.summarizer.capabilities();
+        if (sumCaps.available === 'readily') {
+          this.summarizer = await ai.summarizer.create({ type: 'key-points', format: 'markdown', length: 'medium' });
+        }
+      }
+    } catch (e) {
+      console.warn('[AI] unavailable, continuing without it', e);
     }
   }
 
-  // AI-powered text analysis
-  async analyzeTextWithAI(text) {
-    if (!text || text.trim().length === 0) {
-      return { error: 'No text provided' };
-    }
-
-    const results = {
-      originalText: text,
-      wordCount: text.split(/\s+/).length,
-      charCount: text.length,
-      aiAnalysis: null,
-      summary: null,
-      timestamp: new Date().toISOString()
-    };
-
-    try {
-      // Use Chrome Built-in AI if available
-      if (this.aiSession) {
-        const prompt = `Analyze this text and provide: 1) Sentiment, 2) Key themes, 3) Readability score, 4) Suggestions for improvement\n\nText: ${text}`;
-        results.aiAnalysis = await this.aiSession.prompt(prompt);
-      }
-
-      // Generate summary if text is long enough
-      if (this.summarizer && text.length > 500) {
-        results.summary = await this.summarizer.summarize(text);
-      }
-
-      // Fallback: Basic analysis without AI
-      if (!results.aiAnalysis) {
-        results.aiAnalysis = this.performBasicAnalysis(text);
-      }
-    } catch (error) {
-      console.error('[AI] Analysis error:', error);
-      results.aiAnalysis = this.performBasicAnalysis(text);
-    }
-
-    return results;
+  // Sanitize and clamp input to avoid excessive payloads and UI stalls
+  sanitizeText(input, maxLen = 8000) {
+    if (!input) return '';
+    const text = String(input).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]+/g, ' ').trim();
+    if (text.length > maxLen) return text.slice(0, maxLen);
+    return text;
   }
 
-  // Fallback: Basic text analysis without AI
+  // Basic non-AI analysis (fast path)
   performBasicAnalysis(text) {
-    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
-    const words = text.split(/\s+/);
-    const avgWordsPerSentence = words.length / sentences.length;
-
+    const t = this.sanitizeText(text, 8000);
+    if (!t) return { error: 'No text provided' };
+    const sentences = t.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const words = t.split(/\s+/).filter(Boolean);
+    const avg = sentences.length ? words.length / sentences.length : words.length;
     return {
       sentiment: 'neutral',
       sentences: sentences.length,
-      avgWordsPerSentence: avgWordsPerSentence.toFixed(1),
-      readability: avgWordsPerSentence < 15 ? 'easy' : avgWordsPerSentence < 25 ? 'moderate' : 'complex',
-      note: 'Basic analysis (AI not available)'
+      wordCount: words.length,
+      charCount: t.length,
+      avgWordsPerSentence: Number.isFinite(avg) ? Number(avg.toFixed(1)) : 0,
+      readability: avg < 15 ? 'easy' : avg < 25 ? 'moderate' : 'complex',
+      note: 'Basic analysis (no on-device AI)'
     };
   }
 
+  // AI-powered analysis with graceful fallback and timeout
+  async analyzeTextWithAI(text, { timeoutMs = 2500 } = {}) {
+    const t = this.sanitizeText(text);
+    if (!t) return { error: 'No text provided' };
+
+    const basic = this.performBasicAnalysis(t);
+    // If no AI, return basic immediately
+    if (!this.aiSession) return { ...basic, aiAnalysis: null, summary: null, timestamp: new Date().toISOString() };
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const prompt = `Analyze the text. Return JSON with keys: sentiment, themes, readabilityNote, suggestions (array of short items). Text:\n\n${t}`;
+      const resp = await this.aiSession.prompt(prompt, { signal: controller.signal });
+      clearTimeout(timer);
+      let aiAnalysis = resp;
+      // If the model returned plain text, wrap it
+      if (typeof aiAnalysis === 'string') aiAnalysis = { raw: aiAnalysis };
+
+      let summary = null;
+      if (this.summarizer && t.length > 500) {
+        try { summary = await this.summarizer.summarize(t); } catch (e) { console.warn('[AI:sum] fail', e); }
+      }
+      return { ...basic, aiAnalysis, summary, timestamp: new Date().toISOString() };
+    } catch (e) {
+      clearTimeout(timer);
+      console.warn('[AI] analysis timeout/fail, using basic', e);
+      return { ...basic, aiAnalysis: null, summary: null, timestamp: new Date().toISOString() };
+    }
+  }
+
   setupEventListeners() {
-    // Phase 1: Security - Proper service worker lifecycle management
     chrome.runtime.onInstalled.addListener((details) => {
       this.createContextMenus();
-      this.setDefaultConfiguration();
-      
-      // Handle updates
+      this.ensureDefaultConfig();
       if (details.reason === 'update') {
-        console.log(`[Update] Updated from version ${details.previousVersion}`);
-        this.handleExtensionUpdate(details.previousVersion);
+        console.log('[Update] from', details.previousVersion);
       }
     });
 
     chrome.contextMenus.onClicked.addListener((info, tab) => {
-      this.handleContextMenuClick(info, tab);
+      this.handleContextMenuClick(info, tab).catch(err => console.error('[ContextMenu]', err));
     });
 
-    // Phase 3: Performance - Proper message passing with async handling
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      this.handleMessage(request, sender, sendResponse);
-      return true; // Keep message channel open for async responses
+      this.handleMessage(request, sender).then((res) => {
+        sendResponse({ success: true, data: res });
+      }).catch(err => {
+        console.error('[Message]', err);
+        sendResponse({ success: false, error: String(err?.message || err) });
+      });
+      return true; // async
     });
 
     chrome.commands.onCommand.addListener((command) => {
-      this.handleKeyboardCommand(command);
-    });
-
-    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-      if (this.autonomousMode && changeInfo.status === 'complete') {
-        this.handleAutonomousExecution(tabId, tab);
+      if (command === 'analyze-page') {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]) this.analyzeCurrentPage(tabs[0].id).catch(e => console.error(e));
+        });
       }
     });
   }
 
   createContextMenus() {
     chrome.contextMenus.removeAll(() => {
-      chrome.contextMenus.create({
-        id: 'analyze-text-ai',
-        title: 'Analyze with AI',
-        contexts: ['selection']
-      });
-
-      chrome.contextMenus.create({
-        id: 'summarize-text',
-        title: 'Summarize',
-        contexts: ['selection']
-      });
-
-      chrome.contextMenus.create({
-        id: 'analyze-page',
-        title: 'Analyze Current Page',
-        contexts: ['page']
-      });
+      chrome.contextMenus.create({ id: 'analyze-text-ai', title: 'Analyze selection', contexts: ['selection'] });
+      chrome.contextMenus.create({ id: 'summarize-text', title: 'Summarize selection', contexts: ['selection'] });
+      chrome.contextMenus.create({ id: 'analyze-page', title: 'Analyze current page', contexts: ['page'] });
     });
   }
 
-  async setDefaultConfiguration() {
-    // Phase 3: Use chrome.storage for persistence
-    const config = {
-      autoAnalysis: false,
-      aiEnabled: true,
-      summaryLength: 'medium',
-      notificationsEnabled: true
-    };
-
-    await chrome.storage.local.set({ config });
-  }
-
-  async handleExtensionUpdate(previousVersion) {
-    // Migrate data if needed
-    console.log(`[Migration] Checking migration from ${previousVersion}`);
-    const data = await chrome.storage.local.get();
-    // Add migration logic here if needed
+  async ensureDefaultConfig() {
+    const defaults = { aiEnabled: true, notificationsEnabled: true, summaryLength: 'medium' };
+    const stored = await chrome.storage.local.get('config');
+    await chrome.storage.local.set({ config: { ...defaults, ...(stored?.config || {}) } });
   }
 
   async handleContextMenuClick(info, tab) {
-    const selectedText = info.selectionText;
+    const tabId = tab?.id;
+    if (!tabId) return;
 
     if (info.menuItemId === 'analyze-text-ai') {
-      const analysis = await this.analyzeTextWithAI(selectedText);
-      this.displayAnalysisResults(analysis, tab.id);
+      const text = this.sanitizeText(info.selectionText || '');
+      const analysis = await this.analyzeTextWithAI(text);
+      await this.storeSession({ lastAnalysis: analysis });
+      this.notify('Selection analyzed', `Words: ${analysis.wordCount}`);
     } else if (info.menuItemId === 'summarize-text') {
-      const summary = await this.generateSummary(selectedText);
-      this.displaySummary(summary, tab.id);
+      const text = this.sanitizeText(info.selectionText || '');
+      const summary = await this.getSummary(text);
+      await this.storeSession({ lastSummary: summary });
+      this.notify('Selection summarized', summary.slice(0, 180));
     } else if (info.menuItemId === 'analyze-page') {
-      this.analyzeCurrentPage(tab.id);
+      await this.analyzeCurrentPage(tabId);
     }
   }
 
-  async generateSummary(text) {
-    if (this.summarizer && text.length > 200) {
-      try {
-        return await this.summarizer.summarize(text);
-      } catch (error) {
-        console.error('[AI] Summarization error:', error);
+  async getSummary(text) {
+    const t = this.sanitizeText(text, 4000);
+    if (!t) return '';
+    if (this.summarizer && t.length > 200) {
+      try { return await this.summarizer.summarize(t); } catch (e) { console.warn('[sum]', e); }
+    }
+    return t.length > 400 ? `${t.slice(0, 400)}…` : t;
+  }
+
+  async handleMessage(request, sender) {
+    switch (request?.action) {
+      case 'analyzeText':
+        return await this.analyzeTextWithAI(request.text);
+      case 'summarize':
+        return { summary: await this.getSummary(request.text) };
+      case 'getPageInfo':
+        return await this.getPageInfo(sender?.tab?.id);
+      case 'extractSelection':
+        return await this.extractSelection(sender?.tab?.id);
+      default:
+        throw new Error('Unknown action');
+    }
+  }
+
+  async extractSelection(tabId) {
+    if (!tabId) return { text: '' };
+    const [res] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const sel = window.getSelection?.();
+        return { text: sel ? String(sel.toString()).trim() : '' };
       }
-    }
-    return text.length > 200 ? text.substring(0, 200) + '...' : text;
-  }
-
-  async handleMessage(request, sender, sendResponse) {
-    try {
-      switch (request.action) {
-        case 'analyzeText':
-          const analysis = await this.analyzeTextWithAI(request.text);
-          sendResponse({ success: true, data: analysis });
-          break;
-
-        case 'summarize':
-          const summary = await this.generateSummary(request.text);
-          sendResponse({ success: true, data: { summary } });
-          break;
-
-        case 'checkAIAvailability':
-          sendResponse({
-            success: true,
-            data: {
-              promptAPI: !!this.aiSession,
-              summarizer: !!this.summarizer
-            }
-          });
-          break;
-
-        case 'getPageInfo':
-          this.getPageInfo(sender.tab.id).then(info => {
-            sendResponse({ success: true, data: info });
-          });
-          break;
-
-        default:
-          sendResponse({ success: false, error: 'Unknown action' });
-      }
-    } catch (error) {
-      console.error('[Message Handler] Error:', error);
-      sendResponse({ success: false, error: error.message });
-    }
-  }
-
-  handleKeyboardCommand(command) {
-    if (command === 'analyze-page') {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]) {
-          this.analyzeCurrentPage(tabs[0].id);
-        }
-      });
-    }
+    });
+    return res?.result || { text: '' };
   }
 
   async analyzeCurrentPage(tabId) {
     try {
-      const results = await chrome.scripting.executeScript({
+      const [res] = await chrome.scripting.executeScript({
         target: { tabId },
-        func: () => {
-          return {
-            title: document.title,
-            text: document.body.innerText,
-            url: window.location.href,
-            forms: document.forms.length,
-            links: document.links.length,
-            images: document.images.length
-          };
-        }
+        func: () => ({
+          title: document.title,
+          text: document.body?.innerText || '',
+          url: location.href,
+          forms: document.forms?.length || 0,
+          links: document.links?.length || 0,
+          images: document.images?.length || 0,
+        })
       });
-
-      if (results[0]?.result) {
-        const pageData = results[0].result;
-        const analysis = await this.analyzeTextWithAI(pageData.text.substring(0, 5000));
-        
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: 'icon48.png',
-          title: 'Page Analysis Complete',
-          message: `Analyzed: ${pageData.title}\nWords: ${analysis.wordCount}\nForms: ${pageData.forms}`,
-          priority: 2
-        });
-
-        // Store analysis in session storage
-        await chrome.storage.session.set({
-          [`analysis_${tabId}`]: { ...analysis, pageData }
-        });
-      }
-    } catch (error) {
-      console.error('[Page Analysis] Error:', error);
+      const page = res?.result || { title: '', text: '' };
+      const analysis = await this.analyzeTextWithAI(page.text.slice(0, 12000));
+      await this.storeSession({ [`analysis_${tabId}`]: { ...analysis, pageData: page } });
+      this.notify('Page analysis complete', `Words: ${analysis.wordCount} | Forms: ${page.forms}`);
+    } catch (e) {
+      console.error('[PageAnalysis]', e);
     }
   }
 
-  async displayAnalysisResults(analysis, tabId) {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      func: (results) => {
-        console.log('[AI Analysis Results]', results);
-        // Results are displayed in popup
-      },
-      args: [analysis]
-    });
-
-    // Store in session for popup access
-    await chrome.storage.session.set({ lastAnalysis: analysis });
-  }
-
-  async displaySummary(summary, tabId) {
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icon48.png',
-      title: 'Text Summary',
-      message: summary.substring(0, 200),
-      priority: 1
-    });
-
-    await chrome.storage.session.set({ lastSummary: summary });
-  }
-
-  async handleAutonomousExecution(tabId, tab) {
-    if (!this.currentTask) return;
-
-    console.log(`[Autonomous] Processing task on tab ${tabId}`);
-    // Autonomous execution logic here
-  }
-
   async getPageInfo(tabId) {
-    const results = await chrome.scripting.executeScript({
+    const [res] = await chrome.scripting.executeScript({
       target: { tabId },
-      func: () => ({
-        url: window.location.href,
-        title: document.title,
-        readyState: document.readyState
-      })
+      func: () => ({ url: location.href, title: document.title, readyState: document.readyState })
     });
-    return results[0]?.result || {};
+    return res?.result || {};
+  }
+
+  async storeSession(obj) {
+    try { await chrome.storage.session.set(obj); } catch (e) { console.warn('[storage:session]', e); }
+  }
+
+  notify(title, message) {
+    try {
+      chrome.notifications?.create?.({ type: 'basic', iconUrl: 'icon48.png', title, message: String(message || '').slice(0, 200), priority: 1 });
+    } catch (e) {
+      // notifications permission may be missing; ignore
+    }
   }
 }
 
-// Initialize the controller
 const controller = new ExtensionController();
 
-// Export for testing
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { ExtensionController };
 }
