@@ -3,168 +3,509 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Text Analyzer</title>
+  <title>Text Analyzer Pro</title>
   <style>
+    :root {
+      --primary-color: #0066cc;
+      --primary-hover: #0052a3;
+      --secondary-color: #6c757d;
+      --success-color: #28a745;
+      --warning-color: #ffc107;
+      --danger-color: #dc3545;
+      --bg-light: #f8f9fa;
+      --border-color: #dee2e6;
+      --text-color: #333;
+      --text-muted: #6c757d;
+    }
+    
+    [data-theme="dark"] {
+      --bg-light: #2d3748;
+      --border-color: #4a5568;
+      --text-color: #e2e8f0;
+      --text-muted: #a0aec0;
+    }
+    
     body {
-      width: 500px;
+      width: 600px;
+      min-height: 400px;
       padding: 20px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       font-size: 14px;
       margin: 0;
+      background-color: white;
+      color: var(--text-color);
+      transition: all 0.2s ease;
     }
+    
+    .dark-theme {
+      background-color: #1a202c !important;
+      color: var(--text-color) !important;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--primary-color);
+    }
+    
     h1 {
       font-size: 20px;
-      margin: 0 0 20px 0;
-      color: #333;
+      margin: 0;
+      color: var(--primary-color);
+      font-weight: 600;
     }
+    
+    .version {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--bg-light);
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .quick-action {
+      flex: 1;
+      padding: 12px 8px;
+      font-size: 12px;
+      border-radius: 8px;
+      border: 2px solid var(--border-color);
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    
+    .quick-action:hover {
+      border-color: var(--primary-color);
+      background: #f0f8ff;
+    }
+    
+    .quick-action.active {
+      border-color: var(--primary-color);
+      background: var(--primary-color);
+      color: white;
+    }
+    
     .info-section {
-      background: #f5f5f5;
+      background: var(--bg-light);
       padding: 15px;
       border-radius: 8px;
       margin-bottom: 20px;
+      border: 1px solid var(--border-color);
     }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    
     .info-item {
-      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
-    .info-item:last-child {
-      margin-bottom: 0;
-    }
+    
     .label {
       font-weight: 600;
-      color: #555;
-      margin-right: 8px;
+      color: var(--text-muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
+    
     .value {
-      color: #333;
+      color: var(--text-color);
+      font-weight: 500;
     }
+    
     .text-preview {
       background: white;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 10px;
-      max-height: 150px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px;
+      max-height: 120px;
       overflow-y: auto;
-      margin-top: 10px;
+      margin-top: 15px;
       word-wrap: break-word;
       white-space: pre-wrap;
       font-size: 13px;
-      color: #666;
+      color: var(--text-muted);
+      line-height: 1.4;
     }
-    .analysis-section {
-      margin-bottom: 20px;
-    }
-    .analysis-results {
-      background: #f9f9f9;
-      border: 1px solid #e0e0e0;
-      border-radius: 4px;
-      padding: 15px;
-      margin-top: 10px;
-    }
-    .result-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid #e8e8e8;
-    }
-    .result-item:last-child {
-      border-bottom: none;
-    }
-    .result-label {
-      font-weight: 500;
-      color: #555;
-    }
-    .result-value {
-      font-weight: 600;
-      color: #0066cc;
-    }
+    
     .button-group {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
-      margin-top: 10px;
+      margin-bottom: 15px;
     }
+    
+    .button-group.triple {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+    
     button {
-      flex: 1;
-      background: #0066cc;
+      background: var(--primary-color);
       color: white;
       border: none;
-      padding: 10px 16px;
+      padding: 12px 16px;
       border-radius: 6px;
       cursor: pointer;
       font-size: 14px;
       font-weight: 500;
-      transition: background 0.2s;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
     }
-    button:hover {
-      background: #0052a3;
+    
+    button:hover:not(:disabled) {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
     }
+    
     button:active {
-      background: #003d7a;
+      transform: translateY(0);
     }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
     button.secondary {
-      background: #6c757d;
+      background: var(--secondary-color);
     }
-    button.secondary:hover {
-      background: #5a6268;
+    
+    button.success {
+      background: var(--success-color);
     }
+    
+    button.small {
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+    
+    .analysis-results {
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 15px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .result-item {
+      text-align: center;
+      padding: 15px;
+      background: var(--bg-light);
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+    
+    .result-value {
+      display: block;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 5px;
+    }
+    
+    .result-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .advanced-section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .metrics-toggle {
+      margin-bottom: 15px;
+    }
+    
+    .expandable {
+      transition: max-height 0.3s ease;
+      overflow: hidden;
+    }
+    
+    .expandable.collapsed {
+      max-height: 0;
+    }
+    
+    .expandable.expanded {
+      max-height: 500px;
+    }
+    
+    .word-frequency {
+      margin-top: 15px;
+    }
+    
+    .word-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .word-item:last-child {
+      border-bottom: none;
+    }
+    
+    .word-bar {
+      flex: 1;
+      height: 4px;
+      background: #eee;
+      border-radius: 2px;
+      margin: 0 10px;
+      position: relative;
+    }
+    
+    .word-bar-fill {
+      height: 100%;
+      background: var(--primary-color);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    
+    .status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--primary-color);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s ease;
+    }
+    
+    .status-bar.active {
+      transform: scaleX(1);
+    }
+    
+    .error-message {
+      background: #fee;
+      border: 1px solid #fcc;
+      color: #c33;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      display: none;
+    }
+    
+    .loading {
+      position: relative;
+    }
+    
+    .loading::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      margin: -10px 0 0 -10px;
+      border: 2px solid transparent;
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
     .no-data {
       text-align: center;
-      color: #999;
+      color: var(--text-muted);
       padding: 40px 20px;
+    }
+    
+    .feature-badge {
+      display: inline-block;
+      background: var(--success-color);
+      color: white;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 8px;
+    }
+    
+    .performance-indicator {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success-color);
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
   </style>
 </head>
 <body>
-  <h1>Text Analyzer</h1>
+  <div class="performance-indicator" title="Extension running optimally"></div>
+  
+  <div class="header">
+    <h1>Text Analyzer Pro</h1>
+    <span class="version">v2.0</span>
+  </div>
+  
+  <div class="quick-actions">
+    <div class="quick-action" id="analyze-page-btn" title="Analyze entire page text">
+      📄 Page
+    </div>
+    <div class="quick-action" id="analyze-selection-btn" title="Analyze selected text">
+      ✂️ Selection
+    </div>
+    <div class="quick-action" id="auto-toggle-btn" title="Toggle auto-analyze mode">
+      🤖 Auto
+    </div>
+    <div class="quick-action" id="options-btn" title="Open extension options">
+      ⚙️ Options
+    </div>
+  </div>
   
   <div id="content">
     <div class="no-data">
-      <p>No text to analyze.</p>
-      <p>Right-click selected text or click the extension icon to capture text.</p>
+      <p><strong>No text to analyze.</strong></p>
+      <p>Use the quick actions above or right-click selected text to capture content.</p>
+      <div class="button-group" style="margin-top: 20px;">
+        <button id="capture-page-btn">📄 Analyze This Page</button>
+        <button id="help-btn" class="secondary">❓ Help</button>
+      </div>
     </div>
   </div>
 
   <div id="analysis-container" style="display: none;">
     <div class="info-section">
-      <div class="info-item">
-        <span class="label">Source:</span>
-        <span class="value" id="source"></span>
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="label">Source</span>
+          <span class="value" id="source">Unknown</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Length</span>
+          <span class="value" id="length">0 chars</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Website</span>
+          <span class="value" id="url-display">N/A</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Analyzed</span>
+          <span class="value" id="timestamp">Just now</span>
+        </div>
       </div>
-      <div class="info-item">
-        <span class="label">Length:</span>
-        <span class="value" id="length"></span>
-      </div>
-      <div class="info-item">
-        <span class="label">Text Preview:</span>
-        <div class="text-preview" id="text-preview"></div>
-      </div>
+      
+      <div class="text-preview" id="text-preview"></div>
     </div>
 
     <div class="analysis-section">
       <div class="button-group">
-        <button id="analyze-btn">Run Analysis</button>
-        <button id="copy-btn" class="secondary">Copy Text</button>
+        <button id="analyze-btn">🔍 Analyze</button>
+        <button id="refresh-btn" class="secondary">🔄 Refresh</button>
       </div>
 
       <div id="analysis-results" class="analysis-results" style="display: none;">
-        <div class="result-item">
-          <span class="result-label">Characters:</span>
-          <span class="result-value" id="char-count"></span>
+        <div class="results-grid">
+          <div class="result-item">
+            <span class="result-value" id="char-count">0</span>
+            <span class="result-label">Characters</span>
+          </div>
+          <div class="result-item">
+            <span class="result-value" id="char-no-space-count">0</span>
+            <span class="result-label">No Spaces</span>
+          </div>
+          <div class="result-item">
+            <span class="result-value" id="word-count">0</span>
+            <span class="result-label">Words</span>
+          </div>
+          <div class="result-item">
+            <span class="result-value" id="line-count">0</span>
+            <span class="result-label">Lines</span>
+          </div>
+          <div class="result-item">
+            <span class="result-value" id="sentence-count">0</span>
+            <span class="result-label">Sentences</span>
+          </div>
+          <div class="result-item">
+            <span class="result-value" id="paragraph-count">0</span>
+            <span class="result-label">Paragraphs</span>
+          </div>
         </div>
-        <div class="result-item">
-          <span class="result-label">Characters (no spaces):</span>
-          <span class="result-value" id="char-no-space-count"></span>
+        
+        <div id="advanced-metrics" class="advanced-section">
+          <button class="metrics-toggle small secondary" id="toggle-advanced">
+            📊 Advanced Metrics <span class="feature-badge">NEW</span>
+          </button>
+          
+          <div id="advanced-content" class="expandable collapsed">
+            <div class="results-grid" style="margin-top: 15px;">
+              <div class="result-item">
+                <span class="result-value" id="avg-word-length">0</span>
+                <span class="result-label">Avg Word Length</span>
+              </div>
+              <div class="result-item">
+                <span class="result-value" id="avg-sentence-length">0</span>
+                <span class="result-label">Avg Sentence Length</span>
+              </div>
+              <div class="result-item">
+                <span class="result-value" id="reading-time">0 min</span>
+                <span class="result-label">Reading Time</span>
+              </div>
+              <div class="result-item">
+                <span class="result-value" id="complexity-score">0</span>
+                <span class="result-label">Readability Score</span>
+              </div>
+            </div>
+            
+            <div id="word-frequency" class="word-frequency">
+              <h4>Most Common Words</h4>
+              <div id="word-frequency-list"></div>
+            </div>
+          </div>
         </div>
-        <div class="result-item">
-          <span class="result-label">Words:</span>
-          <span class="result-value" id="word-count"></span>
-        </div>
-        <div class="result-item">
-          <span class="result-label">Lines:</span>
-          <span class="result-value" id="line-count"></span>
+        
+        <div class="button-group triple" style="margin-top: 20px;">
+          <button id="copy-btn" class="secondary">📋 Copy</button>
+          <button id="export-btn" class="secondary">💾 Export</button>
+          <button id="clear-btn" class="secondary">🗑️ Clear</button>
         </div>
       </div>
     </div>
   </div>
+  
+  <div id="error-message" class="error-message"></div>
+  <div class="status-bar" id="status-bar"></div>
 
   <script src="popup.js"></script>
 </body>
