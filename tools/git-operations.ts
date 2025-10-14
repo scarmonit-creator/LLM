@@ -16,7 +16,19 @@ export const gitOperations: Tool = {
     properties: {
       operation: {
         type: 'string',
-        enum: ['clone', 'status', 'add', 'commit', 'push', 'pull', 'branch', 'checkout', 'merge', 'log', 'diff'],
+        enum: [
+          'clone',
+          'status',
+          'add',
+          'commit',
+          'push',
+          'pull',
+          'branch',
+          'checkout',
+          'merge',
+          'log',
+          'diff',
+        ],
         description: 'Git operation to perform',
       },
       repository: {
@@ -77,7 +89,7 @@ export const gitOperations: Tool = {
           break;
 
         case 'pull':
-          command = `git pull`;
+          command = 'git pull';
           break;
 
         case 'branch':

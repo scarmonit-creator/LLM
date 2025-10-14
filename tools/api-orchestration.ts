@@ -60,16 +60,7 @@ export const apiOrchestration: Tool = {
   },
 
   async execute(args: any): Promise<any> {
-    const {
-      method,
-      url,
-      headers = {},
-      body,
-      params,
-      timeout = 30000,
-      auth,
-      retries = 0,
-    } = args;
+    const { method, url, headers = {}, body, params, timeout = 30000, auth, retries = 0 } = args;
 
     try {
       // Configure authentication
@@ -125,7 +116,7 @@ export const apiOrchestration: Tool = {
           lastError = error;
           if (attempt < retries) {
             // Wait before retry (exponential backoff)
-            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
             continue;
           }
         }

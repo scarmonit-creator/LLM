@@ -44,8 +44,9 @@ class ComputeOptimalPlanner {
     const recommendedTokens = Math.min(this.tokenBudget, 100e9 * tokenFactor);
     let recommendedParams = clamp(this.baseParams * paramFactor, 0.5e9, this.maxParams);
 
-    const rationale = `Favoring tokens over parameters per compute-optimal scaling. ` +
-      `Tokens=${(recommendedTokens/1e9).toFixed(1)}B, Params=${(recommendedParams/1e9).toFixed(1)}B.`;
+    const rationale =
+      'Favoring tokens over parameters per compute-optimal scaling. ' +
+      `Tokens=${(recommendedTokens / 1e9).toFixed(1)}B, Params=${(recommendedParams / 1e9).toFixed(1)}B.`;
 
     return { recommendedParams, recommendedTokens, rationale };
   }
@@ -69,7 +70,7 @@ class DataScheduler {
    */
   buildMix() {
     const totalWeight = this.datasets.reduce((s, d) => s + (d.weight || 1), 0);
-    const plan = this.datasets.map(d => {
+    const plan = this.datasets.map((d) => {
       const share = (d.weight || 1) / totalWeight;
       const tokens = Math.floor(this.tokenBudget * share);
       return { ...d, plannedTokens: tokens, share };
@@ -115,7 +116,15 @@ class PreferenceInterface {
   }
 
   async recordPreference({ prompt, responseA, responseB, choice, annotatorId }) {
-    const rec = { id: `${Date.now()}-${Math.random()}`, prompt, responseA, responseB, choice, annotatorId, ts: Date.now() };
+    const rec = {
+      id: `${Date.now()}-${Math.random()}`,
+      prompt,
+      responseA,
+      responseB,
+      choice,
+      annotatorId,
+      ts: Date.now(),
+    };
     this.store.push(rec);
     return rec;
   }
@@ -151,7 +160,7 @@ class RewardModel {
   // Train from preference pairs (scaffold)
   async trainFromPreferences(preferences) {
     // Placeholder: update calibration based on simple stats
-    const scores = preferences.map(p => (p.choice === 'A' ? 1 : -1));
+    const scores = preferences.map((p) => (p.choice === 'A' ? 1 : -1));
     const mean = scores.reduce((s, x) => s + x, 0) / (scores.length || 1);
     const variance = scores.reduce((s, x) => s + (x - mean) ** 2, 0) / (scores.length || 1);
     const std = Math.sqrt(variance) || 1;
@@ -240,11 +249,7 @@ class PPOTrainer {
     for (let i = 1; i <= a.length; i++) {
       for (let j = 1; j <= b.length; j++) {
         const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-        dp[i][j] = Math.min(
-          dp[i - 1][j] + 1,
-          dp[i][j - 1] + 1,
-          dp[i - 1][j - 1] + cost
-        );
+        dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
       }
     }
     return dp[a.length][b.length];
@@ -257,7 +262,8 @@ class PPOTrainer {
 class TrainingOrchestrator {
   constructor(options = {}) {
     this.planner = options.planner || new ComputeOptimalPlanner(options.compute);
-    this.dataScheduler = options.dataScheduler || new DataScheduler({ tokenBudget: this.planner.tokenBudget });
+    this.dataScheduler =
+      options.dataScheduler || new DataScheduler({ tokenBudget: this.planner.tokenBudget });
     this.sft = options.sft || new SFTPipeline(options.sftOptions);
     this.preference = options.preference || new PreferenceInterface();
     this.rewardModel = options.rewardModel || new RewardModel();

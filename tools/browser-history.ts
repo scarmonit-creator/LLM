@@ -87,9 +87,7 @@ export default class BrowserHistoryTool implements Tool {
       paths.set(BrowserType.FIREFOX, [
         path.join(homeDir, 'Library/Application Support/Firefox/Profiles'),
       ]);
-      paths.set(BrowserType.SAFARI, [
-        path.join(homeDir, 'Library/Safari'),
-      ]);
+      paths.set(BrowserType.SAFARI, [path.join(homeDir, 'Library/Safari')]);
       paths.set(BrowserType.EDGE, [
         path.join(homeDir, 'Library/Application Support/Microsoft Edge'),
       ]);
@@ -101,12 +99,8 @@ export default class BrowserHistoryTool implements Tool {
         path.join(homeDir, '.config/google-chrome'),
         path.join(homeDir, '.config/chromium'),
       ]);
-      paths.set(BrowserType.FIREFOX, [
-        path.join(homeDir, '.mozilla/firefox'),
-      ]);
-      paths.set(BrowserType.BRAVE, [
-        path.join(homeDir, '.config/BraveSoftware/Brave-Browser'),
-      ]);
+      paths.set(BrowserType.FIREFOX, [path.join(homeDir, '.mozilla/firefox')]);
+      paths.set(BrowserType.BRAVE, [path.join(homeDir, '.config/BraveSoftware/Brave-Browser')]);
     }
 
     return paths;
@@ -165,12 +159,14 @@ export default class BrowserHistoryTool implements Tool {
     }
   }
 
-  async getHistory(options: {
-    browser?: string;
-    maxResults?: number;
-    startTime?: number;
-    endTime?: number;
-  } = {}): Promise<HistoryEntry[]> {
+  async getHistory(
+    options: {
+      browser?: string;
+      maxResults?: number;
+      startTime?: number;
+      endTime?: number;
+    } = {}
+  ): Promise<HistoryEntry[]> {
     const entries: HistoryEntry[] = [];
     const browserPaths = this.getBrowserPaths();
 
@@ -199,11 +195,11 @@ export default class BrowserHistoryTool implements Tool {
       // Note: In a real implementation, this would use sqlite3 or better-sqlite3
       // to read the database. For this example, we'll return empty array
       // as the focus is on the tool structure and capabilities.
-      
+
       // Example implementation would look like:
       // const db = new Database(_dbPath, { readonly: true });
       // const rows = db.prepare('SELECT url, title, visit_count, last_visit_time FROM urls').all();
-      // 
+      //
       // for (const row of rows) {
       //   entries.push({
       //     url: row.url,
@@ -239,8 +235,7 @@ export default class BrowserHistoryTool implements Tool {
           const query = (params.query as string).toLowerCase();
           const results = history.filter(
             (entry) =>
-              entry.url.toLowerCase().includes(query) ||
-              entry.title.toLowerCase().includes(query)
+              entry.url.toLowerCase().includes(query) || entry.title.toLowerCase().includes(query)
           );
           return JSON.stringify(results, null, 2);
         }

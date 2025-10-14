@@ -60,9 +60,7 @@ export class AIBridge {
   unregisterClient(clientId) {
     if (!this.clients.has(clientId)) return;
     this.clients.delete(clientId);
-    this.logger.log(
-      `[Bridge] Client disconnected: ${clientId} (${this.clients.size} remaining)`
-    );
+    this.logger.log(`[Bridge] Client disconnected: ${clientId} (${this.clients.size} remaining)`);
   }
 
   listClients() {
@@ -97,9 +95,7 @@ export class AIBridge {
           this.messageQueue.set(enriched.to, []);
         }
         this.messageQueue.get(enriched.to).push(enriched);
-        this.logger.log(
-          `[Bridge] Queued envelope ${enriched.id} for ${enriched.to} (offline)`
-        );
+        this.logger.log(`[Bridge] Queued envelope ${enriched.id} for ${enriched.to} (offline)`);
       }
     } else {
       this._broadcast(enriched.from, enriched);

@@ -125,7 +125,7 @@ export const testVerification: Tool = {
           }
 
           return {
-            success: results.every(r => r.success),
+            success: results.every((r) => r.success),
             operation,
             verification: results,
             timestamp: new Date().toISOString(),

@@ -63,7 +63,12 @@ async function waitForEnvelope(ws, predicate, timeoutMs = 2000) {
 }
 
 test('broadcast envelopes reach all connected agents', async () => {
-  const server = await createAIBridgeServer({ wsPort: 0, httpPort: 0, historyLimit: 50, logger: { log: () => {}, error: () => {} } });
+  const server = await createAIBridgeServer({
+    wsPort: 0,
+    httpPort: 0,
+    historyLimit: 50,
+    logger: { log: () => {}, error: () => {} },
+  });
   let coder;
   let reviewer;
 
@@ -92,7 +97,9 @@ test('broadcast envelopes reach all connected agents', async () => {
     assert.equal(envelope.payload.summary, 'Draft created');
     assert.equal(envelope.to, null);
 
-    const historyResponse = await fetch(`http://127.0.0.1:${server.ports.http}/history?limit=5`).then((res) => res.json());
+    const historyResponse = await fetch(
+      `http://127.0.0.1:${server.ports.http}/history?limit=5`
+    ).then((res) => res.json());
     assert.equal(historyResponse.history.at(-1).intent, 'task.update');
   } finally {
     coder?.close();
@@ -102,12 +109,20 @@ test('broadcast envelopes reach all connected agents', async () => {
 });
 
 test('direct envelopes queue for offline agents', async () => {
-  const server = await createAIBridgeServer({ wsPort: 0, httpPort: 0, historyLimit: 50, logger: { log: () => {}, error: () => {} } });
+  const server = await createAIBridgeServer({
+    wsPort: 0,
+    httpPort: 0,
+    historyLimit: 50,
+    logger: { log: () => {}, error: () => {} },
+  });
   let orchestrator;
   let docAgent;
 
   try {
-    orchestrator = await connectClient(server.ports.ws, { clientId: 'orchestrator', role: 'orchestrator' });
+    orchestrator = await connectClient(server.ports.ws, {
+      clientId: 'orchestrator',
+      role: 'orchestrator',
+    });
 
     orchestrator.send(
       JSON.stringify({

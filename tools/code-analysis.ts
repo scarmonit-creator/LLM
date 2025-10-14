@@ -100,12 +100,12 @@ export const codeAnalysis: Tool = {
           // Static code analysis
           const stats = await fs.stat(path);
           let files: string[] = [];
-          
+
           if (stats.isDirectory()) {
             const dirContents = await fs.readdir(path, { recursive: true, withFileTypes: true });
             files = dirContents
-              .filter(dirent => dirent.isFile())
-              .map(dirent => `${path}/${dirent.name}`);
+              .filter((dirent) => dirent.isFile())
+              .map((dirent) => `${path}/${dirent.name}`);
           } else {
             files = [path];
           }
@@ -119,7 +119,7 @@ export const codeAnalysis: Tool = {
           for (const file of files) {
             const ext = file.split('.').pop() || 'unknown';
             analysis.fileTypes[ext] = (analysis.fileTypes[ext] || 0) + 1;
-            
+
             try {
               const fileContent = await fs.readFile(file, 'utf-8');
               analysis.totalLines += fileContent.split('\n').length;
@@ -163,11 +163,11 @@ export const codeAnalysis: Tool = {
           // Apply code patch
           if (!path) throw new Error('Path required for patch operation');
           if (!content) throw new Error('Patch content required');
-          
+
           const originalContent = await fs.readFile(path, 'utf-8');
           // Apply patch (simplified - in production use a proper patch library)
           await fs.writeFile(path, content, 'utf-8');
-          
+
           result = {
             success: true,
             path,
@@ -179,7 +179,7 @@ export const codeAnalysis: Tool = {
         case 'fix':
           // Comprehensive auto-fix
           const fixes = [];
-          
+
           // Run linter with fixes
           try {
             await execAsync(`npx eslint ${path} --fix`);
@@ -187,7 +187,7 @@ export const codeAnalysis: Tool = {
           } catch (e) {
             // Continue even if linting fails
           }
-          
+
           // Run formatter
           try {
             await execAsync(`npx prettier ${path} --write`);
@@ -195,7 +195,7 @@ export const codeAnalysis: Tool = {
           } catch (e) {
             // Continue even if formatting fails
           }
-          
+
           result = {
             success: true,
             path,

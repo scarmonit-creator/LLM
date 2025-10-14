@@ -1,7 +1,7 @@
 /**
  * Knowledge Graph Integration for Structured Fact Grounding
  * Implements Issue #21: Integrate knowledge graphs for structured fact grounding
- * 
+ *
  * Features:
  * - Entity linking and recognition
  * - Knowledge graph retrieval (Wikidata, ConceptNet support)
@@ -17,14 +17,14 @@ const ENTITY_TYPES = {
   LOCATION: 'location',
   DATE: 'date',
   CONCEPT: 'concept',
-  EVENT: 'event'
+  EVENT: 'event',
 };
 
 // Knowledge graph sources
 const KG_SOURCES = {
   WIKIDATA: 'wikidata',
   CONCEPTNET: 'conceptnet',
-  CUSTOM: 'custom'
+  CUSTOM: 'custom',
 };
 
 /**
@@ -39,9 +39,11 @@ class EntityLinker {
   _buildEntityPatterns() {
     return {
       [ENTITY_TYPES.PERSON]: /\b([A-Z][a-z]+ [A-Z][a-z]+)\b/g,
-      [ENTITY_TYPES.ORGANIZATION]: /\b([A-Z][A-Za-z]+ (?:Inc|Corp|Ltd|LLC|Foundation|University))\b/g,
+      [ENTITY_TYPES.ORGANIZATION]:
+        /\b([A-Z][A-Za-z]+ (?:Inc|Corp|Ltd|LLC|Foundation|University))\b/g,
       [ENTITY_TYPES.LOCATION]: /\b([A-Z][a-z]+(?:, [A-Z][a-z]+)*)\b/g,
-      [ENTITY_TYPES.DATE]: /\b(\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4}|(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4})\b/g
+      [ENTITY_TYPES.DATE]:
+        /\b(\d{4}|\d{1,2}\/\d{1,2}\/\d{2,4}|(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4})\b/g,
     };
   }
 
@@ -52,7 +54,7 @@ class EntityLinker {
    */
   extractEntities(text) {
     const entities = [];
-    
+
     for (const [type, pattern] of Object.entries(this.entityPatterns)) {
       const matches = text.matchAll(pattern);
       for (const match of matches) {
@@ -60,12 +62,12 @@ class EntityLinker {
           text: match[1] || match[0],
           type,
           confidence: 0.8,
-          position: match.index
+          position: match.index,
         });
       }
     }
 
-    return entities.filter(e => e.confidence >= this.threshold);
+    return entities.filter((e) => e.confidence >= this.threshold);
   }
 
   /**
@@ -79,7 +81,7 @@ class EntityLinker {
     return {
       ...entity,
       kgId: `${source}:${entity.text.replace(/\s+/g, '_')}`,
-      kgSource: source
+      kgSource: source,
     };
   }
 }
@@ -121,10 +123,10 @@ class KGRetriever {
       properties: {
         type: 'Q5', // Wikidata human
         instanceOf: ['person'],
-        relations: []
+        relations: [],
       },
       facts: [],
-      neighbors: []
+      neighbors: [],
     };
   }
 
@@ -136,17 +138,17 @@ class KGRetriever {
    */
   async retrieveNeighborhood(entityId, hops = 1) {
     if (hops > this.maxHops) hops = this.maxHops;
-    
+
     const visited = new Set();
     const results = [];
-    
+
     await this._exploreNeighbors(entityId, hops, visited, results);
     return results;
   }
 
   async _exploreNeighbors(entityId, remainingHops, visited, results) {
     if (remainingHops <= 0 || visited.has(entityId)) return;
-    
+
     visited.add(entityId);
     const entity = await this.retrieve(entityId);
     results.push(entity);
@@ -169,15 +171,15 @@ class GraphToTextConverter {
 
   _buildTemplates() {
     return {
-      'instanceOf': (subject, object) => `${subject} is a ${object}`,
-      'birthDate': (subject, date) => `${subject} was born on ${date}`,
-      'birthPlace': (subject, place) => `${subject} was born in ${place}`,
-      'occupation': (subject, job) => `${subject} works as a ${job}`,
-      'founder': (org, person) => `${org} was founded by ${person}`,
-      'headquarters': (org, location) => `${org} is headquartered in ${location}`,
-      'partOf': (part, whole) => `${part} is part of ${whole}`,
-      'locatedIn': (entity, location) => `${entity} is located in ${location}`,
-      'default': (subject, relation, object) => `${subject} ${relation} ${object}`
+      instanceOf: (subject, object) => `${subject} is a ${object}`,
+      birthDate: (subject, date) => `${subject} was born on ${date}`,
+      birthPlace: (subject, place) => `${subject} was born in ${place}`,
+      occupation: (subject, job) => `${subject} works as a ${job}`,
+      founder: (org, person) => `${org} was founded by ${person}`,
+      headquarters: (org, location) => `${org} is headquartered in ${location}`,
+      partOf: (part, whole) => `${part} is part of ${whole}`,
+      locatedIn: (entity, location) => `${entity} is located in ${location}`,
+      default: (subject, relation, object) => `${subject} ${relation} ${object}`,
     };
   }
 
@@ -199,8 +201,8 @@ class GraphToTextConverter {
    */
   convertToText(facts) {
     if (!facts || facts.length === 0) return '';
-    
-    const sentences = facts.map(fact => this.convert(fact));
+
+    const sentences = facts.map((fact) => this.convert(fact));
     return sentences.join('. ') + '.';
   }
 }
@@ -222,7 +224,7 @@ class KGFactChecker {
    */
   async checkClaim(claim, entities) {
     const results = [];
-    
+
     for (const entity of entities) {
       const kgFacts = await this.retriever.retrieve(entity.kgId);
       const match = this._matchClaimToFacts(claim, kgFacts);
@@ -230,19 +232,19 @@ class KGFactChecker {
     }
 
     const avgConfidence = results.reduce((sum, r) => sum + r.confidence, 0) / results.length;
-    
+
     return {
       supported: avgConfidence >= this.strictness,
       confidence: avgConfidence,
       evidence: results,
-      contradictions: results.filter(r => r.confidence < 0.3)
+      contradictions: results.filter((r) => r.confidence < 0.3),
     };
   }
 
   _matchClaimToFacts(claim, kgFacts) {
     // Simplified matching (in production: use semantic similarity)
     const claimLower = claim.toLowerCase();
-    
+
     for (const fact of kgFacts.facts || []) {
       const factText = fact.text ? fact.text.toLowerCase() : '';
       if (claimLower.includes(factText) || factText.includes(claimLower)) {
@@ -273,20 +275,16 @@ class KnowledgeGraphIntegration {
   async augmentQuery(query) {
     // Extract entities
     const entities = this.entityLinker.extractEntities(query);
-    
+
     // Link to KG
-    const linkedEntities = await Promise.all(
-      entities.map(e => this.entityLinker.linkToKG(e))
-    );
+    const linkedEntities = await Promise.all(entities.map((e) => this.entityLinker.linkToKG(e)));
 
     // Retrieve KG context
-    const kgContext = await Promise.all(
-      linkedEntities.map(e => this.retriever.retrieve(e.kgId))
-    );
+    const kgContext = await Promise.all(linkedEntities.map((e) => this.retriever.retrieve(e.kgId)));
 
     // Convert to text
     const contextText = kgContext
-      .map(ctx => this.converter.convertToText(ctx.facts))
+      .map((ctx) => this.converter.convertToText(ctx.facts))
       .join('\n\n');
 
     return {
@@ -294,7 +292,7 @@ class KnowledgeGraphIntegration {
       entities: linkedEntities,
       kgContext,
       contextText,
-      augmentedQuery: `${query}\n\nContext from knowledge graph:\n${contextText}`
+      augmentedQuery: `${query}\n\nContext from knowledge graph:\n${contextText}`,
     };
   }
 
@@ -307,24 +305,22 @@ class KnowledgeGraphIntegration {
   async verifyResponse(response, query) {
     // Extract entities from response
     const entities = this.entityLinker.extractEntities(response);
-    const linkedEntities = await Promise.all(
-      entities.map(e => this.entityLinker.linkToKG(e))
-    );
+    const linkedEntities = await Promise.all(entities.map((e) => this.entityLinker.linkToKG(e)));
 
     // Check each claim
-    const sentences = response.split(/[.!?]/).filter(s => s.trim());
+    const sentences = response.split(/[.!?]/).filter((s) => s.trim());
     const verifications = await Promise.all(
-      sentences.map(claim => this.factChecker.checkClaim(claim, linkedEntities))
+      sentences.map((claim) => this.factChecker.checkClaim(claim, linkedEntities))
     );
 
-    const overallSupport = verifications.filter(v => v.supported).length / verifications.length;
+    const overallSupport = verifications.filter((v) => v.supported).length / verifications.length;
 
     return {
       verified: overallSupport >= 0.7,
       overallSupport,
       claimVerifications: verifications,
       unsupportedClaims: sentences.filter((_, i) => !verifications[i].supported),
-      contradictions: verifications.flatMap(v => v.contradictions)
+      contradictions: verifications.flatMap((v) => v.contradictions),
     };
   }
 
@@ -337,10 +333,10 @@ class KnowledgeGraphIntegration {
   async runPipeline(query, generateFn) {
     // Augment query with KG
     const augmented = await this.augmentQuery(query);
-    
+
     // Generate response (using external LLM)
     const response = await generateFn(augmented.augmentedQuery);
-    
+
     // Verify response
     const verification = await this.verifyResponse(response, query);
 
@@ -351,7 +347,7 @@ class KnowledgeGraphIntegration {
       kgContext: augmented.kgContext,
       response,
       verification,
-      trustworthy: verification.verified
+      trustworthy: verification.verified,
     };
   }
 }
@@ -364,5 +360,5 @@ module.exports = {
   GraphToTextConverter,
   KGFactChecker,
   ENTITY_TYPES,
-  KG_SOURCES
+  KG_SOURCES,
 };
