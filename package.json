@@ -1,13 +1,14 @@
 {
   "name": "llm",
-  "version": "1.1.1",
-  "description": "LLM integration project with Claude, A2A, and browser history access - Optimized Version",
-  "main": "src/ai-bridge.js",
+  "version": "1.2.0",
+  "description": "LLM integration project with Claude, A2A, and browser history access - Production Optimized",
+  "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node src/ai-bridge.js",
-    "start:server": "npm run build && node server.js",
+    "start": "npm run build:tools && node server.js",
+    "start:server": "npm run build:tools && node server.js",
     "start:bridge": "node src/ai-bridge.js",
+    "start:optimized": "node src/ai-bridge-optimized.js",
     "start:orchestrator": "tsx orchestrator.ts",
     "start:a2a": "tsx src/a2a-agent-server.ts",
     "chat": "node src/chat-launcher.js",
@@ -16,13 +17,16 @@
     "bridge:optimized": "node src/ai-bridge-optimized.js",
     "bridge:selection-wiring": "node src/wiring/selection-wiring.js",
     "agents:coordinator": "node src/agents/agent-coordinator.js",
+    "build": "npm run build:tools && tsc",
+    "build:tools": "node scripts/build-tools.js",
+    "build:optimized": "npm run build:tools && tsc --build --incremental",
+    "prebuild": "npm run build:tools",
     "optimize": "node scripts/optimize-project.js",
     "optimize:full": "npm run optimize && npm run lint && npm run format && npm run test:coverage",
     "optimize:text-selection": "node scripts/optimize-text-selection.js",
     "optimize:current-tab": "node scripts/optimize-text-selection.js",
     "performance:analyze": "node scripts/optimize-text-selection.js",
-    "performance:monitor": "node -e \"require('./tools/performance-optimizer.js').performanceOptimizer.execute({operation: 'monitor'})\"  ",
-    "error:analyze": "node -e \"require('./tools/error-handler.js').errorHandler.execute({operation: 'analyze'})\" ",
+    "performance:monitor": "node scripts/performance-optimizer.js",
     "cloud-sql:setup": "node scripts/cloud-sql-setup.js",
     "cloud-sql:persist": "node scripts/cloud-sql-setup.js",
     "test:bridge": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test tests/ai-bridge.test.js",
@@ -50,8 +54,6 @@
     "coverage:e2e": "c8 npm run test:e2e",
     "coverage:full": "c8 npm run test:full",
     "coverage:all": "c8 npm run test:all",
-    "build": "tsc",
-    "build:optimized": "tsc --build --incremental",
     "bundle:chat": "esbuild src/chat-launcher.js --bundle --platform=node --format=cjs --outfile=build/chat-launcher.cjs",
     "build:chat-exe": "npm run build --silent && npm run bundle:chat --silent && pkg build/chat-launcher.cjs --compress GZip --targets node18-win-x64 --output release/LLMChat.exe",
     "typecheck": "tsc --noEmit",
@@ -69,9 +71,10 @@
     "deps:update": "npm update && npm audit fix",
     "security:audit": "npm audit",
     "security:fix": "npm audit fix",
-    "dev": "tsx --watch src/ai-bridge.ts",
+    "dev": "npm run build:tools && tsx --watch src/ai-bridge.ts",
     "dev:orchestrator": "tsx --watch orchestrator.ts",
-    "dev:server": "npm run build:optimized && node --watch server.js"
+    "dev:server": "npm run build:tools && node --watch server.js",
+    "postinstall": "npm run build:tools"
   },
   "keywords": [
     "llm",
@@ -87,7 +90,8 @@
     "cloud-sql",
     "persistence",
     "error-handling",
-    "monitoring"
+    "monitoring",
+    "production-ready"
   ],
   "author": "scarmonit-creator",
   "license": "MIT",
@@ -134,6 +138,9 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^3.2.4"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^11.3.0"
   },
   "pkg": {
     "scripts": [
