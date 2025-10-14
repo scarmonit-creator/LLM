@@ -1,15 +1,20 @@
 app = "llm-ai-bridge"
 primary_region = "sjc"
+kill_signal = "SIGINT"
+kill_timeout = "10s"
 
 [build]
   dockerfile = "Dockerfile"
 
 [deploy]
   strategy = "rolling"
-
+  max_unavailable = 0.33
+  wait_timeout = "10m"
+  
 [env]
   NODE_ENV = "production"
   PORT = "8080"
+  NODE_OPTIONS = "--max-old-space-size=450 --gc-interval=100 --optimize-for-size"
   AI_BRIDGE_HISTORY_LIMIT = "1000"
   AI_BRIDGE_MAX_QUEUE = "2000"
   AI_BRIDGE_CORS_ORIGINS = "*"
@@ -17,18 +22,31 @@ primary_region = "sjc"
   AI_BRIDGE_CLEANUP_INTERVAL_MS = "60000"
   AI_BRIDGE_RATE_WINDOW_MS = "60000"
   AI_BRIDGE_RATE_MAX = "200"
-
+  # Performance optimizations
+  UV_THREADPOOL_SIZE = "16"
+  NODE_MAX_OLD_SPACE_SIZE = "450"
+  
+[experimental]
+  auto_rollback = true
+  enable_consul = true
+  
 [http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 0
+  max_machines_running = 3
   
   [[http_service.concurrency]]
     type = "connections"
     hard_limit = 1000
     soft_limit = 500
+    
+  [[http_service.concurrency]]
+    type = "requests"
+    hard_limit = 2000
+    soft_limit = 1000
   
   [http_service.checks]
     grace_period = "30s"
@@ -37,12 +55,44 @@ primary_region = "sjc"
     path = "/health"
     timeout = "10s"
     headers = { "User-Agent" = "fly-health-check" }
+    tls_skip_verify = false
+    
+    [[http_service.checks.http_headers]]
+    name = "Cache-Control"
+    value = "no-cache"
 
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
   memory_mb = 512
-
+  
+  # Auto-scaling configuration
+  [[vm.processes]]
+  app = "bridge"
+  entrypoint = ["npm", "start"]
+  
+  [[vm.processes.env]]
+  PROCESS_TYPE = "web"
+  
 [metrics]
   port = 9091
   path = "/metrics"
+  
+# Enhanced logging for performance monitoring
+[logging]
+  format = "json"
+  level = "info"
+  
+# Resource optimization
+[resource_limits]
+  memory = "512MB"
+  cpu = "1.0"
+  
+# Network optimizations
+[network]
+  ipv6 = false  # Disable if not needed for performance
+  
+# Backup configuration
+[backup]
+  schedule = "@daily"
+  retention = "7d"
