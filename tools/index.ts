@@ -67,4 +67,11 @@ export const tools: ToolDefinition[] = [
   // Placeholder for future tool integrations
 ];
 
-export { BrowserHistoryTool, gitOperations, emailIntegration, apiOrchestration, codeAnalysis, testVerification };
+export {
+  BrowserHistoryTool,
+  gitOperations,
+  emailIntegration,
+  apiOrchestration,
+  codeAnalysis,
+  testVerification,
+};
