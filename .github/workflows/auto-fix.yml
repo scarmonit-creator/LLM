@@ -77,3 +77,5 @@ jobs:
         title: 'Auto-fix: Apply automated fixes'
         body: 'This PR applies automated fixes from linting, formatting, and other automated tools.'
         branch: auto-fix-${{ github.run_id }}
+        base: main
+        delete-branch: true
