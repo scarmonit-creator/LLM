@@ -244,14 +244,12 @@ class KGFactChecker {
   _matchClaimToFacts(claim, kgFacts) {
     // Simplified matching (in production: use semantic similarity)
     const claimLower = claim.toLowerCase();
-
     for (const fact of kgFacts.facts || []) {
       const factText = fact.text ? fact.text.toLowerCase() : '';
       if (claimLower.includes(factText) || factText.includes(claimLower)) {
         return { confidence: 0.9, fact };
       }
     }
-
     return { confidence: 0.5, fact: null };
   }
 }
@@ -302,7 +300,7 @@ class KnowledgeGraphIntegration {
    * @param {string} query - Original query
    * @returns {Promise<Object>} Verification result
    */
-  async verifyResponse(response, query) {
+  async verifyResponse(response, _query) {
     // Extract entities from response
     const entities = this.entityLinker.extractEntities(response);
     const linkedEntities = await Promise.all(entities.map((e) => this.entityLinker.linkToKG(e)));
