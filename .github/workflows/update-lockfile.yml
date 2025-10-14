@@ -2,6 +2,7 @@ name: Update package-lock.json
 
 permissions:
   contents: write
+  pull-requests: write
 
 on:
   workflow_dispatch:
@@ -29,10 +30,40 @@ jobs:
       - name: Generate new lock file
         run: npm install --package-lock-only
       
-      - name: Commit and push lock file
+      - name: Check for changes
+        id: verify-changed-files
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add package-lock.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: Update package-lock.json [skip ci]" && git push)
-        continue-on-error: false
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected in package-lock.json"
+            git status --short
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes detected"
+          fi
+      
+      - name: Create Pull Request for lockfile update
+        if: steps.verify-changed-files.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: Update package-lock.json [skip ci]'
+          title: 'chore: Update package-lock.json'
+          body: |
+            ## Package Lock Update
+            
+            This PR updates the `package-lock.json` file to synchronize with changes in `package.json`.
+            
+            ### Changes
+            - Updated package-lock.json based on package.json modifications
+            
+            **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            This PR was created to comply with branch protection rules that require changes via pull request.
+          branch: update-lockfile-${{ github.run_id }}
+          base: main
+          delete-branch: true
+          labels: |
+            automated
+            lockfile
+            maintenance

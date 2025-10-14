@@ -1,8 +1,12 @@
 name: Fix package-lock.json
+
 on:
   workflow_dispatch:
+
 permissions:
   contents: write
+  pull-requests: write
+
 jobs:
   fix-lockfile:
     runs-on: ubuntu-latest
@@ -11,6 +15,7 @@ jobs:
     - uses: actions/checkout@v5
       with:
         fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Use Node.js
       uses: actions/setup-node@v5
@@ -23,11 +28,42 @@ jobs:
     - name: Generate new package-lock.json
       run: npm install
     
-    - name: Commit and push updated package-lock.json
+    - name: Check for changes
+      id: verify-changed-files
       run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add package-lock.json
-        git commit -m "fix: regenerate package-lock.json to sync with package.json [skip ci]" || echo "No changes to commit"
-        git pull --rebase origin main
-        git push
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "Changes detected in package-lock.json"
+          git status --short
+        else
+          echo "changed=false" >> $GITHUB_OUTPUT
+          echo "No changes detected"
+        fi
+    
+    - name: Create Pull Request for lockfile fix
+      if: steps.verify-changed-files.outputs.changed == 'true'
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'fix: regenerate package-lock.json to sync with package.json [skip ci]'
+        title: 'fix: Regenerate package-lock.json'
+        body: |
+          ## Package Lock Fix
+          
+          This PR regenerates the `package-lock.json` file to synchronize with `package.json` and resolve any conflicts or inconsistencies.
+          
+          ### Changes
+          - Regenerated package-lock.json from scratch
+          - Resolved dependency version conflicts
+          - Ensured lock file consistency with package.json
+          
+          **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
+          This PR was created to comply with branch protection rules that require changes via pull request.
+        branch: fix-lockfile-${{ github.run_id }}
+        base: main
+        delete-branch: true
+        labels: |
+          automated
+          lockfile
+          bugfix
