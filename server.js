@@ -2,20 +2,45 @@ const express = require('express');
 const { BrowserHistoryTool } = require('./tools/browser-history');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 8080;
 
 // Initialize BrowserHistoryTool with autoSync
 const tool = new BrowserHistoryTool({ autoSync: true });
 
+// Performance metrics tracking
+let metrics = {
+  requests: 0,
+  errors: 0,
+  uptime: Date.now(),
+  memory: process.memoryUsage(),
+  lastUpdated: new Date().toISOString()
+};
+
+// Update metrics every 30 seconds
+setInterval(() => {
+  metrics.memory = process.memoryUsage();
+  metrics.lastUpdated = new Date().toISOString();
+}, 30000);
+
 // Middleware for JSON parsing
 app.use(express.json());
+
+// Middleware for request counting
+app.use((req, res, next) => {
+  metrics.requests++;
+  next();
+});
 
 // Health check endpoint
 app.get('/', (req, res) => {
   res.json({
     status: 'ok',
-    message: 'Browser History API Server',
+    message: 'LLM AI Bridge Server',
+    version: '1.0.0',
+    uptime: Math.floor((Date.now() - metrics.uptime) / 1000),
     endpoints: [
+      { path: '/health', method: 'GET', description: 'Health check endpoint' },
+      { path: '/metrics', method: 'GET', description: 'Performance metrics' },
       { path: '/history', method: 'GET', description: 'Get recent browser history' },
       {
         path: '/history/:count',
@@ -31,6 +56,45 @@ app.get('/', (req, res) => {
   });
 });
 
+// Health check endpoint for Fly.io
+app.get('/health', (req, res) => {
+  const healthCheck = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor((Date.now() - metrics.uptime) / 1000),
+    memory: process.memoryUsage(),
+    pid: process.pid
+  };
+  
+  res.status(200).json(healthCheck);
+});
+
+// Metrics endpoint for monitoring
+app.get('/metrics', (req, res) => {
+  const uptimeSeconds = Math.floor((Date.now() - metrics.uptime) / 1000);
+  
+  res.set('Content-Type', 'text/plain');
+  res.send(`# HELP requests_total Total number of requests
+# TYPE requests_total counter
+requests_total ${metrics.requests}
+
+# HELP errors_total Total number of errors
+# TYPE errors_total counter
+errors_total ${metrics.errors}
+
+# HELP uptime_seconds Application uptime in seconds
+# TYPE uptime_seconds gauge
+uptime_seconds ${uptimeSeconds}
+
+# HELP memory_usage_bytes Memory usage in bytes
+# TYPE memory_usage_bytes gauge
+memory_usage_rss_bytes ${metrics.memory.rss}
+memory_usage_heap_used_bytes ${metrics.memory.heapUsed}
+memory_usage_heap_total_bytes ${metrics.memory.heapTotal}
+memory_usage_external_bytes ${metrics.memory.external}
+`);
+});
+
 // Get recent browser history (default 50 entries)
 app.get('/history', async (req, res) => {
   try {
@@ -42,6 +106,7 @@ app.get('/history', async (req, res) => {
       data: history,
     });
   } catch (error) {
+    metrics.errors++;
     res.status(500).json({
       success: false,
       error: error.message,
@@ -60,6 +125,7 @@ app.get('/history/:count', async (req, res) => {
       data: history,
     });
   } catch (error) {
+    metrics.errors++;
     res.status(500).json({
       success: false,
       error: error.message,
@@ -95,6 +161,7 @@ app.get('/search', async (req, res) => {
       data: results,
     });
   } catch (error) {
+    metrics.errors++;
     res.status(500).json({
       success: false,
       error: error.message,
@@ -102,11 +169,24 @@ app.get('/search', async (req, res) => {
   }
 });
 
+// Graceful shutdown handling
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  process.exit(0);
+});
+
 // Start the server
-app.listen(PORT, () => {
-  console.log(`Browser History API server listening at http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`LLM AI Bridge server listening at http://0.0.0.0:${PORT}`);
   console.log('Available endpoints:');
   console.log('  GET / - API information');
+  console.log('  GET /health - Health check');
+  console.log('  GET /metrics - Performance metrics');
   console.log('  GET /history - Get recent browser history (default 50)');
   console.log('  GET /history/:count - Get recent browser history with custom count');
   console.log('  GET /search?query=term - Search browser history');
