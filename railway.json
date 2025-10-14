@@ -1,0 +1,28 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "npm install --production"
+  },
+  "deploy": {
+    "startCommand": "npm start",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  },
+  "environments": {
+    "production": {
+      "variables": {
+        "NODE_ENV": "production",
+        "AI_BRIDGE_HISTORY_LIMIT": "500",
+        "AI_BRIDGE_MAX_QUEUE": "1000",
+        "AI_BRIDGE_CORS_ORIGINS": "*",
+        "AI_BRIDGE_CLIENT_TTL_MS": "600000",
+        "AI_BRIDGE_CLEANUP_INTERVAL_MS": "30000",
+        "AI_BRIDGE_RATE_WINDOW_MS": "60000",
+        "AI_BRIDGE_RATE_MAX": "120"
+      }
+    }
+  }
+}
