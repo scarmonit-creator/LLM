@@ -7,6 +7,12 @@ chrome.runtime.onInstalled.addListener(() => {
     title: 'Analyze selected text',
     contexts: ['selection']
   });
+  
+  // Set default configuration for autonomous execution
+  chrome.storage.local.set({
+    autoAnalyze: true,
+    autoOpen: true
+  });
 });
 
 // Handle context menu clicks (for selected text)
@@ -20,30 +26,63 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       analysisSource: 'selection',
       timestamp: Date.now()
     }, () => {
-      // Open popup
+      // Open popup automatically
       chrome.action.openPopup();
     });
   }
 });
 
-// Handle extension icon clicks (for full page text)
-chrome.action.onClicked.addListener((tab) => {
-  // Inject script to get page text
-  chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: () => {
-      return document.body.innerText;
-    }
-  }, (results) => {
-    if (results && results[0]) {
-      const pageText = results[0].result;
-      
-      // Store the page text and source
-      chrome.storage.local.set({
-        analysisText: pageText,
-        analysisSource: 'page',
-        timestamp: Date.now()
-      });
-    }
-  });
+// Listen for messages from popup to get page text
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'getPageText') {
+    chrome.scripting.executeScript({
+      target: { tabId: request.tabId },
+      func: () => {
+        return document.body.innerText;
+      }
+    }, (results) => {
+      if (results && results[0]) {
+        sendResponse({ text: results[0].result });
+      } else {
+        sendResponse({ text: '' });
+      }
+    });
+    return true; // Keep message channel open for async response
+  }
+  
+  if (request.action === 'analyzeText') {
+    // Store analysis text for processing
+    chrome.storage.local.set({
+      analysisText: request.text,
+      analysisSource: request.source || 'unknown',
+      timestamp: Date.now()
+    });
+    sendResponse({ success: true });
+  }
+});
+
+// Listen for keyboard shortcuts (if configured in manifest)
+chrome.commands.onCommand.addListener((command) => {
+  if (command === 'analyze-page') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          func: () => {
+            return document.body.innerText;
+          }
+        }, (results) => {
+          if (results && results[0]) {
+            chrome.storage.local.set({
+              analysisText: results[0].result,
+              analysisSource: 'page',
+              timestamp: Date.now()
+            }, () => {
+              chrome.action.openPopup();
+            });
+          }
+        });
+      }
+    });
+  }
 });
