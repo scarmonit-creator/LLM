@@ -1,14 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "Selected Text Analyzer",
-  "version": "1.1.0",
-  "description": "Analyze selected text or full page text with character, word, and line counts. Supports autonomous execution.",
+  "name": "Selected Text Analyzer - Enhanced",
+  "version": "2.0.0",
+  "description": "Advanced text analysis with full browser automation capabilities. Supports autonomous execution, form filling, navigation, and error detection.",
   "permissions": [
     "activeTab",
     "scripting",
     "contextMenus",
     "storage",
-    "tabs"
+    "tabs",
+    "webNavigation",
+    "notifications",
+    "unlimitedStorage",
+    "debugger"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -16,9 +20,17 @@
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end",
+      "all_frames": true
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Analyze Text"
+    "default_title": "Analyze & Automate"
   },
   "commands": {
     "analyze-page": {
@@ -28,11 +40,31 @@
       },
       "description": "Analyze current page text"
     },
+    "start-autonomous": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+X",
+        "mac": "Command+Shift+X"
+      },
+      "description": "Start autonomous execution mode"
+    },
+    "fix-page-issues": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
+      },
+      "description": "Automatically fix detected page issues"
+    },
     "_execute_action": {
       "suggested_key": {
         "default": "Ctrl+Shift+T",
         "mac": "Command+Shift+T"
       }
     }
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["*.js", "*.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
