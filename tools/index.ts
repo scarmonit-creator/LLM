@@ -68,3 +68,4 @@ export const tools: ToolDefinition[] = [
 ];
 
 export { BrowserHistoryTool, gitOperations, emailIntegration, apiOrchestration, codeAnalysis, testVerification };
+export default tools;

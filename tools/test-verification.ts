@@ -46,6 +46,7 @@ export const testVerification: Tool = {
     },
     required: ['operation'],
   },
+
   async execute(args: any): Promise<any> {
     const {
       operation,
