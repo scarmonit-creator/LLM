@@ -1,27 +1,39 @@
 {
   "name": "llm",
-  "version": "1.0.0",
-  "description": "LLM integration project with Claude, A2A, and browser history access",
+  "version": "2.1.0-phase2",
+  "description": "LLM integration project with Claude, A2A, and browser history access - Phase 2 Optimized",
   "main": "src/ai-bridge.js",
   "type": "module",
   "scripts": {
     "start": "node src/ai-bridge.js",
     "start:server": "node server.js",
     "start:bridge": "node src/ai-bridge.js",
+    "start:enhanced": "node --expose-gc src/ai-bridge-enhanced.js",
+    "start:production": "NODE_ENV=production node --expose-gc --max-old-space-size=2048 src/ai-bridge-enhanced.js",
     "start:orchestrator": "tsx orchestrator.ts",
     "start:a2a": "tsx src/a2a-agent-server.ts",
     "chat": "node src/chat-launcher.js",
     "bridge:server": "node src/ai-bridge.js",
     "bridge:client": "node src/ai-bridge-client.js",
     "bridge:optimized": "node src/ai-bridge-optimized.js",
+    "bridge:enhanced": "node --expose-gc src/ai-bridge-enhanced.js",
     "bridge:selection-wiring": "node src/wiring/selection-wiring.js",
     "agents:coordinator": "node src/agents/agent-coordinator.js",
     "optimize:text-selection": "node scripts/optimize-text-selection.js",
     "optimize:current-tab": "node scripts/optimize-text-selection.js",
     "performance:analyze": "node scripts/optimize-text-selection.js",
+    "performance:benchmark": "node --expose-gc scripts/performance-benchmark-suite.js",
+    "performance:monitor": "node scripts/performance-monitor.js full",
+    "performance:compare": "node scripts/performance-benchmark-suite.js && npm run performance:monitor",
     "cloud-sql:setup": "node scripts/cloud-sql-setup.js",
     "cloud-sql:persist": "node scripts/cloud-sql-setup.js",
+    "memory:test": "node --expose-gc --max-old-space-size=512 scripts/memory-stress-test.js",
+    "workers:test": "node scripts/worker-pool-test.js",
+    "gc:test": "node --expose-gc scripts/gc-optimization-test.js",
     "test:bridge": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test tests/ai-bridge.test.js",
+    "test:enhanced": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --expose-gc\" node --test tests/ai-bridge-enhanced.test.js",
+    "test:memory": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --expose-gc\" node --test tests/memory-optimizations.test.js",
+    "test:workers": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test tests/worker-pool.test.js",
     "pretest": "npm run build --silent",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test tests || echo 'No tests found'",
     "pretest:watch": "npm run build --silent",
@@ -35,9 +47,10 @@
     "test:history": "tsx --test tests/browser-history.test.js",
     "pretest:full": "npm run build --silent",
     "test:full": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --loader=tsx\" node --test tests || echo 'No tests found'",
+    "test:phase2": "npm run test:enhanced && npm run test:memory && npm run test:workers",
     "pretest:all": "npm run build --silent",
-    "test:all": "npm run test && npm run test:orchestrator && npm run test:a2a",
-    "test:performance": "cross-env NODE_OPTIONS=--experimental-vm-modules node scripts/performance-test.js",
+    "test:all": "npm run test && npm run test:orchestrator && npm run test:a2a && npm run test:phase2",
+    "test:performance": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --expose-gc\" node scripts/performance-test.js",
     "test:coverage": "c8 npm test",
     "test:smoke": "cross-env NODE_OPTIONS=--experimental-vm-modules node scripts/smoke-test.js",
     "create-mock-performance-results": "node scripts/create-mock-performance-results.js",
@@ -45,16 +58,22 @@
     "coverage:e2e": "c8 npm run test:e2e",
     "coverage:full": "c8 npm run test:full",
     "coverage:all": "c8 npm run test:all",
+    "coverage:phase2": "c8 npm run test:phase2",
     "build": "tsc",
     "bundle:chat": "esbuild src/chat-launcher.js --bundle --platform=node --format=cjs --outfile=build/chat-launcher.cjs",
+    "bundle:enhanced": "esbuild src/ai-bridge-enhanced.js --bundle --platform=node --format=cjs --outfile=build/ai-bridge-enhanced.cjs --external:worker_threads",
     "build:chat-exe": "npm run build --silent && npm run bundle:chat --silent && pkg build/chat-launcher.cjs --compress GZip --targets node18-win-x64 --output release/LLMChat.exe",
+    "build:production": "npm run build && npm run bundle:enhanced",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/ tests/ tools/ --fix",
-    "format": "prettier --write \"src/**/*.{js,ts}\" \"tests/**/*.{js,ts}\" \"tools/**/*.{js,ts}\" \"*.{js,ts,json}\"",
+    "lint": "eslint src/ tests/ tools/ scripts/ --fix",
+    "format": "prettier --write \"src/**/*.{js,ts}\" \"tests/**/*.{js,ts}\" \"tools/**/*.{js,ts}\" \"scripts/**/*.{js,ts}\" \"*.{js,ts,json}\"",
     "autofix": "npm run lint && npm run format",
     "verify": "npm run build && npm run test:full",
     "verify:e2e": "npm run build && npm run test:e2e",
-    "verify:all": "npm run build && npm run test:all"
+    "verify:all": "npm run build && npm run test:all",
+    "verify:phase2": "npm run performance:benchmark && npm run test:phase2",
+    "deploy:benchmark": "npm run performance:benchmark && npm run verify:phase2",
+    "phase2:validate": "npm run performance:benchmark && npm run memory:test && npm run workers:test"
   },
   "keywords": [
     "llm",
@@ -68,7 +87,12 @@
     "optimization",
     "performance",
     "cloud-sql",
-    "persistence"
+    "persistence",
+    "memory-optimization",
+    "worker-threads",
+    "gc-optimization",
+    "object-pooling",
+    "phase-2"
   ],
   "author": "",
   "license": "MIT",
@@ -111,10 +135,12 @@
   },
   "pkg": {
     "scripts": [
-      "build/chat-launcher.cjs"
+      "build/chat-launcher.cjs",
+      "build/ai-bridge-enhanced.cjs"
     ],
     "assets": [
-      "dist/**/*"
+      "dist/**/*",
+      "src/workers/task-worker.js"
     ]
   },
   "c8": {
@@ -126,7 +152,20 @@
     "exclude": [
       "tests/**",
       "coverage/**",
-      "node_modules/**"
+      "node_modules/**",
+      "scripts/performance-benchmark-suite.js"
     ]
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "config": {
+    "phase2": {
+      "memoryOptimization": true,
+      "workerThreads": true,
+      "gcOptimization": true,
+      "objectPooling": true,
+      "performanceMonitoring": true
+    }
   }
 }
