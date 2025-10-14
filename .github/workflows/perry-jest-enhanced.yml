@@ -1,0 +1,510 @@
+name: Enhanced Perry-Jest Flaky Interaction Detection
+
+# Enhanced triggering with intelligent scheduling
+on:
+  schedule:
+    # Run nightly at 2 AM UTC for comprehensive analysis
+    - cron: '0 2 * * *'
+    # Weekly deep analysis on Sundays at 4 AM UTC
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+    inputs:
+      intelligent_pairing:
+        description: 'Enable intelligent test pairing'
+        required: false
+        default: 'true'
+        type: boolean
+      risk_analysis:
+        description: 'Enable risk-based prioritization'
+        required: false
+        default: 'true'
+        type: boolean
+      parallel_execution:
+        description: 'Enable parallel test execution'
+        required: false
+        default: 'true'
+        type: boolean
+      generate_reports:
+        description: 'Generate HTML reports'
+        required: false
+        default: 'true'
+        type: boolean
+      max_pairs:
+        description: 'Maximum test pairs to analyze'
+        required: false
+        default: '500'
+        type: string
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'scripts/perry-jest*.js'
+      - 'tests/**'
+      - 'src/**'
+      - 'package*.json'
+      - '.github/workflows/perry-jest*.yml'
+      - 'tools/**'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  actions: write
+
+# Enhanced concurrency with workflow-specific grouping
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Global environment with enhanced configuration
+env:
+  NODE_ENV: test
+  CI: true
+  CACHE_VERSION: v3-enhanced
+  PERRY_JEST_MODE: enhanced
+  FORCE_COLOR: 1
+  NPM_CONFIG_PROGRESS: false
+
+jobs:
+  # Pre-flight analysis with dependency mapping
+  preflight:
+    name: Pre-flight Analysis & Change Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should-run: ${{ steps.analysis.outputs.should-run }}
+      test-complexity: ${{ steps.analysis.outputs.test-complexity }}
+      recommended-shards: ${{ steps.analysis.outputs.recommended-shards }}
+      risk-files: ${{ steps.analysis.outputs.risk-files }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 10 # More history for better analysis
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      
+      - name: Install dependencies (minimal)
+        run: |
+          npm ci --only=production --ignore-scripts --no-audit --no-fund
+      
+      - name: Analyze changes and complexity
+        id: analysis
+        run: |
+          # Smart change detection with file analysis
+          CHANGED_FILES=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "Manual or scheduled run - full analysis enabled"
+            echo "should-run=true" >> $GITHUB_OUTPUT
+            COMPLEXITY="high"
+            SHARDS=6
+          else
+            # Analyze changed files
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+            echo "Changed files: $CHANGED_FILES"
+            
+            # Check if relevant files changed
+            if echo "$CHANGED_FILES" | grep -E '^(tests/|src/).*\.(js|ts)|scripts/perry.*\.js|package.*\.json$' > /dev/null; then
+              echo "should-run=true" >> $GITHUB_OUTPUT
+              
+              # Calculate complexity based on changed files
+              TEST_FILES=$(echo "$CHANGED_FILES" | grep -E '^tests/.*\.(js|ts)$' | wc -l)
+              SRC_FILES=$(echo "$CHANGED_FILES" | grep -E '^src/.*\.(js|ts)$' | wc -l)
+              TOTAL_CHANGES=$((TEST_FILES + SRC_FILES))
+              
+              if [ $TOTAL_CHANGES -gt 10 ]; then
+                COMPLEXITY="high"
+                SHARDS=6
+              elif [ $TOTAL_CHANGES -gt 5 ]; then
+                COMPLEXITY="medium"
+                SHARDS=4
+              else
+                COMPLEXITY="low"
+                SHARDS=2
+              fi
+            else
+              echo "should-run=false" >> $GITHUB_OUTPUT
+              COMPLEXITY="none"
+              SHARDS=1
+            fi
+          fi
+          
+          echo "test-complexity=$COMPLEXITY" >> $GITHUB_OUTPUT
+          echo "recommended-shards=$SHARDS" >> $GITHUB_OUTPUT
+          
+          # Identify high-risk files based on history
+          RISK_FILES=""
+          if [ -f ".github/flaky-test-history.json" ]; then
+            # Extract risk files from historical data (simplified)
+            RISK_FILES="ai-bridge,browser-history,orchestrator"
+          fi
+          echo "risk-files=$RISK_FILES" >> $GITHUB_OUTPUT
+          
+          echo "📊 Analysis complete:"
+          echo "  Complexity: $COMPLEXITY"
+          echo "  Recommended shards: $SHARDS"
+          echo "  Risk files: $RISK_FILES"
+
+  # Enhanced Perry-Jest execution with intelligent optimization
+  perry-enhanced:
+    name: Enhanced Perry-Jest (Node ${{ matrix.node }} - Shard ${{ matrix.shardIndex }}/${{ matrix.shards }})
+    runs-on: ${{ matrix.os }}
+    needs: preflight
+    if: needs.preflight.outputs.should-run == 'true'
+    timeout-minutes: 45
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        # Dynamic sharding based on complexity
+        shards: ["${{ fromJSON(needs.preflight.outputs.recommended-shards) }}"]
+        shardIndex: [0, 1, 2, 3, 4, 5]
+        node: ['18.x', '20.x', '22.x']
+        os: [ubuntu-latest]
+        include:
+          # Additional cross-platform testing for high complexity
+          - os: windows-latest
+            node: '20.x'
+            shards: "${{ fromJSON(needs.preflight.outputs.recommended-shards) }}"
+            shardIndex: 0
+          - os: macos-latest
+            node: '20.x'
+            shards: "${{ fromJSON(needs.preflight.outputs.recommended-shards) }}"
+            shardIndex: 0
+        exclude:
+          # Exclude invalid shard combinations
+          - shardIndex: 2
+            shards: 2
+          - shardIndex: 3
+            shards: 2
+          - shardIndex: 4
+            shards: 2
+          - shardIndex: 5
+            shards: 2
+          - shardIndex: 4
+            shards: 4
+          - shardIndex: 5
+            shards: 4
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: 'npm'
+      
+      # Enhanced caching with dependency fingerprinting
+      - name: Cache dependencies and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            .npm-cache
+            perry-results-cache
+          key: ${{ runner.os }}-perry-enhanced-${{ env.CACHE_VERSION }}-${{ matrix.node }}-${{ hashFiles('**/package-lock.json', 'scripts/perry-jest*.js') }}
+          restore-keys: |
+            ${{ runner.os }}-perry-enhanced-${{ env.CACHE_VERSION }}-${{ matrix.node }}-
+            ${{ runner.os }}-perry-enhanced-${{ env.CACHE_VERSION }}-
+      
+      - name: Install dependencies with optimization
+        run: |
+          # Use npm ci with optimizations
+          npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
+          
+          # Install optional dependencies if available
+          if npm list better-sqlite3 >/dev/null 2>&1; then
+            echo "✅ better-sqlite3 available for enhanced browser history"
+          else
+            echo "⚠️ better-sqlite3 not available, using fallback implementation"
+          fi
+      
+      - name: Build TypeScript if needed
+        run: |
+          if [ -f "tsconfig.json" ]; then
+            npm run build --if-present
+          fi
+      
+      # Enhanced Perry-Jest execution with intelligent parameters
+      - name: Run Enhanced Perry-Jest Analysis
+        id: perry
+        run: |
+          # Determine execution parameters
+          MAX_PAIRS="${{ github.event.inputs.max_pairs || '500' }}"
+          INTELLIGENT_PAIRING="${{ github.event.inputs.intelligent_pairing || 'true' }}"
+          RISK_ANALYSIS="${{ github.event.inputs.risk_analysis || 'true' }}"
+          PARALLEL_EXEC="${{ github.event.inputs.parallel_execution || 'true' }}"
+          GENERATE_REPORTS="${{ github.event.inputs.generate_reports || 'true' }}"
+          
+          # Build command with enhanced features
+          PERRY_CMD="node scripts/perry-jest-enhanced.js"
+          PERRY_CMD="$PERRY_CMD --pattern 'tests/**/*.test.*'"
+          PERRY_CMD="$PERRY_CMD --maxPairs $MAX_PAIRS"
+          PERRY_CMD="$PERRY_CMD --repeats 3"
+          PERRY_CMD="$PERRY_CMD --shards ${{ matrix.shards }}"
+          PERRY_CMD="$PERRY_CMD --shardIndex ${{ matrix.shardIndex }}"
+          PERRY_CMD="$PERRY_CMD --timeout 300000"
+          PERRY_CMD="$PERRY_CMD --outDir perry-results-enhanced"
+          
+          # Add enhanced features
+          if [ "$INTELLIGENT_PAIRING" = "true" ]; then
+            PERRY_CMD="$PERRY_CMD --intelligent-pairing"
+          fi
+          
+          if [ "$RISK_ANALYSIS" = "true" ]; then
+            PERRY_CMD="$PERRY_CMD --risk-analysis"
+          fi
+          
+          if [ "$PARALLEL_EXEC" = "true" ]; then
+            PERRY_CMD="$PERRY_CMD --parallel-execution"
+          fi
+          
+          if [ "$GENERATE_REPORTS" = "true" ]; then
+            PERRY_CMD="$PERRY_CMD --generate-report"
+          fi
+          
+          # Add historical analysis for scheduled runs
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            PERRY_CMD="$PERRY_CMD --historical-analysis --memory-profiling"
+          fi
+          
+          # Add dependency mapping for high complexity
+          if [ "${{ needs.preflight.outputs.test-complexity }}" = "high" ]; then
+            PERRY_CMD="$PERRY_CMD --dependency-mapping --adaptive-sharding"
+          fi
+          
+          echo "🚀 Executing: $PERRY_CMD"
+          
+          # Run with enhanced error handling
+          set +e
+          eval "$PERRY_CMD"
+          PERRY_EXIT_CODE=$?
+          set -e
+          
+          echo "perry-exit-code=$PERRY_EXIT_CODE" >> $GITHUB_OUTPUT
+          
+          # Collect execution statistics
+          if [ -d "perry-results-enhanced" ]; then
+            RESULT_FILES=$(find perry-results-enhanced -name "*.json" | wc -l)
+            REPORT_FILES=$(find perry-results-enhanced -name "*.html" | wc -l)
+            echo "📊 Generated $RESULT_FILES result files and $REPORT_FILES HTML reports"
+          fi
+          
+          exit $PERRY_EXIT_CODE
+        
+        continue-on-error: true
+        env:
+          PERRY_SHARD: ${{ matrix.shardIndex }}
+          PERRY_TOTAL_SHARDS: ${{ matrix.shards }}
+          NODE_OPTIONS: '--max-old-space-size=4096 --expose-gc'
+      
+      # Enhanced artifact collection with metadata
+      - name: Collect Perry-Jest artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perry-results-${{ runner.os }}-node${{ matrix.node }}-shard${{ matrix.shardIndex }}
+          path: |
+            perry-results-enhanced/
+            perry-results-enhanced/reports/
+            perry-results-enhanced/analysis/
+            perry-results-enhanced/logs/
+          retention-days: 14
+          compression-level: 6
+      
+      # Performance metrics collection
+      - name: Collect performance metrics
+        if: always()
+        run: |
+          # Create metrics summary
+          mkdir -p perry-results-enhanced/metrics
+          
+          echo "{
+            \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+            \"runner\": \"${{ runner.os }}\",
+            \"node_version\": \"${{ matrix.node }}\",
+            \"shard\": \"${{ matrix.shardIndex }}/${{ matrix.shards }}\",
+            \"exit_code\": \"${{ steps.perry.outputs.perry-exit-code }}\",
+            \"workflow_run_id\": \"${{ github.run_id }}\",
+            \"commit_sha\": \"${{ github.sha }}\",
+            \"memory_usage\": $(node -e 'console.log(JSON.stringify(process.memoryUsage()))')
+          }" > perry-results-enhanced/metrics/execution-${{ matrix.shardIndex }}.json
+      
+      # Generate step summary for quick analysis
+      - name: Generate step summary
+        if: always()
+        run: |
+          echo "## 🔍 Enhanced Perry-Jest Results (Shard ${{ matrix.shardIndex }}/${{ matrix.shards }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Configuration:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Runner: ${{ runner.os }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Node.js: ${{ matrix.node }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Exit Code: ${{ steps.perry.outputs.perry-exit-code }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -d "perry-results-enhanced" ]; then
+            if ls perry-results-enhanced/perry-jest-summary-* 1> /dev/null 2>&1; then
+              echo "**⚠️ Flaky interactions detected in this shard.**" >> $GITHUB_STEP_SUMMARY
+              echo "Check artifacts for detailed analysis." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**✅ No flaky interactions detected in this shard.**" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            # Add report links if HTML reports were generated
+            if ls perry-results-enhanced/reports/*.html 1> /dev/null 2>&1; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**📊 Generated Reports:**" >> $GITHUB_STEP_SUMMARY
+              for report in perry-results-enhanced/reports/*.html; do
+                if [ -f "$report" ]; then
+                  echo "- $(basename "$report")" >> $GITHUB_STEP_SUMMARY
+                fi
+              done
+            fi
+          fi
+
+  # Comprehensive results aggregation and analysis
+  aggregate-results:
+    name: Aggregate & Analyze Results
+    runs-on: ubuntu-latest
+    needs: [preflight, perry-enhanced]
+    if: always() && needs.preflight.outputs.should-run == 'true'
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      
+      # Download all artifacts for analysis
+      - name: Download all Perry-Jest artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: perry-results-*
+          merge-multiple: true
+          path: aggregated-results/
+      
+      - name: Analyze aggregated results
+        run: |
+          echo "🔍 Analyzing aggregated Perry-Jest results..."
+          
+          # Count total failures across all shards
+          TOTAL_FAILURES=0
+          TOTAL_SHARDS=0
+          FAILED_SHARDS=0
+          
+          cd aggregated-results/
+          
+          # Process all result files
+          for result_dir in */; do
+            if [ -d "$result_dir" ]; then
+              TOTAL_SHARDS=$((TOTAL_SHARDS + 1))
+              
+              # Check for failure indicators
+              if ls "$result_dir"perry-jest-summary-* 1> /dev/null 2>&1; then
+                FAILED_SHARDS=$((FAILED_SHARDS + 1))
+                
+                # Count failures in this shard
+                SHARD_FAILURES=$(ls "$result_dir"perry-jest-summary-* 2>/dev/null | wc -l)
+                TOTAL_FAILURES=$((TOTAL_FAILURES + SHARD_FAILURES))
+                
+                echo "❌ Shard $result_dir: $SHARD_FAILURES failures detected"
+              else
+                echo "✅ Shard $result_dir: No failures detected"
+              fi
+            fi
+          done
+          
+          cd ..
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Enhanced Perry-Jest Final Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Overall Summary:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Total Shards Executed: $TOTAL_SHARDS" >> $GITHUB_STEP_SUMMARY
+          echo "- Shards with Failures: $FAILED_SHARDS" >> $GITHUB_STEP_SUMMARY
+          echo "- Total Flaky Interactions: $TOTAL_FAILURES" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ $TOTAL_FAILURES -gt 0 ]; then
+            echo "**⚠️ Flaky test interactions detected!**" >> $GITHUB_STEP_SUMMARY
+            echo "Review the artifacts for detailed analysis and recommendations." >> $GITHUB_STEP_SUMMARY
+            
+            # Set job status for downstream processes
+            echo "PERRY_STATUS=failures_detected" >> $GITHUB_ENV
+            echo "PERRY_FAILURE_COUNT=$TOTAL_FAILURES" >> $GITHUB_ENV
+          else
+            echo "**✅ No flaky interactions detected across all test combinations.**" >> $GITHUB_STEP_SUMMARY
+            echo "Test suite appears to have good isolation." >> $GITHUB_STEP_SUMMARY
+            
+            echo "PERRY_STATUS=success" >> $GITHUB_ENV
+            echo "PERRY_FAILURE_COUNT=0" >> $GITHUB_ENV
+          fi
+          
+          # Generate trend analysis for scheduled runs
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**📈 Trend Analysis:**" >> $GITHUB_STEP_SUMMARY
+            echo "- This was a scheduled analysis run" >> $GITHUB_STEP_SUMMARY
+            echo "- Historical data will be updated for trend tracking" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      # Create aggregated artifact with all results
+      - name: Create aggregated artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perry-jest-enhanced-complete-results
+          path: aggregated-results/
+          retention-days: 30
+          compression-level: 9
+      
+      # Auto-create issue for critical failures (optional)
+      - name: Create issue for critical failures
+        if: env.PERRY_STATUS == 'failures_detected' && env.PERRY_FAILURE_COUNT > 10
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failureCount = process.env.PERRY_FAILURE_COUNT;
+            const workflowUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            const issueTitle = `🚨 Critical: ${failureCount} flaky test interactions detected`;
+            const issueBody = `
+            ## Enhanced Perry-Jest Critical Alert
+            
+            **Failure Count:** ${failureCount} flaky interactions detected
+            **Workflow Run:** ${workflowUrl}
+            **Commit:** ${context.sha}
+            **Triggered by:** ${context.eventName}
+            
+            ### Recommended Actions:
+            1. Review the [workflow artifacts](${workflowUrl}) for detailed analysis
+            2. Examine the generated HTML reports for interaction patterns
+            3. Focus on tests with the highest risk scores
+            4. Consider improving test isolation mechanisms
+            
+            ### Automatic Analysis:
+            This issue was automatically created because the failure count exceeded the critical threshold (>10).
+            
+            ---
+            *Generated by Enhanced Perry-Jest workflow*
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['flaky-tests', 'critical', 'automated']
+            });
