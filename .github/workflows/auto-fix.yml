@@ -86,22 +86,14 @@ jobs:
           echo "No changes detected"
         fi
     
-    - name: Commit and push changes
-      if: steps.verify-changed-files.outputs.changed == 'true' && github.event_name == 'push'
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add .
-        git commit -m "Auto-fix: Apply automated fixes [skip ci]"
-        git push
-    
-    - name: Create Pull Request
-      if: steps.verify-changed-files.outputs.changed == 'true' && github.event_name == 'pull_request'
+    # Always create PR for automated fixes to comply with branch protection
+    - name: Create Pull Request for Auto-fixes
+      if: steps.verify-changed-files.outputs.changed == 'true'
       uses: peter-evans/create-pull-request@v6
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         commit-message: 'Auto-fix: Apply automated fixes [skip ci]'
-        title: 'Auto-fix: Apply automated fixes'
+        title: 'Auto-fix: Apply automated fixes from ${{ github.event_name }}'
         body: |
           ## Auto-fix Report
           
@@ -112,10 +104,19 @@ jobs:
           - Code formatting
           - Build optimizations
           
+          ### Trigger Event
+          - **Event:** ${{ github.event_name }}
+          - **Branch:** ${{ github.ref_name }}
+          - **Commit:** ${{ github.sha }}
+          
           **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
+          This PR was created to comply with branch protection rules that require changes via pull request.
         branch: auto-fix-${{ github.run_id }}
         base: ${{ github.event.pull_request.head.ref || github.ref_name }}
         delete-branch: true
         labels: |
           auto-fix
           automated
+          compliance
+        assignees: ${{ github.actor }}
