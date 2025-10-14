@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Analyzer Options</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #4285f4;
+            padding-bottom: 10px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background-color: #fafafa;
+        }
+        
+        .section h2 {
+            color: #444;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .option {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .option label {
+            font-weight: 500;
+            color: #555;
+            flex: 1;
+            margin-right: 15px;
+        }
+        
+        .option input[type="checkbox"] {
+            transform: scale(1.2);
+        }
+        
+        .option input[type="number"], .option select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 100px;
+        }
+        
+        .description {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        
+        .buttons {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        button {
+            padding: 12px 24px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .primary {
+            background-color: #4285f4;
+            color: white;
+        }
+        
+        .primary:hover {
+            background-color: #3367d6;
+        }
+        
+        .secondary {
+            background-color: #f8f9fa;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        
+        .secondary:hover {
+            background-color: #e8eaed;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            text-align: center;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .cache-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        
+        .shortcuts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .shortcut {
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .shortcut-key {
+            font-family: monospace;
+            background-color: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Text Analyzer Pro - Options</h1>
+        
+        <div class="section">
+            <h2>🚀 Autonomous Execution</h2>
+            <div class="option">
+                <label for="autoAnalyze">
+                    Enable auto-analyze on page load
+                    <div class="description">Automatically analyze pages when they finish loading</div>
+                </label>
+                <input type="checkbox" id="autoAnalyze" name="autoAnalyze">
+            </div>
+            <div class="option">
+                <label for="autoOpen">
+                    Auto-open popup after analysis
+                    <div class="description">Show analysis results immediately</div>
+                </label>
+                <input type="checkbox" id="autoOpen" name="autoOpen">
+            </div>
+            <div class="option">
+                <label for="autoAnalyzeDelay">
+                    Auto-analyze delay (ms)
+                    <div class="description">Wait time before analyzing page after load</div>
+                </label>
+                <input type="number" id="autoAnalyzeDelay" name="autoAnalyzeDelay" min="1000" max="10000" step="500">
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>⚡ Performance Settings</h2>
+            <div class="option">
+                <label for="cacheTimeout">
+                    Cache timeout (minutes)
+                    <div class="description">How long to keep analysis results in cache</div>
+                </label>
+                <input type="number" id="cacheTimeout" name="cacheTimeout" min="1" max="60">
+            </div>
+            <div class="option">
+                <label for="maxCacheSize">
+                    Maximum cache entries
+                    <div class="description">Limit number of cached analysis results</div>
+                </label>
+                <input type="number" id="maxCacheSize" name="maxCacheSize" min="10" max="1000">
+            </div>
+            <div class="cache-info">
+                <span>Current cache usage: <strong id="cacheUsage">Loading...</strong></span>
+                <button type="button" id="clearCache" class="secondary">Clear Cache</button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📊 Analysis Features</h2>
+            <div class="option">
+                <label for="enableAdvancedMetrics">
+                    Enable advanced metrics
+                    <div class="description">Include reading time, complexity score, and language metrics</div>
+                </label>
+                <input type="checkbox" id="enableAdvancedMetrics" name="enableAdvancedMetrics">
+            </div>
+            <div class="option">
+                <label for="enableWordFrequency">
+                    Show word frequency analysis
+                    <div class="description">Display most common words in results</div>
+                </label>
+                <input type="checkbox" id="enableWordFrequency" name="enableWordFrequency">
+            </div>
+            <div class="option">
+                <label for="minTextLength">
+                    Minimum text length for analysis
+                    <div class="description">Skip analysis for very short texts</div>
+                </label>
+                <input type="number" id="minTextLength" name="minTextLength" min="10" max="1000">
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>⌨️ Keyboard Shortcuts</h2>
+            <p>You can customize these shortcuts in Chrome's extension management page.</p>
+            <div class="shortcuts-grid">
+                <div class="shortcut">
+                    <strong>Analyze Page</strong><br>
+                    <span class="shortcut-key">Ctrl+Shift+A</span>
+                </div>
+                <div class="shortcut">
+                    <strong>Analyze Selection</strong><br>
+                    <span class="shortcut-key">Ctrl+Shift+S</span>
+                </div>
+                <div class="shortcut">
+                    <strong>Open Popup</strong><br>
+                    <span class="shortcut-key">Ctrl+Shift+T</span>
+                </div>
+                <div class="shortcut">
+                    <strong>Toggle Auto-Analyze</strong><br>
+                    <span class="shortcut-key">Ctrl+Shift+X</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🔧 Advanced Settings</h2>
+            <div class="option">
+                <label for="enableNotifications">
+                    Enable notifications
+                    <div class="description">Show browser notifications for status updates</div>
+                </label>
+                <input type="checkbox" id="enableNotifications" name="enableNotifications">
+            </div>
+            <div class="option">
+                <label for="debugMode">
+                    Debug mode
+                    <div class="description">Enable console logging for troubleshooting</div>
+                </label>
+                <input type="checkbox" id="debugMode" name="debugMode">
+            </div>
+            <div class="option">
+                <label for="theme">
+                    Theme
+                    <div class="description">Choose the extension's appearance</div>
+                </label>
+                <select id="theme" name="theme">
+                    <option value="auto">Auto (System)</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="buttons">
+            <button type="button" id="saveSettings" class="primary">Save Settings</button>
+            <button type="button" id="resetSettings" class="secondary">Reset to Defaults</button>
+            <button type="button" id="exportSettings" class="secondary">Export Settings</button>
+            <button type="button" id="importSettings" class="secondary">Import Settings</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+        
+        <input type="file" id="importFile" accept=".json" style="display: none;">
+    </div>
+    
+    <script src="options.js"></script>
+</body>
+</html>
