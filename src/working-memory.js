@@ -14,7 +14,7 @@ const MemoryType = {
   SHORT_TERM: 'short_term',
   LONG_TERM: 'long_term',
   EPISODIC: 'episodic',
-  SEMANTIC: 'semantic'
+  SEMANTIC: 'semantic',
 };
 
 /**
@@ -39,13 +39,13 @@ export class WorkingMemory {
 
     try {
       this.vectorStore = await createVectorStore();
-      
+
       // Create collections for different memory types
       await this.vectorStore.createCollection('short_term_memory');
       await this.vectorStore.createCollection('long_term_memory');
       await this.vectorStore.createCollection('episodic_memory');
       await this.vectorStore.createCollection('semantic_memory');
-      
+
       this.initialized = true;
       console.log('✅ Working Memory System initialized');
     } catch (error) {
@@ -69,7 +69,7 @@ export class WorkingMemory {
       accessCount: 0,
       importance: metadata.importance || 0.5,
       type: metadata.type || MemoryType.SHORT_TERM,
-      metadata: metadata
+      metadata: metadata,
     };
 
     // Add to short-term memory
@@ -98,13 +98,15 @@ export class WorkingMemory {
         ids: [memoryEntry.id],
         documents: [memoryEntry.content],
         embeddings: [embedding],
-        metadatas: [{
-          timestamp: memoryEntry.timestamp,
-          importance: memoryEntry.importance,
-          type: memoryEntry.type,
-          accessCount: memoryEntry.accessCount,
-          ...memoryEntry.metadata
-        }]
+        metadatas: [
+          {
+            timestamp: memoryEntry.timestamp,
+            importance: memoryEntry.importance,
+            type: memoryEntry.type,
+            accessCount: memoryEntry.accessCount,
+            ...memoryEntry.metadata,
+          },
+        ],
       });
     } catch (error) {
       console.error('Error storing memory in vector database:', error);
@@ -119,13 +121,9 @@ export class WorkingMemory {
       await this.initialize();
     }
 
-    const {
-      type = null,
-      limit = 5,
-      minImportance = 0.0
-    } = options;
+    const { type = null, limit = 5, minImportance = 0.0 } = options;
 
-    const collections = type 
+    const collections = type
       ? [this.getCollectionName(type)]
       : ['short_term_memory', 'long_term_memory', 'episodic_memory', 'semantic_memory'];
 
@@ -134,22 +132,22 @@ export class WorkingMemory {
     for (const collectionName of collections) {
       try {
         const embedding = await this.generateEmbedding(query);
-        
+
         const queryResults = await this.vectorStore.query(collectionName, {
           queryEmbeddings: [embedding],
-          nResults: limit
+          nResults: limit,
         });
 
         if (queryResults.documents && queryResults.documents[0]) {
           for (let i = 0; i < queryResults.documents[0].length; i++) {
             const metadata = queryResults.metadatas?.[0]?.[i] || {};
-            
+
             if (metadata.importance >= minImportance) {
               results.push({
                 content: queryResults.documents[0][i],
                 distance: queryResults.distances?.[0]?.[i] || 0,
                 metadata,
-                id: queryResults.ids?.[0]?.[i]
+                id: queryResults.ids?.[0]?.[i],
               });
             }
           }
@@ -160,9 +158,7 @@ export class WorkingMemory {
     }
 
     // Sort by distance (lower is better) and limit results
-    return results
-      .sort((a, b) => a.distance - b.distance)
-      .slice(0, limit);
+    return results.sort((a, b) => a.distance - b.distance).slice(0, limit);
   }
 
   /**
@@ -172,16 +168,15 @@ export class WorkingMemory {
     console.log('🧠 Consolidating memories...');
 
     // Sort by importance and access count
-    const sortedMemories = this.shortTermMemory
-      .sort((a, b) => {
-        const scoreA = a.importance + (a.accessCount * 0.1);
-        const scoreB = b.importance + (b.accessCount * 0.1);
-        return scoreB - scoreA;
-      });
+    const sortedMemories = this.shortTermMemory.sort((a, b) => {
+      const scoreA = a.importance + a.accessCount * 0.1;
+      const scoreB = b.importance + b.accessCount * 0.1;
+      return scoreB - scoreA;
+    });
 
     // Promote important memories to long-term
     const toPromote = sortedMemories.slice(0, Math.floor(sortedMemories.length * 0.3));
-    
+
     for (const memory of toPromote) {
       memory.type = MemoryType.LONG_TERM;
       await this.storeInVector(memory);
@@ -200,7 +195,7 @@ export class WorkingMemory {
     this.conversationContext.push({
       role,
       content,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     // Keep context window manageable
@@ -221,14 +216,14 @@ export class WorkingMemory {
    */
   async buildAugmentedContext(query, options = {}) {
     const relevantMemories = await this.retrieve(query, options);
-    
+
     const context = {
       conversation: this.getContext(),
-      memories: relevantMemories.map(m => ({
+      memories: relevantMemories.map((m) => ({
         content: m.content,
         importance: m.metadata.importance,
-        timestamp: m.metadata.timestamp
-      }))
+        timestamp: m.metadata.timestamp,
+      })),
     };
 
     return context;
@@ -239,15 +234,15 @@ export class WorkingMemory {
    */
   async clearMemoryType(type) {
     const collectionName = this.getCollectionName(type);
-    
+
     try {
       await this.vectorStore.deleteCollection(collectionName);
       await this.vectorStore.createCollection(collectionName);
-      
+
       if (type === MemoryType.SHORT_TERM) {
         this.shortTermMemory = [];
       }
-      
+
       console.log(`✅ Cleared ${type} memory`);
     } catch (error) {
       console.error(`Error clearing ${type} memory:`, error);
@@ -261,7 +256,7 @@ export class WorkingMemory {
     return {
       shortTermCount: this.shortTermMemory.length,
       conversationLength: this.conversationContext.length,
-      initialized: this.initialized
+      initialized: this.initialized,
     };
   }
 
@@ -274,13 +269,13 @@ export class WorkingMemory {
     // Simple deterministic embedding based on text content
     // In production, replace with proper embedding model (OpenAI, Cohere, etc.)
     const hash = crypto.createHash('sha256').update(text).digest();
-    
+
     // Convert to 384-dimensional vector (common embedding size)
     const embedding = new Array(384);
     for (let i = 0; i < 384; i++) {
       embedding[i] = (hash[i % hash.length] / 255) * 2 - 1;
     }
-    
+
     return embedding;
   }
 
@@ -292,9 +287,9 @@ export class WorkingMemory {
       [MemoryType.SHORT_TERM]: 'short_term_memory',
       [MemoryType.LONG_TERM]: 'long_term_memory',
       [MemoryType.EPISODIC]: 'episodic_memory',
-      [MemoryType.SEMANTIC]: 'semantic_memory'
+      [MemoryType.SEMANTIC]: 'semantic_memory',
     };
-    
+
     return collectionMap[type] || 'short_term_memory';
   }
 
@@ -330,12 +325,12 @@ export class MemoryEnhancedLLM {
     // Retrieve relevant memories
     const context = await this.memory.buildAugmentedContext(message, {
       limit: options.memoryLimit || 5,
-      minImportance: options.minImportance || 0.0
+      minImportance: options.minImportance || 0.0,
     });
 
     // Build augmented prompt
     let augmentedPrompt = systemPrompt || '';
-    
+
     if (context.memories.length > 0) {
       augmentedPrompt += '\n\nRelevant Context from Memory:\n';
       context.memories.forEach((mem, idx) => {
@@ -346,7 +341,7 @@ export class MemoryEnhancedLLM {
     // Add conversation history
     if (context.conversation.length > 0) {
       augmentedPrompt += '\n\nRecent Conversation:\n';
-      context.conversation.forEach(msg => {
+      context.conversation.forEach((msg) => {
         augmentedPrompt += `${msg.role}: ${msg.content}\n`;
       });
     }
@@ -358,13 +353,13 @@ export class MemoryEnhancedLLM {
     await this.memory.addMemory(message, {
       type: MemoryType.SHORT_TERM,
       importance: 0.6,
-      role: 'user'
+      role: 'user',
     });
 
     await this.memory.addMemory(response, {
       type: MemoryType.SHORT_TERM,
       importance: 0.6,
-      role: 'assistant'
+      role: 'assistant',
     });
 
     // Add to conversation context
@@ -381,7 +376,7 @@ export class MemoryEnhancedLLM {
     return await this.memory.addMemory(content, {
       ...metadata,
       type: MemoryType.LONG_TERM,
-      importance: metadata.importance || 0.9
+      importance: metadata.importance || 0.9,
     });
   }
 
