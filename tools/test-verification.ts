@@ -46,6 +46,7 @@ export const testVerification: Tool = {
     },
     required: ['operation'],
   },
+
   async execute(args: any): Promise<any> {
     const {
       operation,
@@ -105,7 +106,7 @@ export const testVerification: Tool = {
       });
 
       // Parse test results
-      const results = {
+      const results: any = {
         success: true,
         command,
         output: stdout,
