@@ -1,6 +1,6 @@
 /* ==========================================================================
    Scarmonit Website - Modern CSS Design System
-   Following proven business design best practices
+   Following proven business design best practices - Updated for Backend Integration
    ========================================================================== */
 
 /* CSS Custom Properties (Design Tokens) */
@@ -145,6 +145,11 @@ button {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-border);
+  transition: var(--transition-fast);
+}
+
+.nav--scrolled {
+  box-shadow: var(--shadow-md);
 }
 
 .nav-container {
@@ -219,13 +224,44 @@ button {
   transition: var(--transition-fast);
 }
 
+.nav-toggle--open span:nth-child(1) {
+  transform: rotate(45deg) translate(5px, 5px);
+}
+
+.nav-toggle--open span:nth-child(2) {
+  opacity: 0;
+}
+
+.nav-toggle--open span:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -6px);
+}
+
 @media (max-width: 768px) {
   .nav-container {
     padding: 0 var(--space-4);
   }
   
   .nav-menu {
-    display: none;
+    position: absolute;
+    top: 100%;
+    right: var(--space-4);
+    left: var(--space-4);
+    background: white;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-6);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all var(--transition-fast);
+  }
+  
+  .nav-menu--open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
   }
   
   .nav-toggle {
@@ -477,6 +513,7 @@ button {
   font-size: 1.5rem;
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
+  transition: var(--transition-fast);
 }
 
 .dashboard-alerts {
@@ -589,7 +626,7 @@ button {
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: var(--space-8);
 }
 
@@ -666,6 +703,87 @@ button {
   }
 }
 
+/* Architecture Section */
+.architecture {
+  padding: var(--space-20) 0;
+  background: var(--color-surface);
+}
+
+.architecture-flow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-8);
+}
+
+.flow-step {
+  background: white;
+  padding: var(--space-8);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  position: relative;
+  transition: var(--transition-normal);
+}
+
+.flow-step:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: white;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-4);
+}
+
+.step-title {
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin-bottom: var(--space-3);
+}
+
+.step-description {
+  color: var(--color-text-light);
+  line-height: 1.6;
+}
+
+/* Security Section */
+.security {
+  padding: var(--space-20) 0;
+  background: white;
+}
+
+.security-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-8);
+}
+
+.security-item {
+  text-align: center;
+  padding: var(--space-6);
+}
+
+.security-item h4 {
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin-bottom: var(--space-3);
+}
+
+.security-item p {
+  color: var(--color-text-light);
+  line-height: 1.6;
+}
+
 /* CTA Section */
 .cta {
   padding: var(--space-20) 0;
@@ -732,6 +850,12 @@ button {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
+.form-input.field-error,
+.form-select.field-error,
+.form-textarea.field-error {
+  border-color: var(--color-error);
+}
+
 .form-textarea {
   min-height: 100px;
   resize: vertical;
@@ -744,6 +868,13 @@ button {
   margin-top: var(--space-2);
 }
 
+.field-error-message {
+  color: var(--color-error);
+  font-size: 0.875rem;
+  margin-top: var(--space-1);
+  display: block;
+}
+
 @media (max-width: 768px) {
   .cta-content {
     grid-template-columns: 1fr;
@@ -752,6 +883,10 @@ button {
   
   .cta-title {
     font-size: 2rem;
+  }
+  
+  .architecture-flow {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -859,6 +994,41 @@ button {
   }
 }
 
+/* Success/Error States */
+.success-message {
+  text-align: center;
+  padding: var(--space-8);
+}
+
+.success-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-4);
+}
+
+.form-error-message {
+  color: var(--color-error);
+  background: rgba(239, 68, 68, 0.1);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  margin-top: var(--space-4);
+  text-align: center;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Loading States */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Utility Classes */
 .sr-only {
   position: absolute;
@@ -924,6 +1094,25 @@ button {
 a:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* Skip Link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--color-primary);
+  color: white;
+  padding: 8px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: bold;
+  z-index: 1000;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 6px;
 }
 
 /* Print Styles */
