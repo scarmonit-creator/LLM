@@ -3,8 +3,28 @@ name: Auto-Fix CI/CD
 on:
   push:
     branches: [ main, develop ]
+    paths:
+      - '**.js'
+      - '**.jsx'
+      - '**.ts'
+      - '**.tsx'
+      - '**.json'
+      - '**.css'
+      - '**.md'
+      - 'package*.json'
+      - '.eslintrc*'
+      - '.prettierrc*'
   pull_request:
     branches: [ main ]
+    paths:
+      - '**.js'
+      - '**.jsx'
+      - '**.ts'
+      - '**.tsx'
+      - '**.json'
+      - '**.css'
+      - '**.md'
+      - 'package*.json'
   workflow_dispatch:
 
 # Prevent concurrent workflow runs to avoid conflicts
@@ -19,7 +39,7 @@ permissions:
 jobs:
   auto-fix:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     
     strategy:
       fail-fast: false
@@ -31,7 +51,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0
+        fetch-depth: 1
         token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Setup Node.js ${{ matrix.node-version }}
@@ -66,14 +86,6 @@ jobs:
       run: npm run format --if-present || true
       continue-on-error: true
     
-    - name: Run build
-      run: npm run build --if-present || true
-      continue-on-error: true
-    
-    - name: Run tests
-      run: npm test --if-present || true
-      continue-on-error: true
-    
     - name: Check for changes
       id: verify-changed-files
       run: |
@@ -85,6 +97,16 @@ jobs:
           echo "changed=false" >> $GITHUB_OUTPUT
           echo "No changes detected"
         fi
+    
+    - name: Run build (only if changes)
+      if: steps.verify-changed-files.outputs.changed == 'true'
+      run: npm run build --if-present || true
+      continue-on-error: true
+    
+    - name: Run tests (only if changes)
+      if: steps.verify-changed-files.outputs.changed == 'true'
+      run: npm test --if-present || true
+      continue-on-error: true
     
     # Always create PR for automated fixes to comply with branch protection
     - name: Create Pull Request for Auto-fixes
