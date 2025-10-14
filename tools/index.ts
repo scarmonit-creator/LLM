@@ -2,6 +2,7 @@
  * Tools Orchestration
  * A collection of reusable tools for LLM agent workflows
  */
+
 import BrowserHistoryTool from './browser-history';
 import gitOperations from './git-operations.js';
 import emailIntegration from './email-integration.js';
@@ -62,81 +63,63 @@ const sumTool: ToolDefinition = {
 };
 
 /**
- * Count words in text
+ * Count the words in a string
  */
 const wordCountTool: ToolDefinition = {
   name: 'wordCount',
-  description: 'Count the number of words in a given text',
+  description: 'Count the number of words in a given string',
   parameters: {
     type: 'object',
     properties: {
       text: {
         type: 'string',
-        description: 'The text to analyse',
+        description: 'The text to count words in',
       },
     },
     required: ['text'],
   },
   execute: ({ text }: { text: string }) => {
-    const count =
-      typeof text === 'string' ? (text.trim().length ? text.trim().split(/\s+/).length : 0) : 0;
-    return { count };
+    const wordCount = text.split(/\s+/).filter((word) => word.length > 0).length;
+    return { count: wordCount };
   },
 };
 
 /**
- * Generate a random password. Accepts an optional length and flags to include
- * numbers and symbols. If no arguments are provided a default 12 character
- * password containing letters, numbers and symbols will be generated.
+ * Generate a secure random password
  */
 const generatePasswordTool: ToolDefinition = {
   name: 'generatePassword',
-  description: 'Generate a random password with optional length, numbers and symbols',
+  description: 'Generate a secure random password',
   parameters: {
     type: 'object',
     properties: {
       length: {
         type: 'integer',
-        minimum: 4,
-        maximum: 64,
-        default: 12,
-        description: 'Desired password length (4–64 characters)',
+        default: 16,
+        description: 'Length of the password (default: 16)',
       },
-      numbers: {
+      includeSymbols: {
         type: 'boolean',
         default: true,
-        description: 'Include numeric characters',
-      },
-      symbols: {
-        type: 'boolean',
-        default: true,
-        description: 'Include symbol characters',
+        description: 'Include special symbols in the password',
       },
     },
     required: [],
   },
-  execute: ({
-    length = 12,
-    numbers = true,
-    symbols = true,
-  }: {
-    length?: number;
-    numbers?: boolean;
-    symbols?: boolean;
-  }) => {
-    // Build a character set based on options
-    const lower = 'abcdefghijklmnopqrstuvwxyz';
-    const upper = lower.toUpperCase();
-    const digits = '0123456789';
-    const sym = '!@#$%^&*()-_=+[]{};:,.<>/?';
-    let charset = lower + upper;
-    if (numbers) charset += digits;
-    if (symbols) charset += sym;
+  execute: ({ length = 16, includeSymbols = true }: { length?: number; includeSymbols?: boolean }) => {
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+    let chars = lowercase + uppercase + numbers;
+    if (includeSymbols) chars += symbols;
+
     let password = '';
     for (let i = 0; i < length; i++) {
-      const idx = Math.floor(Math.random() * charset.length);
-      password += charset.charAt(idx);
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
+
     return { password };
   },
 };
@@ -188,7 +171,7 @@ const browserHistoryTool: ToolDefinition = {
  * should be added to this object so they can be discovered by the
  * orchestrator or agents that need to call them.
  */
-const tools: Record<string, ToolDefinition> = {
+const tools: Record<string, any> = {
   [getDateTool.name]: getDateTool,
   [sumTool.name]: sumTool,
   [wordCountTool.name]: wordCountTool,
