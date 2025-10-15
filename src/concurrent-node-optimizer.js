@@ -5,18 +5,27 @@
  * Integrates with Python concurrent.futures for maximum performance
  */
 
-import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
-import { cpus } from 'os';
-import { performance } from 'perf_hooks';
-import { spawn, exec } from 'child_process';
-import { promisify } from 'util';
-import cluster from 'cluster';
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+// Mixed import/require approach for maximum compatibility
+const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
+const { cpus } = require('os');
+const { performance } = require('perf_hooks');
+const { spawn, exec } = require('child_process');
+const { promisify } = require('util');
+const cluster = require('cluster');
+const fs = require('fs').promises;
+const path = require('path');
+const { fileURLToPath } = require('url');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ES Module compatibility for __filename and __dirname
+let __filename, __dirname;
+try {
+  __filename = fileURLToPath(import.meta.url);
+  __dirname = path.dirname(__filename);
+} catch {
+  // Fallback for CommonJS
+  __filename = require.main ? require.main.filename : __filename;
+  __dirname = path.dirname(__filename);
+}
 
 const execAsync = promisify(exec);
 
@@ -134,12 +143,16 @@ class NodePerformanceOptimizer {
       global.gc();
     }
     
-    // Clear require cache for non-core modules
-    Object.keys(require.cache).forEach(key => {
-      if (!key.includes('node_modules')) {
-        delete require.cache[key];
-      }
-    });
+    // Clear require cache for non-core modules (CommonJS compatibility)
+    try {
+      Object.keys(require.cache).forEach(key => {
+        if (!key.includes('node_modules')) {
+          delete require.cache[key];
+        }
+      });
+    } catch {
+      // Graceful fallback if require.cache is not available
+    }
     
     const endMemory = process.memoryUsage();
     
@@ -554,10 +567,22 @@ async function main() {
   }
 }
 
-// Export for use as module
-export { NodePerformanceOptimizer, ConcurrentTaskManager };
+// Export for use as module (both CommonJS and ES Module compatibility)
+if (typeof module !== 'undefined' && module.exports) {
+  // CommonJS
+  module.exports = { NodePerformanceOptimizer, ConcurrentTaskManager };
+} else {
+  // ES Module fallback - try/catch for safety
+  try {
+    // Export as global for maximum compatibility
+    global.NodePerformanceOptimizer = NodePerformanceOptimizer;
+    global.ConcurrentTaskManager = ConcurrentTaskManager;
+  } catch {
+    // Ignore export errors in strict environments
+  }
+}
 
-// Run if called directly
-if (isMainThread && import.meta.url === `file://${__filename}`) {
+// Run if called directly (check both CommonJS and ES module patterns)
+if ((require.main === module) || (isMainThread && typeof import !== 'undefined' && import.meta?.url === `file://${__filename}`)) {
   main();
 }
