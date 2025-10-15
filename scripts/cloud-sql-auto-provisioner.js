@@ -2,11 +2,104 @@
 /**
  * Cloud SQL Auto-Setup for LLM Framework
  * Automatically provisions and configures Cloud SQL instance via REST API
+ * SECURITY ENHANCED: All sensitive data logging has been secured
  */
 
 import { GoogleAuth } from 'google-auth-library';
 import fetch from 'node-fetch';
 import crypto from 'crypto';
+
+/**
+ * Secure logging utility to prevent credential exposure
+ * Fixes CodeQL Alert #15: Clear-text Logging of Sensitive Information
+ */
+class SecureLogger {
+  static sensitivePatterns = [
+    // Passwords and API keys
+    /(password|passwd|pwd|secret|key|token|auth)\s*[:=]\s*['"]?([^'"\s,}]+)/gi,
+    // Connection strings
+    /(mysql|postgres|mongodb):\/\/[^:]+:([^@]+)@/gi,
+    // Base64 encoded data that might contain credentials
+    /['"]([A-Za-z0-9+/]{20,}={0,2})['"]/g,
+    // Environment variables with sensitive names
+    /(API_KEY|SECRET|PASSWORD|TOKEN|PRIVATE_KEY)\s*=\s*['"]?([^'"\s,}]+)/gi,
+    // IP addresses (moderate sensitivity)
+    /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/g
+  ];
+
+  static redactSensitiveData(data: any): any {
+    if (typeof data === 'string') {
+      let sanitized = data;
+      this.sensitivePatterns.forEach((pattern, index) => {
+        if (index === 4) { // IP addresses - partial redaction
+          sanitized = sanitized.replace(pattern, (match) => {
+            const parts = match.split('.');
+            return `${parts[0]}.${parts[1]}.xxx.xxx`;
+          });
+        } else {
+          sanitized = sanitized.replace(pattern, (match, key, value) => {
+            if (value) {
+              const redacted = value.length > 4 ? 
+                value.substring(0, 2) + '*'.repeat(value.length - 4) + value.substring(value.length - 2) :
+                '*'.repeat(value.length);
+              return match.replace(value, redacted);
+            }
+            return match.replace(/[^\s:=]/g, '*');
+          });
+        }
+      });
+      return sanitized;
+    } else if (typeof data === 'object' && data !== null) {
+      if (Array.isArray(data)) {
+        return data.map(item => this.redactSensitiveData(item));
+      }
+      const sanitized = {};
+      for (const [key, value] of Object.entries(data)) {
+        // Redact sensitive keys entirely
+        if (/password|secret|key|token|auth|credential/i.test(key)) {
+          sanitized[key] = '*'.repeat(8);
+        } else {
+          sanitized[key] = this.redactSensitiveData(value);
+        }
+      }
+      return sanitized;
+    }
+    return data;
+  }
+
+  static secureLog(level: string, message: string, data?: any): void {
+    const timestamp = new Date().toISOString();
+    const sanitizedMessage = this.redactSensitiveData(message);
+    const sanitizedData = data ? this.redactSensitiveData(data) : null;
+    
+    const logEntry = {
+      timestamp,
+      level: level.toUpperCase(),
+      message: sanitizedMessage,
+      ...(sanitizedData && { data: sanitizedData })
+    };
+
+    console.log(JSON.stringify(logEntry, null, 2));
+  }
+
+  static info(message: string, data?: any): void {
+    this.secureLog('info', message, data);
+  }
+
+  static error(message: string, data?: any): void {
+    this.secureLog('error', message, data);
+  }
+
+  static warn(message: string, data?: any): void {
+    this.secureLog('warn', message, data);
+  }
+
+  static debug(message: string, data?: any): void {
+    if (process.env.DEBUG) {
+      this.secureLog('debug', message, data);
+    }
+  }
+}
 
 class CloudSQLAutoProvisioner {
   constructor(projectId = 'scarmonit-8bcee') {
@@ -21,9 +114,15 @@ class CloudSQLAutoProvisioner {
   }
 
   async getAccessToken() {
-    const client = await this.auth.getClient();
-    const token = await client.getAccessToken();
-    return token.token;
+    try {
+      const client = await this.auth.getClient();
+      const token = await client.getAccessToken();
+      SecureLogger.debug('Successfully obtained access token');
+      return token.token;
+    } catch (error) {
+      SecureLogger.error('Failed to obtain access token', { error: error.message });
+      throw error;
+    }
   }
 
   async createInstance() {
@@ -60,25 +159,31 @@ class CloudSQLAutoProvisioner {
       }
     };
 
-    const response = await fetch(`https://sqladmin.googleapis.com/v1/projects/${this.projectId}/instances`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(instanceConfig)
-    });
+    try {
+      const response = await fetch(`https://sqladmin.googleapis.com/v1/projects/${this.projectId}/instances`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(instanceConfig)
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Instance creation failed: ${response.status} ${error}`);
+      if (!response.ok) {
+        const error = await response.text();
+        SecureLogger.error(`Instance creation failed: ${response.status}`, { status: response.status });
+        throw new Error(`Instance creation failed: ${response.status} - Error details redacted for security`);
+      }
+
+      const result = await response.json();
+      SecureLogger.info(`Instance creation initiated successfully`, { instanceId: this.instanceId });
+      SecureLogger.debug('Operation details', { operationName: result.name });
+      
+      return result;
+    } catch (error) {
+      SecureLogger.error('Failed to create instance', { error: error.message, instanceId: this.instanceId });
+      throw error;
     }
-
-    const result = await response.json();
-    console.log(`✅ Instance creation initiated: ${this.instanceId}`);
-    console.log(`🔄 Operation: ${result.name}`);
-    
-    return result;
   }
 
   async waitForOperation(operationName, maxWaitMinutes = 10) {
@@ -86,25 +191,37 @@ class CloudSQLAutoProvisioner {
     const startTime = Date.now();
     const timeoutMs = maxWaitMinutes * 60 * 1000;
 
+    SecureLogger.info('Waiting for operation to complete', { 
+      operationName: operationName.split('/').pop(), 
+      maxWaitMinutes 
+    });
+
     while (Date.now() - startTime < timeoutMs) {
-      const response = await fetch(`https://sqladmin.googleapis.com/v1/projects/${this.projectId}/operations/${operationName}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      try {
+        const response = await fetch(`https://sqladmin.googleapis.com/v1/projects/${this.projectId}/operations/${operationName}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
 
-      const operation = await response.json();
-      
-      if (operation.status === 'DONE') {
-        if (operation.error) {
-          throw new Error(`Operation failed: ${JSON.stringify(operation.error)}`);
+        const operation = await response.json();
+        
+        if (operation.status === 'DONE') {
+          if (operation.error) {
+            SecureLogger.error('Operation failed', { operationName: operationName.split('/').pop() });
+            throw new Error(`Operation failed - details redacted for security`);
+          }
+          SecureLogger.info('Operation completed successfully', { operationName: operationName.split('/').pop() });
+          return operation;
         }
-        console.log(`✅ Operation completed: ${operationName}`);
-        return operation;
-      }
 
-      console.log(`⏳ Operation in progress: ${operation.status}`);
-      await new Promise(resolve => setTimeout(resolve, 15000)); // Wait 15s
+        SecureLogger.debug('Operation in progress', { status: operation.status });
+        await new Promise(resolve => setTimeout(resolve, 15000)); // Wait 15s
+      } catch (error) {
+        SecureLogger.error('Error checking operation status', { error: error.message });
+        throw error;
+      }
     }
 
+    SecureLogger.error('Operation timeout', { maxWaitMinutes });
     throw new Error(`Operation timeout after ${maxWaitMinutes} minutes`);
   }
 
@@ -117,23 +234,29 @@ class CloudSQLAutoProvisioner {
       collation: 'utf8mb4_unicode_ci'
     };
 
-    const response = await fetch(`https://sqladmin.googleapis.com/v1/projects/${this.projectId}/instances/${this.instanceId}/databases`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(dbConfig)
-    });
+    try {
+      const response = await fetch(`https://sqladmin.googleapis.com/v1/projects/${this.projectId}/instances/${this.instanceId}/databases`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(dbConfig)
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Database creation failed: ${response.status} ${error}`);
+      if (!response.ok) {
+        const error = await response.text();
+        SecureLogger.error(`Database creation failed: ${response.status}`, { dbName: this.dbName });
+        throw new Error(`Database creation failed: ${response.status} - Error details redacted for security`);
+      }
+
+      const result = await response.json();
+      SecureLogger.info('Database created successfully', { dbName: this.dbName });
+      return result;
+    } catch (error) {
+      SecureLogger.error('Failed to create database', { error: error.message, dbName: this.dbName });
+      throw error;
     }
-
-    const result = await response.json();
-    console.log(`✅ Database created: ${this.dbName}`);
-    return result;
   }
 
   async createUser() {
@@ -145,44 +268,56 @@ class CloudSQLAutoProvisioner {
       host: '%' // Allow from any host
     };
 
-    const response = await fetch(`https://sqladmin.googleapis.com/v1/projects/${this.projectId}/instances/${this.instanceId}/users`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(userConfig)
-    });
+    try {
+      const response = await fetch(`https://sqladmin.googleapis.com/v1/projects/${this.projectId}/instances/${this.instanceId}/users`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userConfig)
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`User creation failed: ${response.status} ${error}`);
+      if (!response.ok) {
+        const error = await response.text();
+        SecureLogger.error(`User creation failed: ${response.status}`, { username: this.username });
+        throw new Error(`User creation failed: ${response.status} - Error details redacted for security`);
+      }
+
+      const result = await response.json();
+      SecureLogger.info('Database user created successfully', { username: this.username });
+      return result;
+    } catch (error) {
+      SecureLogger.error('Failed to create user', { error: error.message, username: this.username });
+      throw error;
     }
-
-    const result = await response.json();
-    console.log(`✅ User created: ${this.username}`);
-    return result;
   }
 
   async getInstanceDetails() {
     const token = await this.getAccessToken();
     
-    const response = await fetch(`https://sqladmin.googleapis.com/v1/projects/${this.projectId}/instances/${this.instanceId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    try {
+      const response = await fetch(`https://sqladmin.googleapis.com/v1/projects/${this.projectId}/instances/${this.instanceId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to get instance details: ${response.status} ${error}`);
+      if (!response.ok) {
+        const error = await response.text();
+        SecureLogger.error(`Failed to get instance details: ${response.status}`);
+        throw new Error(`Failed to get instance details: ${response.status} - Error details redacted for security`);
+      }
+
+      const instance = await response.json();
+      return instance;
+    } catch (error) {
+      SecureLogger.error('Failed to retrieve instance details', { error: error.message });
+      throw error;
     }
-
-    const instance = await response.json();
-    return instance;
   }
 
   async provision() {
     try {
-      console.log(`🚀 Starting Cloud SQL provisioning for project: ${this.projectId}`);
+      SecureLogger.info('Starting Cloud SQL provisioning', { projectId: this.projectId });
       
       // Create instance
       const createOp = await this.createInstance();
@@ -195,7 +330,10 @@ class CloudSQLAutoProvisioner {
       const instance = await this.getInstanceDetails();
       const ipAddress = instance.ipAddresses.find(ip => ip.type === 'PRIMARY').ipAddress;
       
-      console.log(`🌐 Instance IP: ${ipAddress}`);
+      SecureLogger.info('Instance provisioned with IP address', { 
+        instanceId: this.instanceId,
+        ipAddress: SecureLogger.redactSensitiveData(ipAddress)
+      });
       
       // Create database
       await this.createDatabase();
@@ -203,13 +341,13 @@ class CloudSQLAutoProvisioner {
       // Create user
       await this.createUser();
       
-      // Generate connection config
+      // Generate connection config (with secure logging)
       const config = {
         instanceId: this.instanceId,
         ipAddress,
         database: this.dbName,
         username: this.username,
-        password: this.password,
+        password: this.password, // This will be redacted in logs
         connectionString: `mysql://${this.username}:${this.password}@${ipAddress}:3306/${this.dbName}`,
         environmentVariables: {
           CLOUD_SQL_HOST: ipAddress,
@@ -220,8 +358,14 @@ class CloudSQLAutoProvisioner {
         }
       };
       
-      console.log('\n📋 Connection Configuration:');
-      console.log(JSON.stringify(config, null, 2));
+      // SECURITY FIX: Use secure logging that redacts sensitive data
+      SecureLogger.info('Connection configuration generated', {
+        instanceId: config.instanceId,
+        database: config.database,
+        username: config.username,
+        hasPassword: !!config.password,
+        hasConnectionString: !!config.connectionString
+      });
       
       // Save to env file
       const envContent = Object.entries(config.environmentVariables)
@@ -230,12 +374,12 @@ class CloudSQLAutoProvisioner {
       
       const fs = await import('fs/promises');
       await fs.writeFile('.env.cloudsql', envContent);
-      console.log('\n💾 Configuration saved to .env.cloudsql');
+      SecureLogger.info('Configuration saved to environment file', { filename: '.env.cloudsql' });
       
       return config;
       
     } catch (error) {
-      console.error('❌ Provisioning failed:', error.message);
+      SecureLogger.error('Cloud SQL provisioning failed', { error: error.message });
       throw error;
     }
   }
@@ -251,20 +395,21 @@ class CloudSQLAutoProvisioner {
 
       if (!response.ok) {
         const error = await response.text();
-        throw new Error(`Cleanup failed: ${response.status} ${error}`);
+        SecureLogger.error(`Cleanup failed: ${response.status}`);
+        throw new Error(`Cleanup failed: ${response.status} - Error details redacted for security`);
       }
 
-      console.log(`🗑️ Instance ${this.instanceId} deletion initiated`);
+      SecureLogger.info('Instance deletion initiated', { instanceId: this.instanceId });
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('❌ Cleanup failed:', error.message);
+      SecureLogger.error('Cleanup operation failed', { error: error.message });
       throw error;
     }
   }
 }
 
-// CLI execution
+// CLI execution with secure logging
 if (import.meta.url === `file://${process.argv[1]}`) {
   const action = process.argv[2] || 'provision';
   const provisioner = new CloudSQLAutoProvisioner();
@@ -272,14 +417,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (action === 'provision') {
     provisioner.provision()
       .then(config => {
-        console.log('\n✅ Cloud SQL provisioning completed successfully!');
+        SecureLogger.info('Cloud SQL provisioning completed successfully');
         console.log('\n🔗 Next steps:');
         console.log('1. Source the environment: source .env.cloudsql');
         console.log('2. Run the setup script: node scripts/cloud-sql-setup.js');
         console.log('3. Test connection with your LLM optimization scripts');
       })
       .catch(error => {
-        console.error('💥 Provisioning failed:', error.message);
+        SecureLogger.error('Provisioning operation failed', { error: error.message });
         process.exit(1);
       });
   } else if (action === 'cleanup') {
@@ -288,13 +433,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (data.toString().trim().toLowerCase() === 'y') {
         try {
           await provisioner.cleanup();
-          console.log('✅ Cleanup completed');
+          SecureLogger.info('Cleanup completed successfully');
         } catch (error) {
-          console.error('❌ Cleanup failed:', error.message);
+          SecureLogger.error('Cleanup operation failed', { error: error.message });
         }
         process.exit(0);
       } else {
-        console.log('❌ Cleanup cancelled');
+        SecureLogger.info('Cleanup operation cancelled');
         process.exit(0);
       }
     });
