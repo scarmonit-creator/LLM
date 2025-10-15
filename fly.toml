@@ -14,18 +14,18 @@ kill_timeout = "10s"
 [env]
   NODE_ENV = "production"
   PORT = "8080"
-  # Memory optimization - reduced for 512MB containers
-  NODE_OPTIONS = "--max-old-space-size=400 --gc-interval=100 --optimize-for-size --experimental-worker"
-  AI_BRIDGE_HISTORY_LIMIT = "800"
-  AI_BRIDGE_MAX_QUEUE = "1500"
-  AI_BRIDGE_MAX_CONNECTIONS = "8000"
+  # Optimized memory settings for 512MB containers
+  NODE_OPTIONS = "--max-old-space-size=400 --gc-interval=100 --optimize-for-size"
+  AI_BRIDGE_HISTORY_LIMIT = "1000"
+  AI_BRIDGE_MAX_QUEUE = "2000"
+  AI_BRIDGE_MAX_CONNECTIONS = "10000"
   AI_BRIDGE_CORS_ORIGINS = "*"
   AI_BRIDGE_CLIENT_TTL_MS = "600000"
-  AI_BRIDGE_CLEANUP_INTERVAL_MS = "45000"
+  AI_BRIDGE_CLEANUP_INTERVAL_MS = "30000"
   AI_BRIDGE_RATE_WINDOW_MS = "60000"
-  AI_BRIDGE_RATE_MAX = "300"
-  # Performance optimizations
-  UV_THREADPOOL_SIZE = "12"
+  AI_BRIDGE_RATE_MAX = "500"
+  # Performance and monitoring optimizations
+  UV_THREADPOOL_SIZE = "16"
   NODE_MAX_OLD_SPACE_SIZE = "400"
   ENABLE_MEMORY_MONITORING = "true"
   ENABLE_CLUSTERING = "false"
@@ -38,27 +38,27 @@ kill_timeout = "10s"
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = false
   auto_start_machines = true
-  min_machines_running = 0
-  max_machines_running = 4
+  min_machines_running = 1
+  max_machines_running = 6
   
   [[http_service.concurrency]]
     type = "connections"
-    hard_limit = 2000
-    soft_limit = 1000
+    hard_limit = 3000
+    soft_limit = 2000
     
   [[http_service.concurrency]]
     type = "requests"
-    hard_limit = 3000
-    soft_limit = 1500
+    hard_limit = 5000
+    soft_limit = 3000
   
   [http_service.checks]
-    grace_period = "20s"
+    grace_period = "15s"
     interval = "10s"
     method = "GET"
     path = "/health"
-    timeout = "8s"
+    timeout = "5s"
     headers = { "User-Agent" = "fly-health-check" }
     tls_skip_verify = false
     
@@ -71,7 +71,7 @@ kill_timeout = "10s"
   cpus = 1
   memory_mb = 512
   
-  # Auto-scaling configuration
+  # Auto-scaling configuration for better performance
   [[vm.processes]]
   app = "bridge"
   entrypoint = ["npm", "start"]
@@ -88,16 +88,27 @@ kill_timeout = "10s"
   format = "json"
   level = "info"
   
-# Resource optimization
+# Resource optimization for 512MB containers
 [resource_limits]
   memory = "512MB"
   cpu = "1.0"
   
 # Network optimizations
 [network]
-  ipv6 = false
+  ipv6 = true
   
-# Backup configuration
+# Backup configuration for production
 [backup]
   schedule = "@daily"
   retention = "7d"
+  
+# Enhanced monitoring and alerting
+[monitoring]
+  enabled = true
+  interval = "30s"
+  
+# Performance optimization settings
+[performance]
+  compression = "gzip"
+  keep_alive = "30s"
+  max_connections_per_ip = 100
