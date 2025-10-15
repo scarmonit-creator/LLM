@@ -3,7 +3,6 @@
   "version": "2.0.0-concurrent",
   "description": "LLM integration project with Claude, A2A, and browser history access - CONCURRENT OPTIMIZED with Python concurrent.futures integration",
   "main": "server.js",
-  "type": "module",
   "scripts": {
     "start": "npm run optimize:concurrent && npm run build:tools && node server.js",
     "start:enhanced": "npm run optimize:concurrent && node server-enhanced.js",
@@ -68,152 +67,52 @@
     "validate:ultra": "npm run concurrent:breakthrough && npm run validate:full",
     "dev": "npm run build:tools && node --watch server.js",
     "dev:concurrent": "npm run concurrent:optimize && node --watch --expose-gc server-enhanced.js",
-    "dev:optimized": "npm run optimize:autonomous && node --watch --expose-gc src/ai-bridge-optimized.js",
-    "dev:performance": "npm run concurrent:optimize && node --watch --expose-gc server-enhanced.js",
-    "dev:ultra": "npm run concurrent:breakthrough && node --watch --expose-gc --max-old-space-size=8192 server-enhanced.js",
-    "clean": "rm -rf dist node_modules",
-    "clean:cache": "rm -rf dist",
-    "clean:reports": "rm -f *optimization*report*.json build-report.json reports/*.json",
-    "clean:concurrent": "rm -f concurrent_*_report.json",
-    "clean:all": "npm run clean:cache && npm run clean:reports && npm run clean:concurrent",
-    "reset": "npm run clean && npm install",
-    "deploy:prepare": "npm run concurrent:full && npm run build:production",
-    "deploy:ultra": "npm run concurrent:breakthrough && npm run build:ultra",
-    "deploy:concurrent": "npm run concurrent:breakthrough && npm run deploy:ultra",
-    "health:check": "curl -s http://localhost:8080/health | jq .",
-    "health:concurrent": "curl -s http://localhost:8080/metrics/concurrent | jq .",
-    "monitoring:start": "npm run performance:concurrent && npm run performance:monitor",
-    "monitoring:concurrent": "watch -n 5 'npm run health:concurrent'",
-    "system:optimize": "npm run concurrent:breakthrough",
-    "system:concurrent": "npm run concurrent:full && npm run monitoring:concurrent",
-    "production:full": "npm run deploy:concurrent && npm run monitoring:start && npm run health:check",
-    "production:concurrent": "npm run start:ultra"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0",
-    "python": ">=3.8.0"
+    "dev:production": "npm run concurrent:full && npm run dev:concurrent",
+    "dev:ultra": "npm run concurrent:breakthrough && node --watch --expose-gc --max-old-space-size=8192 server-enhanced.js"
   },
   "keywords": [
-    "claude",
     "llm",
-    "ai",
-    "mcp",
-    "agent",
+    "claude",
     "automation",
-    "optimization",
     "browser-history",
-    "performance",
-    "autonomous",
-    "typescript",
-    "express",
-    "sqlite",
-    "breakthrough",
-    "enterprise",
-    "ultra-performance",
-    "concurrent",
-    "parallel-processing",
-    "worker-threads",
-    "python-integration",
-    "concurrent-futures",
-    "multi-threading",
-    "real-time-optimization"
+    "a2a",
+    "concurrent"
   ],
-  "author": "scarmonit-creator",
+  "author": "scarmonit",
   "license": "ISC",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.1",
-    "@modelcontextprotocol/sdk": "^1.0.4",
-    "better-sqlite3": "^11.8.1",
+    "@anthropic-ai/sdk": "^0.33.1",
+    "@google-cloud/secret-manager": "^5.7.1",
+    "@google-cloud/sql": "^0.1.2",
+    "@google-cloud/storage": "^7.16.0",
+    "axios": "^1.7.9",
+    "body-parser": "^1.20.3",
+    "cheerio": "^1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "fs-extra": "^11.2.0",
-    "zod": "^3.24.1",
-    "compression": "^1.7.4",
-    "helmet": "^8.0.0",
-    "express-rate-limit": "^7.4.1",
-    "lru-cache": "^11.0.2",
-    "winston": "^3.17.0"
+    "node-fetch": "^3.3.2",
+    "pdf-parse": "^1.1.1",
+    "playwright": "^1.49.1",
+    "puppeteer": "^23.11.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "@types/better-sqlite3": "^7.6.12",
+    "@types/body-parser": "^1.19.5",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
-    "@types/jest": "^29.5.14",
-    "@types/node": "^22.10.2",
-    "@types/compression": "^1.7.5",
+    "@types/node": "^22.10.5",
     "cross-env": "^7.0.3",
     "eslint": "^9.17.0",
-    "eslint-config-prettier": "^9.1.0",
-    "globals": "^15.13.0",
+    "globals": "^15.14.0",
     "jest": "^29.7.0",
+    "nodemon": "^3.1.9",
     "prettier": "^3.4.2",
+    "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   },
-  "optionalDependencies": {
-    "psutil": "*"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/scarmonit-creator/LLM.git"
-  },
-  "bugs": {
-    "url": "https://github.com/scarmonit-creator/LLM/issues"
-  },
-  "homepage": "https://github.com/scarmonit-creator/LLM#readme",
-  "performance": {
-    "targets": {
-      "improvement": "99.5%",
-      "memory_reduction": "35%",
-      "cache_hit_rate": "99.99%",
-      "response_time": "<100ms",
-      "build_time": "<500ms",
-      "concurrent_throughput": ">1000rps",
-      "parallel_efficiency": "95%"
-    },
-    "optimization": {
-      "ultra_nexus": true,
-      "breakthrough_system": true,
-      "enterprise_grade": true,
-      "production_ready": true,
-      "concurrent_futures": true,
-      "worker_threads": true,
-      "python_integration": true,
-      "real_time_monitoring": true,
-      "parallel_processing": true,
-      "multi_threading": true
-    },
-    "concurrent_features": {
-      "python_concurrent_futures": "enabled",
-      "node_worker_threads": "enabled",
-      "parallel_optimization": "enabled",
-      "real_time_monitoring": "enabled",
-      "background_optimization": "enabled",
-      "memory_optimization": "concurrent",
-      "file_system_optimization": "concurrent",
-      "network_optimization": "concurrent",
-      "database_optimization": "concurrent",
-      "build_system_optimization": "concurrent"
-    }
-  },
-  "concurrent": {
-    "python_requirements": [
-      "psutil>=5.9.0",
-      "concurrent.futures"
-    ],
-    "worker_threads": {
-      "max_workers": "cpu_count + 4",
-      "timeout": "30s",
-      "memory_limit": "512MB"
-    },
-    "optimization_schedule": {
-      "memory": "30s",
-      "filesystem": "300s",
-      "database": "600s",
-      "full_suite": "3600s"
-    }
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }
