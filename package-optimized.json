@@ -1,0 +1,142 @@
+{
+  "name": "llm",
+  "version": "2.1.0-ultra-optimized",
+  "description": "LLM integration project with ULTRA PERFORMANCE optimization - clustering, caching, security, and real-time monitoring",
+  "main": "server-optimized.js",
+  "type": "module",
+  "scripts": {
+    "start": "NODE_ENV=production node --expose-gc --max-old-space-size=4096 server-optimized.js",
+    "start:dev": "node --watch --expose-gc server-optimized.js",
+    "start:cluster": "NODE_ENV=production node --expose-gc --max-old-space-size=8192 server-optimized.js",
+    "start:debug": "NODE_ENV=development DEBUG=* node --inspect --expose-gc server-optimized.js",
+    "start:legacy": "node server.js",
+    "start:enhanced": "node server-enhanced.js",
+    "optimize:full": "npm run build:tools && npm run lint:fix && npm run test:performance",
+    "optimize:memory": "node --expose-gc --max-old-space-size=8192 server-optimized.js",
+    "optimize:cluster": "NODE_ENV=production npm run start:cluster",
+    "build": "npm run build:tools && tsc --build --incremental",
+    "build:tools": "node scripts/build-tools.js",
+    "build:production": "npm run optimize:full && npm run build",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test tests",
+    "test:performance": "npm run test && curl -s http://localhost:8080/metrics | grep -E '(requests|response_time|memory|cache)'",
+    "test:load": "artillery quick --count 100 --num 10 http://localhost:8080/health",
+    "test:memory": "node --expose-gc --trace-gc server-optimized.js",
+    "test:cluster": "NODE_ENV=production npm run start:cluster & sleep 5 && npm run test:load && kill %1",
+    "monitor:performance": "watch -n 2 'curl -s http://localhost:8080/health | jq .performance'",
+    "monitor:memory": "watch -n 1 'curl -s http://localhost:8080/health | jq .memory'",
+    "monitor:cache": "watch -n 5 'curl -s http://localhost:8080/cache/stats | jq .cache'",
+    "monitor:cluster": "watch -n 3 'curl -s http://localhost:8080/health | jq .worker'",
+    "benchmark:single": "NODE_ENV=development node server-optimized.js & sleep 3 && npm run test:load && kill %1",
+    "benchmark:cluster": "NODE_ENV=production node server-optimized.js & sleep 3 && npm run test:load && kill %1",
+    "benchmark:compare": "npm run benchmark:single && echo '---CLUSTER---' && npm run benchmark:cluster",
+    "deploy:fly": "npm run build:production && flyctl deploy",
+    "deploy:docker": "docker build -t llm-optimized . && docker run -p 8080:8080 llm-optimized",
+    "docker:build": "docker build -t llm-ultra-performance .",
+    "docker:run": "docker run -p 8080:8080 -e NODE_ENV=production llm-ultra-performance",
+    "docker:cluster": "docker run -p 8080:8080 -e NODE_ENV=production --cpus=4 llm-ultra-performance",
+    "health:check": "curl -s http://localhost:8080/health | jq .",
+    "health:metrics": "curl -s http://localhost:8080/metrics",
+    "health:cache": "curl -s http://localhost:8080/cache/stats | jq .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{js,json,md}\"",
+    "validate": "npm run lint && npm run test",
+    "clean": "rm -rf dist node_modules",
+    "clean:cache": "rm -rf .cache tmp",
+    "clean:logs": "rm -f *.log",
+    "reset": "npm run clean && npm install",
+    "postinstall": "npm run build:tools",
+    "prestart": "npm run health:check || echo 'Starting fresh server'",
+    "prestop": "curl -s http://localhost:8080/health || echo 'Server already stopped'"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "llm", "ai", "performance", "clustering", "caching", "optimization",
+    "express", "nodejs", "security", "monitoring", "rate-limiting",
+    "compression", "memory-management", "garbage-collection",
+    "prometheus", "health-check", "ultra-performance",
+    "production-ready", "enterprise", "scalable"
+  ],
+  "author": "scarmonit-creator",
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "better-sqlite3": "^11.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "fs-extra": "^11.2.0",
+    "zod": "^3.24.1",
+    "compression": "^1.7.4",
+    "helmet": "^8.0.0",
+    "express-rate-limit": "^7.4.1",
+    "lru-cache": "^11.0.2",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.2",
+    "@types/compression": "^1.7.5",
+    "cross-env": "^7.0.3",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.13.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "artillery": "^2.0.20"
+  },
+  "optionalDependencies": {
+    "psutil": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scarmonit-creator/LLM.git"
+  },
+  "bugs": {
+    "url": "https://github.com/scarmonit-creator/LLM/issues"
+  },
+  "homepage": "https://github.com/scarmonit-creator/LLM#readme",
+  "performance": {
+    "optimization_level": "ultra",
+    "features": {
+      "clustering": "multi-process",
+      "caching": "LRU with TTL",
+      "compression": "gzip/deflate",
+      "security": "helmet + CSP + rate limiting",
+      "memory_management": "auto GC + cleanup",
+      "monitoring": "real-time metrics"
+    },
+    "targets": {
+      "response_time": "<50ms",
+      "memory_usage": "<512MB",
+      "cpu_usage": "<80%",
+      "cache_hit_rate": ">70%",
+      "error_rate": "<0.1%",
+      "uptime": ">99.9%"
+    }
+  },
+  "deployment": {
+    "platforms": ["fly.io", "docker", "kubernetes", "aws", "gcp", "azure"],
+    "environment": {
+      "NODE_ENV": "production",
+      "NODE_OPTIONS": "--expose-gc --max-old-space-size=8192",
+      "PORT": "8080"
+    },
+    "health_checks": {
+      "endpoint": "/health",
+      "interval": "30s",
+      "timeout": "5s",
+      "retries": 3
+    }
+  }
+}
