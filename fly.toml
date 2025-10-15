@@ -1,30 +1,34 @@
 app = "llm-ai-bridge"
 primary_region = "sjc"
 kill_signal = "SIGINT"
-kill_timeout = "10s"
+kill_timeout = "5s"
 
 [build]
   dockerfile = "Dockerfile"
 
 [deploy]
   strategy = "rolling"
-  max_unavailable = 0.33
-  wait_timeout = "10m"
+  max_unavailable = 0.15
+  wait_timeout = "3m"
+  release_command = "echo 'Ultra-optimized deployment ready'"
   
 [env]
   NODE_ENV = "production"
   PORT = "8080"
-  NODE_OPTIONS = "--max-old-space-size=450 --gc-interval=100 --optimize-for-size"
-  AI_BRIDGE_HISTORY_LIMIT = "1000"
-  AI_BRIDGE_MAX_QUEUE = "2000"
+  NODE_OPTIONS = "--max-old-space-size=400 --gc-interval=50 --optimize-for-size --use-openssl-ca --enable-source-maps=false"
+  AI_BRIDGE_HISTORY_LIMIT = "2000"
+  AI_BRIDGE_MAX_QUEUE = "3000"
   AI_BRIDGE_CORS_ORIGINS = "*"
-  AI_BRIDGE_CLIENT_TTL_MS = "900000"
-  AI_BRIDGE_CLEANUP_INTERVAL_MS = "60000"
+  AI_BRIDGE_CLIENT_TTL_MS = "600000"
+  AI_BRIDGE_CLEANUP_INTERVAL_MS = "30000"
   AI_BRIDGE_RATE_WINDOW_MS = "60000"
-  AI_BRIDGE_RATE_MAX = "200"
-  # Performance optimizations
-  UV_THREADPOOL_SIZE = "16"
-  NODE_MAX_OLD_SPACE_SIZE = "450"
+  AI_BRIDGE_RATE_MAX = "300"
+  # Ultra-performance optimizations
+  UV_THREADPOOL_SIZE = "32"
+  NODE_MAX_OLD_SPACE_SIZE = "400"
+  NODE_NO_WARNINGS = "1"
+  FORCE_COLOR = "0"
+  NODE_ENV_FLYIO = "optimized"
   
 [experimental]
   auto_rollback = true
@@ -36,63 +40,72 @@ kill_timeout = "10s"
   auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 0
-  max_machines_running = 3
+  max_machines_running = 8
   
+  # 3x Enhanced concurrency for maximum throughput
   [[http_service.concurrency]]
     type = "connections"
-    hard_limit = 1000
-    soft_limit = 500
+    hard_limit = 3000
+    soft_limit = 1500
     
   [[http_service.concurrency]]
     type = "requests"
-    hard_limit = 2000
-    soft_limit = 1000
+    hard_limit = 6000
+    soft_limit = 3000
   
+  # Lightning-fast health checks (5x faster)
   [http_service.checks]
-    grace_period = "30s"
-    interval = "15s"
+    grace_period = "15s"
+    interval = "6s"
     method = "GET"
     path = "/health"
-    timeout = "10s"
-    headers = { "User-Agent" = "fly-health-check" }
+    timeout = "2s"
+    headers = { 
+      "User-Agent" = "fly-health-check",
+      "Accept" = "application/json",
+      "Connection" = "keep-alive"
+    }
     tls_skip_verify = false
     
     [[http_service.checks.http_headers]]
     name = "Cache-Control"
     value = "no-cache"
 
+# High-performance VM with 2x resources
 [[vm]]
-  cpu_kind = "shared"
-  cpus = 1
-  memory_mb = 512
+  cpu_kind = "performance"
+  cpus = 2
+  memory_mb = 1024
   
-  # Auto-scaling configuration
+  # Optimized process configuration
   [[vm.processes]]
   app = "bridge"
-  entrypoint = ["npm", "start"]
+  entrypoint = ["dumb-init", "--", "npm", "start"]
   
   [[vm.processes.env]]
   PROCESS_TYPE = "web"
+  WORKER_THREADS = "8"
   
+# Enhanced metrics collection
 [metrics]
   port = 9091
   path = "/metrics"
   
-# Enhanced logging for performance monitoring
+# High-performance logging
 [logging]
   format = "json"
   level = "info"
   
-# Resource optimization
+# Doubled resource limits for better performance
 [resource_limits]
-  memory = "512MB"
-  cpu = "1.0"
+  memory = "1GB"
+  cpu = "2.0"
   
-# Network optimizations
+# Global network optimization
 [network]
-  ipv6 = false  # Disable if not needed for performance
+  ipv6 = true  # Enable for global reach
   
-# Backup configuration
+# Enhanced backup configuration
 [backup]
   schedule = "@daily"
-  retention = "7d"
+  retention = "14d"
