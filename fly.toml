@@ -13,6 +13,13 @@ kill_timeout = '10s'
   PORT = '8080'
   DASHBOARD_PORT = '8081'
   MCP_PORT = '3001'
+  # Performance optimizations
+  NODE_OPTIONS = '--max-old-space-size=256 --optimize-for-size --gc-interval=100'
+  WEB_MEMORY = '256'
+  WEB_CONCURRENCY = '1'
+  # Enable performance monitoring
+  PERFORMANCE_MONITORING = 'true'
+  MEMORY_MONITORING = 'true'
 
 [http_service]
   internal_port = 8080
@@ -20,24 +27,46 @@ kill_timeout = '10s'
   auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 1
-
+  # Optimized concurrency for 512MB memory
   [http_service.concurrency]
     type = 'connections'
-    hard_limit = 1000
-    soft_limit = 800
+    hard_limit = 1500
+    soft_limit = 1200
 
+# Optimized health check - more frequent for better monitoring
+[[http_service.checks]]
+  interval = '10s'
+  timeout = '3s'
+  grace_period = '5s'
+  method = 'get'
+  path = '/health'
+  headers = { "User-Agent" = "Fly-Health-Check" }
+
+# Performance metrics check
 [[http_service.checks]]
   interval = '30s'
   timeout = '5s'
   grace_period = '15s'
   method = 'get'
-  path = '/health'
+  path = '/metrics'
 
 [[vm]]
   cpu_kind = 'shared'
   cpus = 1
   memory_mb = 512
+  # Enable swap for memory optimization
+  swap_size_mb = 128
 
 [deploy]
-  release_command = 'npm run build || echo Build attempted'
+  release_command = 'npm run build:optimized || npm run build || echo Build attempted'
   strategy = 'canary'
+  
+# Process restart configuration
+[restart]
+  policy = 'on-failure'
+  max_restarts = 3
+  
+# Structured logging
+[logging]
+  structured = true
+  level = 'info'
