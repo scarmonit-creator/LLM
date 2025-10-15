@@ -87,10 +87,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           
-      - name: 📦 Install Nitric CLI
+      - name: 🚀 Install Nitric CLI
         run: |
-          npm install -g @nitric/cli
+          echo "Installing Nitric CLI..."
+          curl -L "https://nitric.io/install?version=latest" | bash
+          export PATH="$HOME/.nitric/bin:$PATH"
           nitric version
+          echo "✅ Nitric CLI installed successfully"
           
       - name: 📦 Install Dependencies
         run: |
@@ -103,6 +106,7 @@ jobs:
       - name: 🧪 Validate Nitric Configuration
         run: |
           echo "Validating Nitric configuration..."
+          export PATH="$HOME/.nitric/bin:$PATH"
           # Dry run to validate config without deploying
           nitric build --verbose
           echo "✅ Nitric configuration is valid"
@@ -162,11 +166,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           
-      - name: 📦 Install Nitric CLI
+      - name: 🚀 Install Nitric CLI
         run: |
-          npm install -g @nitric/cli
+          echo "Installing Nitric CLI..."
+          curl -L "https://nitric.io/install?version=latest" | bash
+          export PATH="$HOME/.nitric/bin:$PATH"
           nitric version
-          echo "✅ Nitric CLI installed"
+          echo "✅ Nitric CLI installed successfully"
           
       - name: 📦 Install Dependencies
         run: |
@@ -182,6 +188,7 @@ jobs:
       - name: 🚀 Deploy to AWS with Nitric
         run: |
           echo "🚀 Starting production deployment..."
+          export PATH="$HOME/.nitric/bin:$PATH"
           
           # Deploy to AWS (primary provider)
           nitric up --provider aws --confirm
