@@ -1,0 +1,56 @@
+FROM node:18-alpine
+
+# Install system dependencies for development
+RUN apk add --no-cache \
+    git \
+    openssh-client \
+    curl \
+    bash \
+    sqlite \
+    python3 \
+    make \
+    g++
+
+# Create workspace directory
+WORKDIR /workspace
+
+# Configure npm for development
+RUN npm config set cache /tmp/.npm-cache --global && \
+    npm config set prefer-offline true --global && \
+    npm config set audit false --global
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies with cache optimization
+RUN npm ci --prefer-offline --no-audit
+
+# Install global development tools
+RUN npm install -g nodemon concurrently typescript ts-node
+
+# Configure Node.js optimizations
+ENV NODE_OPTIONS="--max-old-space-size=2048 --optimize-for-size"
+ENV NODE_ENV=development
+
+# Setup development user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S developer -u 1001 -G nodejs
+
+# Copy application code
+COPY --chown=developer:nodejs . .
+
+# Make scripts executable
+RUN chmod +x scripts/*.sh 2>/dev/null || true
+
+# Switch to development user
+USER developer
+
+# Expose development ports
+EXPOSE 8080 3000 8081
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Default development command
+CMD ["npm", "run", "start:dev:optimized"]
