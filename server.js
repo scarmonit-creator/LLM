@@ -2,6 +2,9 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Import advanced performance middleware
+import performanceMiddleware, { getMetrics } from './middleware/performance-middleware.js';
+
 // ESM compatibility
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,21 +38,21 @@ const initializeBrowserHistory = async () => {
         return [
           {
             url: 'https://github.com/scarmonit-creator/LLM',
-            title: 'LLM Repository - Optimized Performance System',
+            title: 'LLM Repository - Advanced Performance Optimized System',
             visitTime: Date.now(),
             visitCount: 5,
             browser: 'chrome'
           },
           {
             url: 'https://www.perplexity.ai',
-            title: 'Perplexity AI - Advanced Search',
+            title: 'Perplexity AI - Advanced Search with Optimization',
             visitTime: Date.now() - 3600000,
             visitCount: 3,
             browser: 'chrome'
           },
           {
             url: 'https://fly.io/dashboard',
-            title: 'Fly.io Dashboard - Deployment Management',
+            title: 'Fly.io Dashboard - High-Performance Deployment',
             visitTime: Date.now() - 7200000,
             visitCount: 2,
             browser: 'chrome'
@@ -70,7 +73,7 @@ const initializeBrowserHistory = async () => {
 // Initialize the tool
 await initializeBrowserHistory();
 
-// Performance metrics tracking
+// Performance metrics tracking (legacy compatibility)
 let metrics = {
   requests: 0,
   errors: 0,
@@ -86,33 +89,30 @@ setInterval(() => {
   metrics.lastUpdated = new Date().toISOString();
 }, 30000);
 
-// Middleware for JSON parsing
-app.use(express.json());
+// Apply advanced performance middleware suite
+const middlewares = performanceMiddleware.getAllMiddleware();
+middlewares.forEach(middleware => app.use(middleware));
 
-// Middleware for request counting and performance tracking
+// Middleware for JSON parsing (after compression)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Legacy middleware for request counting (enhanced by performance middleware)
 app.use((req, res, next) => {
-  const startTime = Date.now();
   metrics.requests++;
-  
-  res.on('finish', () => {
-    const responseTime = Date.now() - startTime;
-    if (responseTime > 1000) {
-      console.log(`Slow request: ${req.method} ${req.path} took ${responseTime}ms`);
-    }
-  });
-  
   next();
 });
 
-// Health check endpoint
+// Enhanced root endpoint with advanced performance info
 app.get('/', (req, res) => {
   const uptime = Math.floor((Date.now() - metrics.uptime) / 1000);
   const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
+  const advancedMetrics = getMetrics();
   
   res.json({
     status: 'ok',
-    message: 'LLM AI Bridge Server - ESM COMPATIBLE',
-    version: '1.2.1',
+    message: 'LLM AI Bridge Server - ADVANCED PERFORMANCE OPTIMIZED',
+    version: '1.3.0',
     uptime: uptime,
     browserHistory: {
       enabled: true,
@@ -122,42 +122,49 @@ app.get('/', (req, res) => {
     performance: {
       requests: metrics.requests,
       errors: metrics.errors,
+      averageResponseTime: `${advancedMetrics.requests.averageResponseTime.toFixed(2)}ms`,
+      fastRequests: advancedMetrics.requests.fastRequests,
+      slowRequests: advancedMetrics.requests.slowRequests,
+      cacheHitRate: `${advancedMetrics.cache.hitRate}%`,
+      compressionEnabled: true,
       memory: {
         heapUsed: Math.round(metrics.memory.heapUsed / 1024 / 1024),
         heapTotal: Math.round(metrics.memory.heapTotal / 1024 / 1024),
-        external: Math.round(metrics.memory.external / 1024 / 1024)
+        external: Math.round(metrics.memory.external / 1024 / 1024),
+        pressure: Math.round((metrics.memory.heapUsed / metrics.memory.heapTotal) * 100)
       }
     },
+    optimization: {
+      autonomous: 'enabled',
+      middleware: 'advanced',
+      compression: 'intelligent',
+      caching: 'smart',
+      monitoring: 'real-time'
+    },
     endpoints: [
-      { path: '/health', method: 'GET', description: 'Health check endpoint' },
-      { path: '/metrics', method: 'GET', description: 'Prometheus metrics' },
-      { path: '/api/status', method: 'GET', description: 'Detailed system status' },
-      { path: '/history', method: 'GET', description: 'Get recent browser history' },
-      {
-        path: '/history/:count',
-        method: 'GET',
-        description: 'Get recent browser history with custom count',
-      },
-      {
-        path: '/search',
-        method: 'GET',
-        description: 'Search browser history (use ?query=term parameter)',
-      },
+      { path: '/health', method: 'GET', description: 'Enhanced health check endpoint', cache: '30s' },
+      { path: '/metrics', method: 'GET', description: 'Advanced Prometheus metrics', cache: '30s' },
+      { path: '/api/status', method: 'GET', description: 'Detailed system status', cache: '60s' },
+      { path: '/api/performance', method: 'GET', description: 'Advanced performance metrics', cache: 'none' },
+      { path: '/history', method: 'GET', description: 'Get recent browser history', cache: 'none' },
+      { path: '/history/:count', method: 'GET', description: 'Get browser history with custom count', cache: 'none' },
+      { path: '/search', method: 'GET', description: 'Search browser history (use ?query=term)', cache: 'none' }
     ],
     esm: {
       status: 'ACTIVE',
       imports: 'Dynamic ES6 imports working',
-      compatibility: 'Full ESM compliance'
+      compatibility: 'Full ESM compliance with performance optimization'
     }
   });
 });
 
-// Enhanced health check endpoint for Fly.io
+// Enhanced health check endpoint with advanced metrics
 app.get('/health', (req, res) => {
   const uptime = Math.floor((Date.now() - metrics.uptime) / 1000);
   const memUsage = process.memoryUsage();
   const memoryPressure = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
   const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
+  const advancedMetrics = getMetrics();
   
   const healthCheck = {
     status: 'ok',
@@ -176,31 +183,42 @@ app.get('/health', (req, res) => {
     performance: {
       requests: metrics.requests,
       errors: metrics.errors,
-      errorRate: metrics.requests > 0 ? (metrics.errors / metrics.requests * 100).toFixed(2) : 0
+      errorRate: metrics.requests > 0 ? (metrics.errors / metrics.requests * 100).toFixed(2) : 0,
+      averageResponseTime: advancedMetrics.requests.averageResponseTime.toFixed(2),
+      cacheHitRate: advancedMetrics.cache.hitRate,
+      fastRequests: advancedMetrics.requests.fastRequests,
+      slowRequests: advancedMetrics.requests.slowRequests
+    },
+    optimization: {
+      level: 'advanced',
+      compression: 'active',
+      caching: 'active',
+      monitoring: 'active'
     },
     pid: process.pid,
-    version: '1.2.1',
+    version: '1.3.0',
     node: process.version,
     platform: process.platform,
     esm: true
   };
   
-  // Return 503 if memory pressure is too high
-  const status = memoryPressure > 90 ? 503 : 200;
+  // Return 503 if memory pressure is too high or performance is degraded
+  const status = (memoryPressure > 90 || advancedMetrics.requests.averageResponseTime > 2000) ? 503 : 200;
   res.status(status).json(healthCheck);
 });
 
-// Detailed system status endpoint
+// Enhanced system status endpoint
 app.get('/api/status', (req, res) => {
   const uptime = Math.floor((Date.now() - metrics.uptime) / 1000);
   const memUsage = process.memoryUsage();
   const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
+  const advancedMetrics = getMetrics();
   
   res.json({
-    service: 'LLM AI Bridge Server',
+    service: 'LLM AI Bridge Server - Advanced Performance',
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    version: '1.2.1',
+    version: '1.3.0',
     uptime: uptime,
     environment: process.env.NODE_ENV || 'development',
     esm: {
@@ -219,6 +237,10 @@ app.get('/api/status', (req, res) => {
       totalErrors: metrics.errors,
       requestsPerSecond: (metrics.requests / uptime || 0).toFixed(2),
       errorRate: metrics.requests > 0 ? (metrics.errors / metrics.requests * 100).toFixed(2) : 0,
+      averageResponseTime: advancedMetrics.requests.averageResponseTime.toFixed(2),
+      fastRequests: advancedMetrics.requests.fastRequests,
+      slowRequests: advancedMetrics.requests.slowRequests,
+      cacheHitRate: advancedMetrics.cache.hitRate,
       memory: {
         heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
         heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
@@ -226,21 +248,62 @@ app.get('/api/status', (req, res) => {
         rss: Math.round(memUsage.rss / 1024 / 1024)
       }
     },
+    optimization: {
+      autonomous: 'enabled',
+      compression: 'intelligent',
+      caching: 'smart-caching-enabled',
+      monitoring: 'real-time',
+      middleware: 'advanced-performance-suite'
+    },
     features: {
       browserHistory: 'enabled',
-      performanceMonitoring: 'enabled',
-      healthChecks: 'enabled',
+      performanceMonitoring: 'advanced',
+      healthChecks: 'enhanced',
       esmCompatibility: 'enabled',
-      dynamicImports: 'enabled'
+      dynamicImports: 'enabled',
+      compression: 'intelligent',
+      caching: 'response-caching',
+      metrics: 'prometheus-compatible'
     }
   });
 });
 
-// Prometheus metrics endpoint
+// Advanced performance metrics endpoint
+app.get('/api/performance', (req, res) => {
+  const advancedMetrics = getMetrics();
+  const uptime = Math.floor((Date.now() - metrics.uptime) / 1000);
+  
+  res.json({
+    timestamp: new Date().toISOString(),
+    uptime: uptime,
+    requests: advancedMetrics.requests,
+    cache: advancedMetrics.cache,
+    performance: advancedMetrics.performance,
+    system: advancedMetrics.system,
+    optimization: {
+      level: 'advanced',
+      features: {
+        compression: 'active',
+        caching: 'active',
+        monitoring: 'real-time',
+        gc_optimization: global.gc ? 'available' : 'unavailable'
+      },
+      targets: {
+        responseTime: '<200ms',
+        memoryUsage: '<150MB',
+        cacheHitRate: '>80%',
+        errorRate: '<1%'
+      }
+    }
+  });
+});
+
+// Enhanced Prometheus metrics endpoint
 app.get('/metrics', (req, res) => {
   const uptime = Math.floor((Date.now() - metrics.uptime) / 1000);
   const memUsage = process.memoryUsage();
   const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
+  const advancedMetrics = getMetrics();
   
   res.set('Content-Type', 'text/plain');
   res.send(`# HELP requests_total Total number of requests
@@ -250,6 +313,26 @@ requests_total ${metrics.requests}
 # HELP errors_total Total number of errors
 # TYPE errors_total counter
 errors_total ${metrics.errors}
+
+# HELP requests_fast_total Number of fast requests (<1s)
+# TYPE requests_fast_total counter
+requests_fast_total ${advancedMetrics.requests.fastRequests}
+
+# HELP requests_slow_total Number of slow requests (>1s)
+# TYPE requests_slow_total counter
+requests_slow_total ${advancedMetrics.requests.slowRequests}
+
+# HELP response_time_average_ms Average response time in milliseconds
+# TYPE response_time_average_ms gauge
+response_time_average_ms ${advancedMetrics.requests.averageResponseTime.toFixed(2)}
+
+# HELP cache_hit_rate_percent Cache hit rate percentage
+# TYPE cache_hit_rate_percent gauge
+cache_hit_rate_percent ${advancedMetrics.cache.hitRate}
+
+# HELP cache_size Current cache size
+# TYPE cache_size gauge
+cache_size ${advancedMetrics.cache.size}
 
 # HELP uptime_seconds Application uptime in seconds
 # TYPE uptime_seconds gauge
@@ -265,6 +348,18 @@ memory_usage_external_bytes ${memUsage.external}
 # HELP nodejs_version Node.js version info
 # TYPE nodejs_version gauge
 nodejs_version{version="${process.version}"} 1
+
+# HELP llm_optimization_level Optimization level
+# TYPE llm_optimization_level gauge
+llm_optimization_level{level="advanced"} 1
+
+# HELP llm_compression_enabled Compression status
+# TYPE llm_compression_enabled gauge
+llm_compression_enabled 1
+
+# HELP llm_caching_enabled Caching status
+# TYPE llm_caching_enabled gauge
+llm_caching_enabled 1
 
 # HELP llm_browser_history_type Browser history implementation type
 # TYPE llm_browser_history_type gauge
@@ -290,6 +385,7 @@ app.get('/history', async (req, res) => {
       count: history.length,
       data: history,
       implementation: isRealHistory ? 'real' : 'mock',
+      optimization: 'advanced-performance-enabled',
       note: isRealHistory ? 'Real browser history from SQLite databases' : 'Mock data - run npm run build for real browser history'
     });
   } catch (error) {
@@ -297,6 +393,7 @@ app.get('/history', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -313,6 +410,7 @@ app.get('/history/:count', async (req, res) => {
       count: history.length,
       data: history,
       implementation: isRealHistory ? 'real' : 'mock',
+      optimization: 'advanced-performance-enabled',
       note: isRealHistory ? 'Real browser history from SQLite databases' : 'Mock data - run npm run build for real browser history'
     });
   } catch (error) {
@@ -320,6 +418,7 @@ app.get('/history/:count', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -332,6 +431,7 @@ app.get('/search', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Query parameter is required',
+        timestamp: new Date().toISOString()
       });
     }
 
@@ -352,6 +452,7 @@ app.get('/search', async (req, res) => {
       count: results.length,
       data: results,
       implementation: isRealHistory ? 'real' : 'mock',
+      optimization: 'advanced-performance-enabled',
       note: isRealHistory ? 'Real browser history search' : 'Mock data search - run npm run build for real browser history'
     });
   } catch (error) {
@@ -359,63 +460,104 @@ app.get('/search', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
 
-// Error handling middleware
+// Error handling middleware (enhanced)
 app.use((error, req, res, next) => {
   metrics.errors++;
   console.error('Unhandled error:', error);
+  
+  // Enhanced error response with performance context
+  const advancedMetrics = getMetrics();
   res.status(500).json({
     success: false,
     error: 'Internal server error',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    performance: {
+      currentLoad: advancedMetrics.requests.totalRequests,
+      memoryPressure: Math.round((process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100),
+      optimization: 'advanced'
+    }
   });
 });
 
-// 404 handler
+// Enhanced 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
     error: 'Endpoint not found',
     path: req.path,
     method: req.method,
-    availableEndpoints: ['/', '/health', '/metrics', '/api/status', '/history', '/search']
+    timestamp: new Date().toISOString(),
+    availableEndpoints: ['/', '/health', '/metrics', '/api/status', '/api/performance', '/history', '/search'],
+    optimization: 'advanced-performance-enabled'
   });
 });
 
-// Graceful shutdown handling
+// Graceful shutdown handling (enhanced)
 const gracefulShutdown = (signal) => {
   console.log(`Received ${signal}, shutting down gracefully`);
+  console.log('Cleaning up resources...');
+  
+  // Cleanup browser history tool
   tool.destroy?.();
+  
+  // Cleanup performance middleware
+  if (performanceMiddleware.cleanup) {
+    performanceMiddleware.cleanup();
+  }
+  
+  console.log('Graceful shutdown complete');
   process.exit(0);
 };
 
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
+process.on('SIGUSR2', gracefulShutdown); // For nodemon
 
-// Start the server
+// Start the server with advanced performance monitoring
 const server = app.listen(PORT, '0.0.0.0', () => {
   const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
   
-  console.log(`LLM AI Bridge server listening at http://0.0.0.0:${PORT}`);
-  console.log('✅ ESM COMPATIBLE - Server running with proper ES6 modules');
-  console.log('📊 Browser History:', isRealHistory ? 'Real SQLite Access' : 'Mock Implementation');
+  console.log(`\n🚀 LLM AI Bridge Server - ADVANCED PERFORMANCE OPTIMIZED`);
+  console.log(`🌐 Server listening at http://0.0.0.0:${PORT}`);
+  console.log(`✅ ESM COMPATIBLE - ES6 modules with advanced optimization`);
+  console.log(`📈 Performance Level: ADVANCED`);
+  console.log(`📊 Browser History: ${isRealHistory ? 'Real SQLite Access' : 'Mock Implementation'}`);
   if (!isRealHistory) {
-    console.log('   💡 Run `npm run build` to enable real browser history');
+    console.log(`   💡 Run \`npm run build\` to enable real browser history`);
   }
   console.log('');
-  console.log('Available endpoints:');
-  console.log('  GET / - API information and system status');
-  console.log('  GET /health - Health check (Fly.io compatible)');
-  console.log('  GET /api/status - Detailed system status');
-  console.log('  GET /metrics - Prometheus metrics');
-  console.log('  GET /history - Get recent browser history (default 50)');
-  console.log('  GET /history/:count - Get recent browser history with custom count');
-  console.log('  GET /search?query=term - Search browser history');
+  console.log('⚡ Advanced Optimizations Active:');
+  console.log('  • Intelligent compression enabled');
+  console.log('  • Smart response caching active');
+  console.log('  • Real-time performance monitoring');
+  console.log('  • Advanced request optimization');
+  console.log('  • Memory pressure monitoring');
   console.log('');
-  console.log('🚀 Server is production-ready with ESM compatibility');
+  console.log('🔗 Enhanced Endpoints:');
+  console.log('  GET / - Advanced API information and performance metrics');
+  console.log('  GET /health - Enhanced health check with performance data');
+  console.log('  GET /api/status - Detailed system status with optimization info');
+  console.log('  GET /api/performance - Advanced performance metrics dashboard');
+  console.log('  GET /metrics - Enhanced Prometheus metrics');
+  console.log('  GET /history - Browser history with performance optimization');
+  console.log('  GET /history/:count - Custom count with intelligent caching');
+  console.log('  GET /search?query=term - Optimized history search');
+  console.log('');
+  console.log('🚀 Server is production-ready with ADVANCED PERFORMANCE OPTIMIZATION');
+  
+  // Log initial performance metrics
+  setTimeout(() => {
+    const initialMetrics = getMetrics();
+    console.log(`\n📊 Initial Performance Metrics:`);
+    console.log(`  • Memory Usage: ${Math.round(initialMetrics.system.memory.heapUsed / 1024 / 1024)}MB`);
+    console.log(`  • Cache Status: ${initialMetrics.cache.size} items cached`);
+    console.log(`  • Optimization: Advanced performance suite active`);
+  }, 1000);
 });
 
 export default app;

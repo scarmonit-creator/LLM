@@ -1,7 +1,7 @@
 {
   "name": "llm",
-  "version": "1.2.1",
-  "description": "LLM integration project with Claude, A2A, and browser history access - Production Optimized with Autonomous Performance Enhancement",
+  "version": "1.3.0",
+  "description": "LLM integration project with Claude, A2A, and browser history access - Production Optimized with Advanced Performance Suite",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -13,6 +13,7 @@
     "start:orchestrator": "tsx orchestrator.ts",
     "start:a2a": "tsx src/a2a-agent-server.ts",
     "start:production": "npm run optimize:full && node --expose-gc server.js",
+    "start:performance": "npm run optimize:full && node --expose-gc --max-old-space-size=2048 server.js",
     "chat": "node src/chat-launcher.js",
     "bridge:server": "node src/ai-bridge.js",
     "bridge:client": "node src/ai-bridge-client.js",
@@ -30,9 +31,11 @@
     "optimize:text-selection": "node scripts/optimize-text-selection.js",
     "optimize:current-tab": "node scripts/optimize-text-selection.js",
     "optimize:memory": "node --expose-gc scripts/autonomous-performance-optimizer.js",
+    "optimize:advanced": "node --expose-gc --max-old-space-size=2048 scripts/autonomous-performance-optimizer.js",
     "performance:analyze": "node scripts/optimize-text-selection.js",
     "performance:monitor": "node scripts/performance-optimizer.js",
     "performance:report": "node scripts/autonomous-performance-optimizer.js",
+    "performance:benchmark": "node --expose-gc scripts/autonomous-performance-optimizer.js && npm run start:performance & sleep 10 && curl -s http://localhost:8080/metrics && pkill -f server.js",
     "cloud-sql:setup": "node scripts/cloud-sql-setup.js",
     "cloud-sql:persist": "node scripts/cloud-sql-setup.js",
     "test:bridge": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test tests/ai-bridge.test.js",
@@ -42,21 +45,26 @@
     "test:watch": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test --watch tests",
     "test:jest": "jest",
     "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test --experimental-test-coverage tests",
+    "test:performance": "npm run performance:benchmark",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "validate": "npm run lint && npm run test",
     "validate:full": "npm run optimize:autonomous && npm run validate",
+    "validate:performance": "npm run test:performance && npm run validate",
     "dev": "npm run build:tools && node --watch server.js",
     "dev:optimized": "npm run optimize:autonomous && node --watch --expose-gc src/ai-bridge-optimized.js",
     "dev:performance": "npm run optimize:autonomous && node --watch --expose-gc server.js",
+    "dev:advanced": "npm run optimize:advanced && node --watch --expose-gc --max-old-space-size=2048 server.js",
     "clean": "rm -rf dist node_modules",
     "clean:cache": "rm -rf dist",
     "clean:reports": "rm -f optimization-report.json build-report.json",
     "clean:all": "npm run clean:cache && npm run clean:reports",
     "reset": "npm run clean && npm install",
     "deploy:prepare": "npm run optimize:full && npm run build:production",
-    "health:check": "node -e \"console.log('Health check passed'); process.exit(0)\""
+    "deploy:advanced": "npm run optimize:advanced && npm run build:production && npm run validate:performance",
+    "health:check": "node -e \"console.log('Health check passed'); process.exit(0)\"",
+    "ci:performance": "npm run optimize:autonomous && npm run build:production && npm run test:performance"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -75,7 +83,11 @@
     "autonomous",
     "typescript",
     "express",
-    "sqlite"
+    "sqlite",
+    "middleware",
+    "compression",
+    "caching",
+    "monitoring"
   ],
   "author": "scarmonit-creator",
   "license": "ISC",
@@ -83,6 +95,7 @@
     "@anthropic-ai/sdk": "^0.32.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "better-sqlite3": "^11.8.1",
+    "compression": "^1.7.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -92,6 +105,7 @@
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@types/better-sqlite3": "^7.6.12",
+    "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
@@ -112,5 +126,20 @@
   "bugs": {
     "url": "https://github.com/scarmonit-creator/LLM/issues"
   },
-  "homepage": "https://github.com/scarmonit-creator/LLM#readme"
+  "homepage": "https://github.com/scarmonit-creator/LLM#readme",
+  "performance": {
+    "optimization": {
+      "enabled": true,
+      "autonomous": true,
+      "compression": true,
+      "caching": true,
+      "monitoring": true
+    },
+    "targets": {
+      "responseTime": "<200ms",
+      "memoryUsage": "<150MB",
+      "buildTime": "<2s",
+      "cacheHitRate": ">80%"
+    }
+  }
 }
