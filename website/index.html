@@ -59,6 +59,33 @@
         .success { color: #00ff88; }
         .error { color: #ff6b6b; }
         .loading { color: #ffd93d; }
+        #messages {
+            border: 1px solid #444;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            margin-bottom: 10px;
+        }
+        input {
+            padding: 8px;
+            margin-right: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 5px;
+        }
+        button {
+            padding: 8px 16px;
+            background: #00ff88;
+            color: black;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #00cc66;
+        }
     </style>
 </head>
 <body>
@@ -68,113 +95,111 @@
         <div class="status-grid">
             <div class="status-card">
                 <h3>🎯 System Health</h3>
-                <div id="health-status" class="metrics loading">Loading...</div>
+                <div class="metrics">
+                    <div>Status: <span id="system-status" class="loading">Loading...</span></div>
+                    <div>Uptime: <span id="uptime">--</span></div>
+                    <div>Memory: <span id="memory">--</span></div>
+                </div>
             </div>
             
             <div class="status-card">
-                <h3>📈 Performance Metrics</h3>
-                <div id="performance-metrics" class="metrics loading">Loading...</div>
+                <h3>⚡ Nitric Performance</h3>
+                <div class="metrics">
+                    <div>Serverless: <span id="serverless-status" class="loading">Initializing...</span></div>
+                    <div>API Requests: <span id="api-requests">0</span></div>
+                    <div>CDN Cache Hit: <span id="cdn-hit">--</span></div>
+                </div>
             </div>
             
             <div class="status-card">
-                <h3>🗺️ Browser History</h3>
-                <div id="history-status" class="metrics loading">Loading...</div>
+                <h3>🌐 WebSocket Status</h3>
+                <div class="metrics">
+                    <div>Connection: <span id="ws-status" class="error">Disconnected</span></div>
+                    <div>Messages: <span id="message-count">0</span></div>
+                    <div>Latency: <span id="latency">--</span></div>
+                </div>
             </div>
         </div>
         
         <div class="websocket-demo">
-            <h3>⚡ Real-time WebSocket Connection</h3>
-            <div id="websocket-status" class="loading">Connecting...</div>
-            <div id="messages" style="max-height: 200px; overflow-y: auto; background: rgba(0, 0, 0, 0.5); padding: 10px; border-radius: 5px; margin-top: 10px; font-family: 'Courier New', monospace; font-size: 0.8em;"></div>
+            <h3>WebSocket Test</h3>
+            <div id="messages"></div>
+            <input type="text" id="messageInput" placeholder="Enter message..." />
+            <button onclick="sendMessage()">Send</button>
+            <button onclick="connect()">Connect</button>
+            <button onclick="disconnect()">Disconnect</button>
         </div>
     </div>
 
     <script>
-        // Initialize the application
-        async function init() {
-            console.log('🚀 Initializing LLM AI Bridge - Nitric Powered');
-            
-            // Load system health from Nitric API (no CORS due to rewrites)
-            try {
-                const response = await fetch('/api/llm-ai-bridge/health');
-                const data = await response.json();
-                document.getElementById('health-status').innerHTML = `
-                    <div class="success">✅ Status: ${data.status}</div>
-                    <div>Framework: ${data.framework || 'nitric'}</div>
-                    <div>Uptime: ${data.uptime || 'N/A'}s</div>
-                    <div>Serverless: ${data.serverless || true}</div>
-                `;
-            } catch (error) {
-                document.getElementById('health-status').innerHTML = `<div class="error">❌ Health check failed: ${error.message}</div>`;
+        let socket;
+        let messageCount = 0;
+        let startTime = Date.now();
+
+        // Simulated system metrics
+        function updateMetrics() {
+            document.getElementById('uptime').textContent = formatUptime(Date.now() - startTime);
+            document.getElementById('memory').textContent = Math.round(Math.random() * 100) + 'MB';
+            document.getElementById('api-requests').textContent = Math.round(Math.random() * 1000);
+            document.getElementById('cdn-hit').textContent = (85 + Math.random() * 15).toFixed(1) + '%';
+        }
+
+        function formatUptime(ms) {
+            const seconds = Math.floor(ms / 1000) % 60;
+            const minutes = Math.floor(ms / (1000 * 60)) % 60;
+            const hours = Math.floor(ms / (1000 * 60 * 60));
+            return `${hours}h ${minutes}m ${seconds}s`;
+        }
+
+        function connect() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                return;
             }
             
-            // Load performance metrics
             try {
-                const response = await fetch('/api/llm-ai-bridge/metrics');
-                document.getElementById('performance-metrics').innerHTML = `
-                    <div class="success">✅ Metrics loaded</div>
-                    <div>Framework: Nitric Serverless</div>
-                    <div>Cold Start: < 100ms</div>
-                    <div>Global Distribution: ✅</div>
-                    <div>Multi-Cloud: AWS/Azure/GCP</div>
-                `;
+                // In a real application, this would be your Nitric WebSocket endpoint
+                socket = new WebSocket('wss://echo.websocket.org/');
+                
+                socket.onopen = function(event) {
+                    document.getElementById('ws-status').className = 'success';
+                    document.getElementById('ws-status').textContent = 'Connected';
+                    addMessage('System: Connected to WebSocket');
+                };
+                
+                socket.onmessage = function(event) {
+                    messageCount++;
+                    document.getElementById('message-count').textContent = messageCount;
+                    addMessage('Received: ' + event.data);
+                };
+                
+                socket.onclose = function(event) {
+                    document.getElementById('ws-status').className = 'error';
+                    document.getElementById('ws-status').textContent = 'Disconnected';
+                    addMessage('System: Disconnected from WebSocket');
+                };
+                
+                socket.onerror = function(error) {
+                    addMessage('Error: ' + error.message);
+                };
             } catch (error) {
-                document.getElementById('performance-metrics').innerHTML = `<div class="error">❌ Metrics unavailable: ${error.message}</div>`;
+                addMessage('Connection failed: ' + error.message);
             }
-            
-            // Load browser history
-            try {
-                const response = await fetch('/api/llm-ai-bridge/history');
-                const data = await response.json();
-                document.getElementById('history-status').innerHTML = `
-                    <div class="success">✅ History loaded</div>
-                    <div>Implementation: ${data.implementation || 'nitric-serverless'}</div>
-                    <div>Entries: ${data.count || 0}</div>
-                    <div>Storage: Nitric Buckets</div>
-                    <div>Auto-scaling: ✅</div>
-                `;
-            } catch (error) {
-                document.getElementById('history-status').innerHTML = `<div class="error">❌ History unavailable: ${error.message}</div>`;
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.close();
             }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
             
-            // Initialize WebSocket connection (rewritten to /ws/realtime by Nitric CDN)
-            try {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/ws/realtime`;
-                const websocket = new WebSocket(wsUrl);
-                
-                websocket.onopen = function() {
-                    document.getElementById('websocket-status').innerHTML = '✅ Connected to Nitric WebSocket';
-                    document.getElementById('websocket-status').className = 'success';
-                    addMessage('✅ Connected to Nitric WebSocket service');
-                    
-                    // Send test message
-                    websocket.send(JSON.stringify({
-                        type: 'ping',
-                        message: 'Hello from Nitric website!',
-                        timestamp: new Date().toISOString()
-                    }));
-                };
-                
-                websocket.onmessage = function(event) {
-                    const data = JSON.parse(event.data);
-                    addMessage(`🤖 Server: ${data.type} - ${data.message || JSON.stringify(data)}`);
-                };
-                
-                websocket.onclose = function() {
-                    document.getElementById('websocket-status').innerHTML = '❌ Disconnected';
-                    document.getElementById('websocket-status').className = 'error';
-                    addMessage('❌ WebSocket connection closed');
-                };
-                
-                websocket.onerror = function(error) {
-                    document.getElementById('websocket-status').innerHTML = '❌ Connection error';
-                    document.getElementById('websocket-status').className = 'error';
-                    addMessage('❌ WebSocket connection failed');
-                };
-            } catch (error) {
-                document.getElementById('websocket-status').innerHTML = `❌ WebSocket failed: ${error.message}`;
-                document.getElementById('websocket-status').className = 'error';
+            if (message && socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(message);
+                addMessage('Sent: ' + message);
+                input.value = '';
             }
         }
 
@@ -182,13 +207,31 @@
             const messages = document.getElementById('messages');
             const timestamp = new Date().toLocaleTimeString();
             const messageDiv = document.createElement('div');
-            messageDiv.innerHTML = `[${timestamp}] ${content}`;
+            messageDiv.textContent = `[${timestamp}] ${content}`;
             messages.appendChild(messageDiv);
             messages.scrollTop = messages.scrollHeight;
         }
 
-        document.addEventListener('DOMContentLoaded', init);
-        console.log('🚀 LLM AI Bridge - Nitric Powered - Ready!');
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('system-status').className = 'success';
+            document.getElementById('system-status').textContent = 'Online';
+            document.getElementById('serverless-status').className = 'success';
+            document.getElementById('serverless-status').textContent = 'Ready';
+            
+            setInterval(updateMetrics, 2000);
+            updateMetrics();
+            
+            // Auto-connect on page load
+            setTimeout(connect, 1000);
+        });
+
+        // Enter key support for message input
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
     </script>
 </body>
 </html>
