@@ -6,6 +6,7 @@ on:
     paths:
       - 'docs/**'
       - 'Projects.json'
+      - 'website/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -25,13 +26,121 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare docs
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Build Enhanced Projects Dashboard
         run: |
+          # Create docs directory
           mkdir -p docs
-          # Copy Projects.json so the dashboard can fetch it as ./Projects.json
-          cp -f Projects.json docs/Projects.json || true
-          # Ensure assets exist
-          mkdir -p docs/assets
+          
+          # Copy all website files to docs for GitHub Pages
+          if [ -d "website" ]; then
+            echo "Copying website files to docs..."
+            cp -r website/* docs/
+          else
+            echo "No website directory found, creating minimal structure..."
+            mkdir -p docs/js docs/css
+          fi
+          
+          # Copy and enhance Projects.json
+          if [ -f "Projects.json" ]; then
+            echo "Processing Projects.json..."
+            node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync('Projects.json', 'utf8'));
+            
+            // Handle both array and object formats
+            let projects = Array.isArray(data) ? data : (data.projects || []);
+            
+            // Enhance each project with metadata
+            const enhancedProjects = projects.map((project, index) => {
+              let enhanced = typeof project === 'string' ? { url: project } : { ...project };
+              
+              if (!enhanced.id) enhanced.id = index + 1;
+              if (!enhanced.name && enhanced.url) {
+                const match = enhanced.url.match(/github\\.com\\/([^/]+)\\/([^/]+)/);
+                enhanced.name = match ? match[2].replace(/[-_]/g, ' ') : 'Unknown Project';
+              }
+              if (!enhanced.description && enhanced.url && enhanced.url.includes('github.com')) {
+                enhanced.description = 'GitHub repository: ' + (enhanced.name || 'Unknown');
+              }
+              enhanced.canDeploy = enhanced.url && enhanced.url.includes('github.com');
+              enhanced.category = enhanced.category || 'general';
+              
+              return enhanced;
+            });
+            
+            const outputData = {
+              metadata: {
+                source: data.metadata?.source || 'https://github.com/ashishpatel26/500-AI-Machine-learning-Deep-learning-Computer-vision-NLP-Projects-with-code',
+                title: data.metadata?.title || '500+ AI/ML Projects Dashboard',
+                extracted_date: new Date().toISOString().split('T')[0],
+                total_projects: enhancedProjects.length,
+                last_updated: new Date().toISOString(),
+                version: '2.1.0'
+              },
+              projects: enhancedProjects
+            };
+            
+            fs.writeFileSync('docs/Projects.json', JSON.stringify(outputData, null, 2));
+            console.log('✅ Enhanced Projects.json with', enhancedProjects.length, 'projects');
+            "
+          else
+            echo "⚠️  No Projects.json found"
+          fi
+          
+          # Create optimized index.html redirect
+          cat > docs/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>AI/ML Projects Dashboard - 500+ Projects</title>
+              <meta name="description" content="Browse and deploy 500+ AI, Machine Learning, and Deep Learning projects with one-click deployment.">
+              <meta http-equiv="refresh" content="0; url=./projects-dashboard.html">
+              <style>
+                  * { margin: 0; padding: 0; box-sizing: border-box; }
+                  body { 
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                      display: flex; justify-content: center; align-items: center; height: 100vh;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      color: white; text-align: center;
+                  }
+                  .loading { animation: pulse 2s infinite; }
+                  .spinner {
+                      border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid white;
+                      border-radius: 50%; width: 40px; height: 40px;
+                      animation: spin 1s linear infinite; margin: 0 auto 1rem;
+                  }
+                  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+                  a { color: white; text-decoration: underline; }
+                  .stats { margin-top: 1rem; font-size: 0.9rem; opacity: 0.9; }
+              </style>
+          </head>
+          <body>
+              <div class="loading">
+                  <div class="spinner"></div>
+                  <h2>🚀 Loading AI/ML Projects Dashboard</h2>
+                  <p>Preparing 500+ projects for browsing and deployment...</p>
+                  <div class="stats">✨ Enhanced with GitHub Pages deployment</div>
+                  <p style="margin-top: 1rem;">If not redirected, <a href="./projects-dashboard.html">click here</a></p>
+              </div>
+              <script>
+                  setTimeout(() => window.location.href = './projects-dashboard.html', 100);
+              </script>
+          </body>
+          </html>
+          EOF
+          
+          echo "📁 Built docs directory structure:"
+          find docs -type f -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.json" | head -20
+          echo "✅ Dashboard build complete!"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
