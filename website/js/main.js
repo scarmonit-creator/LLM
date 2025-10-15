@@ -1,590 +1,221 @@
 /**
- * Scarmonit Website - Modern JavaScript Implementation
- * Integrated with existing backend API and form handling
+ * Main JavaScript for Scarmonit Website
+ * Handles navigation, animations, waitlist, and feature interactions
  */
-
 class ScarmonitWebsite {
   constructor() {
-    this.config = window.ScarmonitConfig || {};
     this.init();
   }
-
   init() {
-    this.setupNavigation();
-    this.setupFormHandling();
-    this.setupAnimations();
-    this.setupAnalytics();
+    // Mobile Navigation
+    this.setupMobileNav();
+    // Smooth scrolling
+    this.setupSmoothScroll();
+    // Feature cards interaction
+    this.setupFeatureCards();
+    // Waitlist form
+    this.setupWaitlistForm();
+    // Intersection Observer for animations
+    this.setupScrollAnimations();
+    // Navigation highlighting
+    this.setupNavHighlight();
+    // Keyboard accessibility
     this.setupAccessibility();
+    // Respect motion preferences
+    this.respectMotionPreferences();
+    // Backend integration (if applicable)
     this.setupBackendIntegration();
   }
-
-  /**
-   * Navigation functionality with mobile menu
-   */
-  setupNavigation() {
+  setupMobileNav() {
+    const menuBtn = document.querySelector('.mobile-menu-btn');
     const nav = document.querySelector('.nav');
-    const navToggle = document.getElementById('nav-toggle');
-    const navMenu = document.getElementById('nav-menu');
-    const navLinks = document.querySelectorAll('.nav-link');
-
-    // Mobile menu toggle
-    if (navToggle && navMenu) {
-      navToggle.addEventListener('click', () => {
-        navMenu.classList.toggle('nav-menu--open');
-        navToggle.classList.toggle('nav-toggle--open');
-      });
-
-      // Close mobile menu when clicking outside
-      document.addEventListener('click', (e) => {
-        if (!nav.contains(e.target) && navMenu.classList.contains('nav-menu--open')) {
-          navMenu.classList.remove('nav-menu--open');
-          navToggle.classList.remove('nav-toggle--open');
-        }
-      });
-    }
-
-    // Smooth scrolling for navigation links
+    if (!menuBtn || !nav) return;
+    menuBtn.addEventListener('click', () => {
+      const isOpen = menuBtn.getAttribute('aria-expanded') === 'true';
+      menuBtn.setAttribute('aria-expanded', !isOpen);
+      nav.classList.toggle('active');
+    });
+    // Close menu on navigation
+    const navLinks = document.querySelectorAll('.nav-links a');
     navLinks.forEach(link => {
-      link.addEventListener('click', (e) => {
-        const href = link.getAttribute('href');
-        if (href.startsWith('#')) {
+      link.addEventListener('click', () => {
+        menuBtn.setAttribute('aria-expanded', 'false');
+        nav.classList.remove('active');
+      });
+    });
+    // Close menu on outside click
+    document.addEventListener('click', (e) => {
+      if (!nav.contains(e.target) && !menuBtn.contains(e.target)) {
+        menuBtn.setAttribute('aria-expanded', 'false');
+        nav.classList.remove('active');
+      }
+    });
+  }
+  setupSmoothScroll() {
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        const targetId = this.getAttribute('href');
+        if (targetId === '#') return;
+        const targetElement = document.querySelector(targetId);
+        if (targetElement) {
           e.preventDefault();
-          const target = document.querySelector(href);
-          if (target) {
-            const headerOffset = 80;
-            const elementPosition = target.getBoundingClientRect().top;
-            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-
-            window.scrollTo({
-              top: offsetPosition,
-              behavior: 'smooth'
-            });
-
-            // Close mobile menu if open
-            if (navMenu && navMenu.classList.contains('nav-menu--open')) {
-              navMenu.classList.remove('nav-menu--open');
-              navToggle.classList.remove('nav-toggle--open');
-            }
-          }
+          const navHeight = document.querySelector('.nav').offsetHeight;
+          const targetPosition = targetElement.getBoundingClientRect().top + window.pageYOffset - navHeight;
+          window.scrollTo({
+            top: targetPosition,
+            behavior: 'smooth'
+          });
         }
       });
     });
-
-    // Navigation scroll effect
-    let lastScrollY = window.scrollY;
-    const scrollHandler = this.debounce(() => {
-      const currentScrollY = window.scrollY;
-      
-      if (currentScrollY > 100) {
-        nav.classList.add('nav--scrolled');
-      } else {
-        nav.classList.remove('nav--scrolled');
-      }
-
-      // Hide nav on scroll down, show on scroll up
-      if (currentScrollY > lastScrollY && currentScrollY > 200) {
-        nav.style.transform = 'translateY(-100%)';
-      } else {
-        nav.style.transform = 'translateY(0)';
-      }
-      
-      lastScrollY = currentScrollY;
-    }, 10);
-
-    window.addEventListener('scroll', scrollHandler, { passive: true });
   }
-
-  /**
-   * Enhanced form handling with backend integration
-   */
-  setupFormHandling() {
-    const waitlistForm = document.getElementById('waitlist-form');
-    
-    if (waitlistForm) {
-      // Handle form submission
-      waitlistForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await this.handleWaitlistSubmission(waitlistForm);
+  setupFeatureCards() {
+    const cards = document.querySelectorAll('.feature-card');
+    cards.forEach(card => {
+      card.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-10px)';
       });
-
-      // Real-time validation
-      const inputs = waitlistForm.querySelectorAll('input, select, textarea');
-      inputs.forEach(input => {
-        input.addEventListener('blur', () => this.validateField(input));
-        input.addEventListener('input', () => this.clearFieldError(input));
+      card.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0)';
       });
-
-      // Handle Netlify form if deployed on Netlify
-      if (waitlistForm.hasAttribute('data-netlify')) {
-        waitlistForm.addEventListener('submit', this.handleNetlifyForm.bind(this));
-      }
-    }
+    });
   }
-
-  async handleWaitlistSubmission(form) {
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
-    
-    // Remove Netlify-specific fields
-    delete data['bot-field'];
-    delete data['form-name'];
-    
-    // Validate form
-    if (!this.validateForm(form)) {
-      return;
-    }
-
-    const submitButton = form.querySelector('button[type="submit"]');
-    const originalText = submitButton.innerHTML;
-    
-    // Show loading state
-    this.setButtonLoading(submitButton, true);
-
+  setupWaitlistForm() {
+    const form = document.getElementById('waitlist-form');
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const emailInput = form.querySelector('#email');
+      const nameInput = form.querySelector('#name');
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const successMsg = document.querySelector('.success-message');
+      const errorMsg = document.querySelector('.error-message');
+      if (!emailInput || !nameInput) return;
+      const email = emailInput.value.trim();
+      const name = nameInput.value.trim();
+      // Basic validation
+      if (!email || !name) {
+        this.showMessage(errorMsg, 'Please fill in all fields.');
+        return;
+      }
+      if (!this.validateEmail(email)) {
+        this.showMessage(errorMsg, 'Please enter a valid email address.');
+        return;
+      }
+      // Disable button during submission
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Joining...';
+      try {
+        // Simulate API call (replace with actual API endpoint)
+        await this.submitToWaitlist({ email, name });
+        // Success
+        this.showMessage(successMsg, 'Thank you for joining our waitlist!');
+        form.reset();
+        // Track in localStorage for demo purposes
+        this.trackWaitlistEntry({ email, name });
+      } catch (error) {
+        // Error
+        this.showMessage(errorMsg, 'Something went wrong. Please try again.');
+      } finally {
+        // Re-enable button
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Join Waitlist';
+      }
+    });
+  }
+  validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  }
+  showMessage(element, message) {
+    if (!element) return;
+    element.textContent = message;
+    element.style.display = 'block';
+    setTimeout(() => {
+      element.style.display = 'none';
+    }, 5000);
+  }
+  async submitToWaitlist(data) {
+    // In production, replace this with actual API endpoint
+    // Example: return fetch('/api/waitlist', { method: 'POST', body: JSON.stringify(data) });
+    return new Promise((resolve) => {
+      setTimeout(() => resolve(), 1000);
+    });
+  }
+  trackWaitlistEntry(data) {
     try {
-      // Try backend API first
-      if (this.config.api && this.config.api.baseUrl) {
-        await this.submitToBackend(data);
-      } else {
-        // Fallback to Netlify forms or local storage
-        await this.submitToWaitlist(data);
-      }
-      
-      // Success state
-      this.showFormSuccess(form);
-      this.trackEvent('waitlist_signup', { 
-        priority: data.priority,
-        source: 'website',
+      const entries = JSON.parse(localStorage.getItem('waitlistEntries') || '[]');
+      entries.push({
+        ...data,
         timestamp: new Date().toISOString()
       });
-      
+      localStorage.setItem('waitlistEntries', JSON.stringify(entries));
     } catch (error) {
-      // Error state
-      this.showFormError(form, 'Something went wrong. Please try again.');
-      console.error('Waitlist submission error:', error);
-      this.trackEvent('form_error', { 
-        error: error.message,
-        form: 'waitlist'
-      });
-      
-    } finally {
-      // Reset button
-      this.setButtonLoading(submitButton, false, originalText);
+      console.error('Error saving to localStorage:', error);
     }
   }
-
-  async submitToBackend(data) {
-    const endpoint = this.config.api.baseUrl + this.config.api.endpoints.waitlist;
-    
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      body: JSON.stringify(data)
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return await response.json();
-  }
-
-  async submitToWaitlist(data) {
-    // Fallback for local development or Netlify forms
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Store in localStorage for demo purposes
-        const waitlistEntries = JSON.parse(localStorage.getItem('waitlistEntries') || '[]');
-        waitlistEntries.push({
-          ...data,
-          timestamp: new Date().toISOString(),
-          id: Date.now()
-        });
-        localStorage.setItem('waitlistEntries', JSON.stringify(waitlistEntries));
-        resolve({ success: true });
-      }, 1500);
-    });
-  }
-
-  handleNetlifyForm(e) {
-    // Let Netlify handle the form submission
-    // This will redirect to a thank you page or show success message
-    console.log('Form submitted via Netlify');
-  }
-
-  setButtonLoading(button, loading, originalText = '') {
-    if (loading) {
-      button.disabled = true;
-      button.innerHTML = `
-        <svg class="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle>
-          <path fill="currentColor" class="opacity-75" d="m15.5 12a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z"></path>
-        </svg>
-        <span>Joining...</span>
-      `;
-    } else {
-      button.disabled = false;
-      button.innerHTML = originalText;
-    }
-  }
-
-  validateForm(form) {
-    const inputs = form.querySelectorAll('input[required], select[required]');
-    let isValid = true;
-
-    inputs.forEach(input => {
-      if (!this.validateField(input)) {
-        isValid = false;
-      }
-    });
-
-    return isValid;
-  }
-
-  validateField(field) {
-    const value = field.value.trim();
-    const fieldType = field.type || field.tagName.toLowerCase();
-    let isValid = true;
-    let errorMessage = '';
-
-    // Remove existing error
-    this.clearFieldError(field);
-
-    // Required field validation
-    if (field.hasAttribute('required') && !value) {
-      errorMessage = 'This field is required';
-      isValid = false;
-    }
-    // Email validation
-    else if (fieldType === 'email' && value) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(value)) {
-        errorMessage = 'Please enter a valid email address';
-        isValid = false;
-      }
-    }
-    // Name validation (no numbers or special characters except spaces, hyphens, apostrophes)
-    else if (field.name === 'name' && value) {
-      const nameRegex = /^[a-zA-Z\s'-]+$/;
-      if (!nameRegex.test(value)) {
-        errorMessage = 'Please enter a valid name';
-        isValid = false;
-      }
-    }
-
-    if (!isValid) {
-      this.showFieldError(field, errorMessage);
-    }
-
-    return isValid;
-  }
-
-  showFieldError(field, message) {
-    field.classList.add('field-error');
-    
-    // Remove existing error message
-    const existingError = field.parentNode.querySelector('.field-error-message');
-    if (existingError) {
-      existingError.remove();
-    }
-
-    // Add new error message
-    const errorElement = document.createElement('span');
-    errorElement.className = 'field-error-message';
-    errorElement.textContent = message;
-    
-    field.parentNode.appendChild(errorElement);
-  }
-
-  clearFieldError(field) {
-    field.classList.remove('field-error');
-    const errorMessage = field.parentNode.querySelector('.field-error-message');
-    if (errorMessage) {
-      errorMessage.remove();
-    }
-  }
-
-  showFormSuccess(form) {
-    const formContainer = form.parentNode;
-    const queuePosition = Math.floor(Math.random() * 1000) + 2000;
-    
-    formContainer.innerHTML = `
-      <div class="success-message text-center">
-        <div class="success-icon">✅</div>
-        <h3 style="margin-bottom: 1rem; color: var(--color-text);">Welcome to Scarmonit!</h3>
-        <p style="color: var(--color-text-light); margin-bottom: 1.5rem;">
-          You're on the waitlist! We'll send you exclusive updates and early access when available.
-        </p>
-        <div style="padding: 1rem; background: rgba(16, 185, 129, 0.1); border-radius: 0.5rem; border: 1px solid rgba(16, 185, 129, 0.2);">
-          <p style="color: var(--color-secondary); font-weight: 600; margin: 0;">
-            🎉 Position #${queuePosition.toLocaleString()} in queue
-          </p>
-          <p style="color: var(--color-text-light); font-size: 0.875rem; margin: 0.5rem 0 0 0;">
-            Alpha launches October 2025
-          </p>
-        </div>
-      </div>
-    `;
-  }
-
-  showFormError(form, message) {
-    // Create or update error message
-    let errorElement = form.querySelector('.form-error-message');
-    if (!errorElement) {
-      errorElement = document.createElement('div');
-      errorElement.className = 'form-error-message';
-      form.appendChild(errorElement);
-    }
-    errorElement.textContent = message;
-  }
-
-  /**
-   * Backend API integration setup
-   */
-  setupBackendIntegration() {
-    // Check if we're in development mode
-    const isDevelopment = window.location.hostname === 'localhost' || 
-                         window.location.hostname === '127.0.0.1' ||
-                         window.location.hostname.includes('github.io');
-
-    if (isDevelopment) {
-      console.log('Development mode detected. API calls will use mock responses.');
-    }
-
-    // Set up CSRF token if available
-    const csrfToken = document.querySelector('meta[name="csrf-token"]');
-    if (csrfToken) {
-      this.csrfToken = csrfToken.getAttribute('content');
-    }
-
-    // Set up default headers for API requests
-    this.defaultHeaders = {
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest'
-    };
-
-    if (this.csrfToken) {
-      this.defaultHeaders['X-CSRF-TOKEN'] = this.csrfToken;
-    }
-  }
-
-  /**
-   * Intersection Observer for animations
-   */
-  setupAnimations() {
-    if (!this.config.ui?.animations?.enabled) return;
-
+  setupScrollAnimations() {
     const observerOptions = {
       threshold: 0.1,
-      rootMargin: '0px 0px -50px 0px'
+      rootMargin: '0px 0px -100px 0px'
     };
-
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          entry.target.classList.add('animate-fade-in-up');
+          entry.target.classList.add('fade-in');
           observer.unobserve(entry.target);
         }
       });
     }, observerOptions);
-
-    // Observe elements for animation
-    const animatedElements = document.querySelectorAll(
-      '.feature-card, .metric-card, .section-header, .cta-content, .flow-step, .security-item'
-    );
-    
-    animatedElements.forEach(el => {
-      observer.observe(el);
-    });
-
-    // Dashboard preview hover effects
-    const dashboardPreview = document.querySelector('.dashboard-preview');
-    if (dashboardPreview) {
-      dashboardPreview.addEventListener('mouseenter', () => {
-        this.animateMetrics();
-      });
-    }
+    // Observe elements with fade-in-on-scroll class
+    const elements = document.querySelectorAll('.fade-in-on-scroll');
+    elements.forEach(el => observer.observe(el));
   }
-
-  animateMetrics() {
-    const metricValues = document.querySelectorAll('.metric-value');
-    metricValues.forEach((value, index) => {
-      setTimeout(() => {
-        value.style.transform = 'scale(1.05)';
-        setTimeout(() => {
-          value.style.transform = 'scale(1)';
-        }, 200);
-      }, index * 100);
-    });
-  }
-
-  /**
-   * Analytics tracking with multiple providers
-   */
-  setupAnalytics() {
-    // Track page views
-    this.trackEvent('page_view', {
-      page: window.location.pathname,
-      title: document.title,
-      referrer: document.referrer
-    });
-
-    // Track CTA clicks
-    const ctaButtons = document.querySelectorAll('.btn-primary');
-    ctaButtons.forEach(button => {
-      button.addEventListener('click', () => {
-        this.trackEvent('cta_click', {
-          text: button.textContent.trim(),
-          location: this.getElementLocation(button),
-          href: button.getAttribute('href')
-        });
-      });
-    });
-
-    // Track section views
+  setupNavHighlight() {
     const sections = document.querySelectorAll('section[id]');
-    const sectionObserver = new IntersectionObserver((entries) => {
+    const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
+    const observerOptions = {
+      threshold: 0.3,
+      rootMargin: '-20% 0px -70% 0px'
+    };
+    const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
-        if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
-          this.trackEvent('section_view', {
-            section: entry.target.id,
-            time_viewed: Date.now()
+        if (entry.isIntersecting) {
+          const id = entry.target.getAttribute('id');
+          navLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === `#${id}`) {
+              link.classList.add('active');
+            }
           });
         }
       });
-    }, { threshold: 0.5 });
-
-    sections.forEach(section => {
-      sectionObserver.observe(section);
-    });
-
-    // Track scroll depth
-    let maxScroll = 0;
-    const scrollHandler = this.debounce(() => {
-      const scrollPercentage = Math.round(
-        (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100
-      );
-      
-      if (scrollPercentage > maxScroll) {
-        maxScroll = scrollPercentage;
-        
-        // Track milestone scroll depths
-        if ([25, 50, 75, 90].includes(scrollPercentage)) {
-          this.trackEvent('scroll_depth', {
-            percentage: scrollPercentage
-          });
-        }
-      }
-    }, 500);
-
-    window.addEventListener('scroll', scrollHandler, { passive: true });
+    }, observerOptions);
+    sections.forEach(section => observer.observe(section));
   }
-
-  trackEvent(eventName, data = {}) {
-    const eventData = {
-      ...data,
-      timestamp: new Date().toISOString(),
-      user_agent: navigator.userAgent,
-      url: window.location.href
-    };
-
-    // Google Analytics 4
-    if (window.gtag && this.config.analytics?.googleAnalytics?.enabled) {
-      window.gtag('event', eventName, eventData);
-    }
-    
-    // Mixpanel
-    if (window.mixpanel && this.config.analytics?.mixpanel?.enabled) {
-      window.mixpanel.track(eventName, eventData);
-    }
-    
-    // Console log for development
-    if (this.config.development?.logAnalytics) {
-      console.log('Analytics Event:', eventName, eventData);
-    }
-
-    // Send to backend if available
-    if (this.config.api?.baseUrl && this.config.api?.endpoints?.analytics) {
-      fetch(this.config.api.baseUrl + this.config.api.endpoints.analytics, {
-        method: 'POST',
-        headers: this.defaultHeaders,
-        body: JSON.stringify({ event: eventName, data: eventData })
-      }).catch(err => console.warn('Analytics tracking failed:', err));
-    }
-  }
-
-  getElementLocation(element) {
-    const section = element.closest('section');
-    return section ? section.id || section.className : 'unknown';
-  }
-
-  /**
-   * Accessibility enhancements
-   */
   setupAccessibility() {
-    // Skip link functionality
-    this.createSkipLink();
-    
-    // Keyboard navigation for custom elements
-    this.setupKeyboardNavigation();
-    
-    // Focus management
-    this.setupFocusManagement();
-    
-    // Reduced motion preferences
-    this.respectMotionPreferences();
-  }
-
-  createSkipLink() {
-    const skipLink = document.createElement('a');
-    skipLink.href = '#hero';
-    skipLink.textContent = 'Skip to main content';
-    skipLink.className = 'skip-link';
-    
-    document.body.insertBefore(skipLink, document.body.firstChild);
-  }
-
-  setupKeyboardNavigation() {
-    // Ensure all interactive elements are keyboard accessible
-    const interactiveElements = document.querySelectorAll(
-      'button, a, input, select, textarea, [tabindex]'
-    );
-    
-    interactiveElements.forEach(element => {
-      if (!element.hasAttribute('tabindex') && element.tabIndex === -1) {
-        element.tabIndex = 0;
-      }
-    });
-    
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-      // Escape key closes mobile menu
-      if (e.key === 'Escape') {
-        const navMenu = document.getElementById('nav-menu');
-        const navToggle = document.getElementById('nav-toggle');
-        if (navMenu && navMenu.classList.contains('nav-menu--open')) {
-          navMenu.classList.remove('nav-menu--open');
-          navToggle.classList.remove('nav-toggle--open');
-        }
-      }
-    });
-  }
-
-  setupFocusManagement() {
-    // Improve focus visibility
+    // Track keyboard navigation
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Tab') {
         document.body.classList.add('keyboard-navigation');
       }
     });
-
     document.addEventListener('mousedown', () => {
       document.body.classList.remove('keyboard-navigation');
     });
   }
-
+  setupBackendIntegration() {
+    // Proper URL validation for client-side
+    const allowedHosts = ['scarmonit-creator.github.io', 'scarmonit.com'];
+    const currentHost = window.location.hostname;
+    const isValidHost = allowedHosts.some(host => currentHost === host || currentHost.endsWith('.' + host));
+    
+    if (isValidHost) {
+      // Backend integration for GitHub Pages or production domain
+      console.log('Backend integration enabled for:', currentHost);
+      // Add backend integration code here
+    }
+  }
   respectMotionPreferences() {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     
@@ -594,7 +225,6 @@ class ScarmonitWebsite {
       document.documentElement.style.setProperty('--transition-slow', '0ms');
     }
   }
-
   /**
    * Utility function for debouncing
    */
@@ -610,12 +240,10 @@ class ScarmonitWebsite {
     };
   }
 }
-
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   new ScarmonitWebsite();
 });
-
 // Export utilities for external use
 window.ScarmonitUtils = {
   // Format currency
@@ -641,12 +269,10 @@ window.ScarmonitUtils = {
       rect.right <= (window.innerWidth || document.documentElement.clientWidth)
     );
   },
-
   // Get stored waitlist entries (for development)
   getWaitlistEntries() {
     return JSON.parse(localStorage.getItem('waitlistEntries') || '[]');
   },
-
   // Clear stored data
   clearStoredData() {
     localStorage.removeItem('waitlistEntries');
