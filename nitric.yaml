@@ -1,6 +1,5 @@
 name: llm-ai-bridge
 description: LLM AI Bridge with Nitric Cloud-Native Optimization
-
 services:
   - match: "src/nitric/**/*.js"
     start: node $SERVICE_PATH
@@ -8,11 +7,18 @@ services:
   - match: "src/nitric/**/*.ts"  
     start: npx tsx $SERVICE_PATH
     type: default
-
+websites:
+  - name: llm-website
+    basedir: website
+    index: index.html
+    error: index.html
+    build:
+      command: echo "Static site - no build needed"
+    dev:
+      url: http://localhost:3000
 providers:
   - nitric/aws@latest
   - nitric/azure@latest
   - nitric/gcp@latest
-
 preview:
   - nitric/docker@latest
