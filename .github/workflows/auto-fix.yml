@@ -148,7 +148,7 @@ jobs:
           --prefer-offline \
           --no-audit \
           --no-fund \
-          --ignore-scripts
+          --omit=optional
     
     - name: TypeScript compilation check
       if: needs.preflight.outputs.has-code-changes == 'true'
