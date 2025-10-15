@@ -1,0 +1,32 @@
+name: llm-ai-bridge
+description: LLM AI Bridge with Nitric Cloud-Native Optimization
+
+services:
+  - match: "src/nitric/**/*.js"
+    start: node $SERVICE_PATH
+    type: default
+  - match: "src/nitric/**/*.ts"  
+    start: npx tsx $SERVICE_PATH
+    type: default
+
+# Website configuration with CDN, custom domain, and optimized build process
+websites:
+  - name: llm-website
+    basedir: website
+    index: index.html
+    error: 404.html
+    build:
+      command: npm run build:website
+      output: ./website/dist
+    dev:
+      command: npm run dev:website -- --port 4322
+      url: http://localhost:4322
+    custom_domain: www.scarmonit.com
+
+providers:
+  - nitric/aws@latest
+  - nitric/azure@latest
+  - nitric/gcp@latest
+
+preview:
+  - nitric/docker@latest

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found | LLM AI Bridge</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .error-container {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 10px 40px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .error-code {
+            font-size: 8rem;
+            font-weight: 900;
+            margin: 0;
+            background: linear-gradient(45deg, #00ff88, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+        .error-title {
+            font-size: 2.5rem;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+        .error-description {
+            font-size: 1.2rem;
+            margin: 20px 0 40px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        .home-button {
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #00ff88, #00d4ff);
+            color: #1a1a2e;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0, 255, 136, 0.3);
+        }
+        .home-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 255, 136, 0.5);
+        }
+        .suggestions {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .suggestions h3 {
+            margin: 0 0 15px;
+            color: #00ff88;
+        }
+        .suggestions ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .suggestions li {
+            margin: 8px 0;
+        }
+        .suggestions a {
+            color: #00d4ff;
+            text-decoration: none;
+        }
+        .suggestions a:hover {
+            text-decoration: underline;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-code">404</div>
+        <h1 class="error-title">Page Not Found</h1>
+        <p class="error-description">
+            The page you're looking for doesn't exist or has been moved.
+            <br>
+            Don't worry, our AI systems are still running perfectly!
+        </p>
+        
+        <a href="/" class="home-button">🏠 Return to Dashboard</a>
+        
+        <div class="suggestions">
+            <h3><span class="status-indicator"></span>System Status</h3>
+            <ul>
+                <li><a href="/">🎯 Dashboard - System Health & Metrics</a></li>
+                <li><a href="/#websocket-demo">⚡ WebSocket Demo - Real-time Communication</a></li>
+                <li><a href="/api/llm-ai-bridge/health">🔍 API Health Check</a></li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-redirect to home after 30 seconds if user doesn't interact
+        let redirectTimer = setTimeout(() => {
+            window.location.href = '/';
+        }, 30000);
+        
+        // Cancel redirect if user interacts with page
+        document.addEventListener('click', () => {
+            clearTimeout(redirectTimer);
+        });
+        
+        document.addEventListener('keydown', () => {
+            clearTimeout(redirectTimer);
+        });
+        
+        // Track 404 for analytics (if needed)
+        console.log('404 Error - Page not found:', window.location.pathname);
+        
+        // Test if API is accessible from 404 page
+        fetch('/api/llm-ai-bridge/health')
+            .then(response => response.json())
+            .then(data => {
+                console.log('✅ API accessible from 404 page:', data.status);
+            })
+            .catch(error => {
+                console.log('⚠️ API not accessible from 404 page');
+            });
+    </script>
+</body>
+</html>

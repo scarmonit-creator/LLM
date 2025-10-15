@@ -1,0 +1,27 @@
+{
+  "name": "llm-nitric-services",
+  "version": "1.0.0",
+  "description": "Nitric-powered serverless services for LLM AI Bridge",
+  "type": "module",
+  "scripts": {
+    "start": "node api.js",
+    "dev": "nitric start",
+    "build": "nitric build",
+    "deploy:aws": "nitric up --provider aws",
+    "deploy:azure": "nitric up --provider azure", 
+    "deploy:gcp": "nitric up --provider gcp",
+    "local": "nitric start --verbose",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "@nitric/sdk": "^1.0.0"
+  },
+  "keywords": [
+    "nitric",
+    "serverless",
+    "cloud-native",
+    "ai",
+    "llm",
+    "auto-scaling"
+  ]
+}
