@@ -7,6 +7,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import cluster from 'cluster';
 import { cpus } from 'os';
+import crypto from 'crypto';
 
 // ESM compatibility
 const __filename = fileURLToPath(import.meta.url);
@@ -14,12 +15,28 @@ const __dirname = path.dirname(__filename);
 
 const execAsync = promisify(exec);
 
-// Enhanced server with concurrent optimization
+// Enhanced server with concurrent optimization and text ingestion
 class EnhancedLLMServer {
   constructor() {
     this.app = express();
     this.PORT = process.env.PORT || 8080;
     this.nodeOptimizer = new NodePerformanceOptimizer();
+    
+    // Text ingestion configuration
+    this.ingestionConfig = {
+      maxTextSize: parseInt(process.env.LOOK_MAX_BYTES) || 5000,
+      rateLimitWindow: 60000, // 1 minute
+      rateLimitMax: 100,
+      authToken: process.env.LOOK_INGEST_TOKEN || 'llm-default-token',
+      enabled: true
+    };
+    
+    // Rate limiting store
+    this.rateLimits = new Map();
+    
+    // Ingestion queue and cache
+    this.ingestionQueue = [];
+    this.textCache = new Map();
     
     // Initialize performance monitor with enhanced settings
     this.perfMonitor = new PerformanceMonitor({
@@ -39,6 +56,14 @@ class EnhancedLLMServer {
       responseTimes: [],
       slowRequests: 0,
       totalDataTransferred: 0,
+      ingestion: {
+        total: 0,
+        selections: 0,
+        tabs: 0,
+        processed: 0,
+        cached: 0,
+        rateLimited: 0
+      },
       optimizations: {
         concurrent: 0,
         python: 0,
@@ -62,6 +87,9 @@ class EnhancedLLMServer {
     // Setup routes
     this.setupRoutes();
     
+    // Setup text ingestion routes
+    this.setupIngestionRoutes();
+    
     // Setup concurrent optimization routes
     this.setupOptimizationRoutes();
     
@@ -70,6 +98,280 @@ class EnhancedLLMServer {
     
     // Start real-time optimization background process
     this.startRealtimeOptimization();
+    
+    // Start ingestion queue processor
+    this.startIngestionProcessor();
+  }
+  
+  // Rate limiting helper
+  checkRateLimit(clientId) {
+    const now = Date.now();
+    const windowStart = now - this.ingestionConfig.rateLimitWindow;
+    
+    if (!this.rateLimits.has(clientId)) {
+      this.rateLimits.set(clientId, []);
+    }
+    
+    const requests = this.rateLimits.get(clientId);
+    
+    // Remove old requests outside the window
+    const recentRequests = requests.filter(time => time > windowStart);
+    
+    if (recentRequests.length >= this.ingestionConfig.rateLimitMax) {
+      return false;
+    }
+    
+    recentRequests.push(now);
+    this.rateLimits.set(clientId, recentRequests);
+    
+    return true;
+  }
+  
+  // Text deduplication helper
+  generateTextHash(url, text) {
+    return crypto.createHash('md5')
+      .update(url + '|' + text.substring(0, 500))
+      .digest('hex');
+  }
+  
+  setupIngestionRoutes() {
+    // Text selection and tab ingestion endpoint
+    this.app.post('/ingest/look', async (req, res) => {
+      const startTime = Date.now();
+      
+      try {
+        // Check if ingestion is enabled
+        if (!this.ingestionConfig.enabled) {
+          return res.status(503).json({
+            success: false,
+            error: 'Text ingestion is currently disabled'
+          });
+        }
+        
+        // Validate payload
+        const { type, source, url, title, text, clientId, metadata } = req.body;
+        
+        if (!type || !source || !url || !clientId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing required fields: type, source, url, clientId'
+          });
+        }
+        
+        // Check text size limit
+        if (text && text.length > this.ingestionConfig.maxTextSize) {
+          return res.status(413).json({
+            success: false,
+            error: `Text too large. Max size: ${this.ingestionConfig.maxTextSize} characters`
+          });
+        }
+        
+        // Rate limiting
+        if (!this.checkRateLimit(clientId)) {
+          this.metrics.ingestion.rateLimited++;
+          return res.status(429).json({
+            success: false,
+            error: 'Rate limit exceeded',
+            retryAfter: Math.ceil(this.ingestionConfig.rateLimitWindow / 1000)
+          });
+        }
+        
+        // Generate unique ID for this ingestion
+        const ingestionId = crypto.randomUUID();
+        
+        // Check for duplicates (only for text selections)
+        let isDuplicate = false;
+        if (source === 'selection' && text) {
+          const textHash = this.generateTextHash(url, text);
+          if (this.textCache.has(textHash)) {
+            isDuplicate = true;
+            this.metrics.ingestion.cached++;
+          } else {
+            this.textCache.set(textHash, {
+              id: ingestionId,
+              timestamp: new Date().toISOString(),
+              url,
+              text: text.substring(0, 100) + '...'
+            });
+            
+            // Limit cache size
+            if (this.textCache.size > 1000) {
+              const firstKey = this.textCache.keys().next().value;
+              this.textCache.delete(firstKey);
+            }
+          }
+        }
+        
+        // Create ingestion payload
+        const payload = {
+          id: ingestionId,
+          type,
+          source,
+          url,
+          title,
+          text: text || '',
+          clientId,
+          metadata: metadata || {},
+          timestamp: new Date().toISOString(),
+          processingStatus: 'queued',
+          isDuplicate
+        };
+        
+        // Add to processing queue
+        this.ingestionQueue.push(payload);
+        
+        // Update metrics
+        this.metrics.ingestion.total++;
+        if (source === 'selection') {
+          this.metrics.ingestion.selections++;
+        } else if (source === 'tab') {
+          this.metrics.ingestion.tabs++;
+        }
+        
+        const responseTime = Date.now() - startTime;
+        
+        // Return success response
+        res.status(202).json({
+          success: true,
+          id: ingestionId,
+          message: 'Text ingestion queued for processing',
+          processingTime: responseTime,
+          queueSize: this.ingestionQueue.length,
+          isDuplicate,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log(`📥 Ingested ${source}: ${ingestionId} (${text ? text.length : 0} chars) from ${url}`);
+        
+      } catch (error) {
+        this.metrics.errors++;
+        console.error('❌ Ingestion error:', error);
+        
+        res.status(500).json({
+          success: false,
+          error: 'Internal server error during text ingestion',
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+    
+    // Ingestion status and metrics
+    this.app.get('/ingest/status', (req, res) => {
+      res.json({
+        enabled: this.ingestionConfig.enabled,
+        queueSize: this.ingestionQueue.length,
+        cacheSize: this.textCache.size,
+        metrics: this.metrics.ingestion,
+        rateLimits: {
+          window: this.ingestionConfig.rateLimitWindow,
+          maxRequests: this.ingestionConfig.rateLimitMax
+        },
+        config: {
+          maxTextSize: this.ingestionConfig.maxTextSize
+        },
+        timestamp: new Date().toISOString()
+      });
+    });
+    
+    // Get recent ingestions
+    this.app.get('/ingest/recent', (req, res) => {
+      const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+      const recentIngestions = this.ingestionQueue.slice(-limit).reverse();
+      
+      res.json({
+        success: true,
+        count: recentIngestions.length,
+        data: recentIngestions.map(item => ({
+          id: item.id,
+          type: item.type,
+          source: item.source,
+          url: item.url,
+          title: item.title,
+          textLength: item.text ? item.text.length : 0,
+          textPreview: item.text ? item.text.substring(0, 100) + '...' : '',
+          clientId: item.clientId,
+          timestamp: item.timestamp,
+          processingStatus: item.processingStatus,
+          isDuplicate: item.isDuplicate
+        })),
+        totalIngestions: this.metrics.ingestion.total
+      });
+    });
+  }
+  
+  // Background ingestion processor
+  startIngestionProcessor() {
+    setInterval(async () => {
+      if (this.ingestionQueue.length === 0) return;
+      
+      const batchSize = 10;
+      const batch = this.ingestionQueue.splice(0, batchSize);
+      
+      for (const item of batch) {
+        try {
+          await this.processIngestion(item);
+          this.metrics.ingestion.processed++;
+        } catch (error) {
+          console.error(`❌ Failed to process ingestion ${item.id}:`, error);
+          this.metrics.errors++;
+        }
+      }
+      
+      if (batch.length > 0) {
+        console.log(`🔄 Processed ${batch.length} ingestions (${this.ingestionQueue.length} remaining in queue)`);
+      }
+    }, 2000); // Process every 2 seconds
+  }
+  
+  async processIngestion(item) {
+    // Mark as processing
+    item.processingStatus = 'processing';
+    
+    try {
+      // Skip duplicates
+      if (item.isDuplicate) {
+        item.processingStatus = 'skipped_duplicate';
+        return;
+      }
+      
+      // Process text if available
+      if (item.text && item.text.trim()) {
+        // Language detection (simple heuristic)
+        const language = this.detectLanguage(item.text);
+        
+        // Extract key information
+        const analysis = {
+          wordCount: item.text.split(/\s+/).length,
+          language: language,
+          domain: new URL(item.url).hostname,
+          extractedAt: item.timestamp,
+          sourceType: item.source
+        };
+        
+        // Here you could integrate with orchestrator.ts for deeper analysis
+        // For now, we'll just log the analysis
+        console.log(`📊 Analyzed ${item.source} from ${analysis.domain}: ${analysis.wordCount} words (${language})`);
+        
+        item.analysis = analysis;
+      }
+      
+      item.processingStatus = 'completed';
+      item.processedAt = new Date().toISOString();
+      
+    } catch (error) {
+      item.processingStatus = 'failed';
+      item.error = error.message;
+      throw error;
+    }
+  }
+  
+  detectLanguage(text) {
+    // Simple language detection based on common words
+    const englishWords = ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'];
+    const words = text.toLowerCase().split(/\s+/);
+    const englishMatches = words.filter(word => englishWords.includes(word)).length;
+    
+    return englishMatches > words.length * 0.1 ? 'en' : 'unknown';
   }
   
   async initializeBrowserHistory() {
@@ -122,6 +424,19 @@ class EnhancedLLMServer {
   setupMiddleware() {
     // JSON parsing
     this.app.use(express.json());
+    
+    // CORS for browser extensions
+    this.app.use((req, res, next) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-LLM-Client-ID, X-LLM-Source');
+      
+      if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+      }
+      
+      next();
+    });
     
     // Performance tracking middleware
     this.app.use((req, res, next) => {
@@ -176,6 +491,11 @@ class EnhancedLLMServer {
           available: true,
           type: isRealHistory ? 'real' : 'mock'
         },
+        textIngestion: {
+          enabled: this.ingestionConfig.enabled,
+          queueSize: this.ingestionQueue.length,
+          metrics: this.metrics.ingestion
+        },
         memory: {
           heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
           heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
@@ -210,7 +530,7 @@ class EnhancedLLMServer {
       
       res.json({
         status: 'ok',
-        message: 'LLM AI Bridge Server - CONCURRENT OPTIMIZED - Ultra Performance Edition',
+        message: 'LLM AI Bridge Server - CONCURRENT OPTIMIZED - Ultra Performance Edition with Text Ingestion',
         version: '2.0.0-concurrent',
         uptime: uptime,
         features: {
@@ -218,12 +538,15 @@ class EnhancedLLMServer {
           python_integration: 'ENABLED',
           worker_threads: 'ENABLED',
           realtime_monitoring: 'ACTIVE',
+          text_ingestion: 'ACTIVE',
+          browser_capture: 'ENABLED',
           browser_history: isRealHistory ? 'Real SQLite Access' : 'Mock Implementation'
         },
         performance: {
           requests: this.metrics.requests,
           errors: this.metrics.errors,
           optimizations: this.metrics.optimizations,
+          ingestion: this.metrics.ingestion,
           memory: {
             heapUsed: Math.round(this.metrics.memory.heapUsed / 1024 / 1024),
             heapTotal: Math.round(this.metrics.memory.heapTotal / 1024 / 1024)
@@ -231,6 +554,9 @@ class EnhancedLLMServer {
         },
         endpoints: [
           { path: '/health', method: 'GET', description: 'Enhanced health check with concurrent metrics' },
+          { path: '/ingest/look', method: 'POST', description: 'Text selection and tab ingestion endpoint' },
+          { path: '/ingest/status', method: 'GET', description: 'Text ingestion status and metrics' },
+          { path: '/ingest/recent', method: 'GET', description: 'Recent text ingestions' },
           { path: '/optimize', method: 'POST', description: 'Execute concurrent optimization suite' },
           { path: '/optimize/python', method: 'POST', description: 'Execute Python concurrent optimization' },
           { path: '/optimize/realtime', method: 'POST', description: 'Start/stop real-time optimization' },
@@ -441,6 +767,7 @@ class EnhancedLLMServer {
             ? Math.round(this.metrics.responseTimes.reduce((a, b) => a + b, 0) / this.metrics.responseTimes.length)
             : 0
         },
+        text_ingestion: this.metrics.ingestion,
         system_performance: performanceStats,
         memory: {
           current: process.memoryUsage(),
@@ -450,7 +777,9 @@ class EnhancedLLMServer {
           worker_threads: true,
           python_integration: true,
           realtime_optimization: true,
-          background_monitoring: true
+          background_monitoring: true,
+          text_ingestion: true,
+          browser_capture: true
         }
       });
     });
@@ -474,6 +803,12 @@ class EnhancedLLMServer {
             'build_system_optimization',
             'python_concurrent_optimization'
           ]
+        },
+        text_ingestion: {
+          enabled: this.ingestionConfig.enabled,
+          queueSize: this.ingestionQueue.length,
+          cacheSize: this.textCache.size,
+          config: this.ingestionConfig
         },
         system_info: {
           platform: process.platform,
@@ -510,7 +845,8 @@ class EnhancedLLMServer {
         method: req.method,
         available_endpoints: [
           '/', '/health', '/optimize', '/optimize/python', '/optimize/realtime',
-          '/metrics/concurrent', '/history', '/search', '/performance/enhanced'
+          '/metrics/concurrent', '/history', '/search', '/performance/enhanced',
+          '/ingest/look', '/ingest/status', '/ingest/recent'
         ]
       });
     });
@@ -534,6 +870,13 @@ class EnhancedLLMServer {
           this.metrics.optimizations.realtime++;
         }
         
+        // Clean up old cache entries periodically
+        if (this.textCache.size > 500) {
+          const entriesToDelete = Array.from(this.textCache.keys()).slice(0, 100);
+          entriesToDelete.forEach(key => this.textCache.delete(key));
+          console.log(`🧹 Cleaned up ${entriesToDelete.length} old text cache entries`);
+        }
+        
       } catch (error) {
         console.error('Real-time optimization error:', error);
       }
@@ -544,14 +887,16 @@ class EnhancedLLMServer {
     const server = this.app.listen(this.PORT, '0.0.0.0', () => {
       const isRealHistory = this.browserHistoryTool.constructor.name !== 'MockBrowserHistoryTool';
       
-      console.log('🚀 LLM AI Bridge Server - CONCURRENT OPTIMIZED EDITION');
-      console.log('=' .repeat(80));
+      console.log('🚀 LLM AI Bridge Server - CONCURRENT OPTIMIZED EDITION WITH TEXT INGESTION');
+      console.log('=' .repeat(90));
       console.log(`🌐 Server listening at http://0.0.0.0:${this.PORT}`);
       console.log('✅ ESM COMPATIBLE - Server running with proper ES6 modules');
       console.log('📊 CONCURRENT OPTIMIZATION - Advanced parallel processing enabled');
       console.log('🐍 PYTHON INTEGRATION - Concurrent.futures optimization available');
       console.log('🧧 WORKER THREADS - Multi-threaded processing active');
       console.log('📈 REAL-TIME MONITORING - Background optimization running');
+      console.log('📥 TEXT INGESTION - Browser capture and analysis enabled');
+      console.log('🌍 BROWSER CAPTURE - Extension integration ready');
       console.log(`💾 Browser History: ${isRealHistory ? 'Real SQLite Access' : 'Mock Implementation'}`);
       console.log('');
       console.log('🔧 Available Optimization Endpoints:');
@@ -561,8 +906,13 @@ class EnhancedLLMServer {
       console.log('  GET  /metrics/concurrent - Get concurrent optimization metrics');
       console.log('  GET  /performance/enhanced - Enhanced performance statistics');
       console.log('');
-      console.log('🎉 Server is production-ready with advanced concurrent optimization!');
-      console.log('=' .repeat(80));
+      console.log('📥 Text Ingestion Endpoints:');
+      console.log('  POST /ingest/look - Text selection and tab capture');
+      console.log('  GET  /ingest/status - Ingestion status and metrics');
+      console.log('  GET  /ingest/recent - Recent text ingestions');
+      console.log('');
+      console.log('🎉 Server is production-ready with advanced concurrent optimization and text ingestion!');
+      console.log('=' .repeat(90));
     });
     
     // Graceful shutdown
