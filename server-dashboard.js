@@ -3,6 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { PerformanceMonitor } from './src/performance-monitor.js';
 
+// Import deploy-project API router
+import deployProjectRouter from './api/deploy-project.js';
+
 // ESM compatibility
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,14 +13,23 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 // Initialize performance monitor
 const perfMonitor = new PerformanceMonitor({
   enableFileLogging: process.env.NODE_ENV === 'production',
   samplingInterval: 15000,
   memoryThreshold: 0.85
 });
-
 perfMonitor.start();
+
+// Serve static files from website directory
+app.use(express.static(path.join(__dirname, 'website')));
+
+// Mount deploy-project API routes
+app.use('/api', deployProjectRouter);
 
 // Browser History Tool - Dynamic import with fallback
 let BrowserHistoryTool;
@@ -37,7 +49,6 @@ const initializeBrowserHistory = async () => {
       constructor(config = {}) {
         this.config = config;
       }
-
       async getRecentHistory(count = 50) {
         return [
           {
@@ -63,312 +74,182 @@ const initializeBrowserHistory = async () => {
           }
         ].slice(0, count);
       }
-
       destroy() {}
     }
     
     BrowserHistoryTool = MockBrowserHistoryTool;
-    tool = new MockBrowserHistoryTool({ autoSync: true });
+    tool = new BrowserHistoryTool();
   }
 };
 
+// Initialize browser history
 await initializeBrowserHistory();
 
-// Performance metrics
+// Cache variables
+let agentStats = {
+  totalAgents: 4,
+  activeAgents: 2,
+  completedTasks: 156,
+  averageResponseTime: 1.2,
+  errorRate: 0.03
+};
+
+// Metrics
 let metrics = {
   requests: 0,
   errors: 0,
-  uptime: Date.now(),
-  memory: process.memoryUsage(),
-  lastUpdated: new Date().toISOString(),
-  startupTime: Date.now(),
-  responseTimes: [],
-  slowRequests: 0,
-  totalDataTransferred: 0
+  uptime: Date.now()
 };
 
-// AI Agent simulation data
-let aiAgents = {
-  totalAgents: 12,
-  activeAgents: 8,
-  tasksCompleted: 1547,
-  avgResponseTime: 2.3,
-  uptime: 99.8,
-  knowledgeBase: 45231,
-  agents: [
-    { id: 1, name: 'Code Agent', status: 'active', tasks: 234, lastSeen: Date.now() },
-    { id: 2, name: 'Data Analysis Agent', status: 'active', tasks: 187, lastSeen: Date.now() - 300000 },
-    { id: 3, name: 'Documentation Agent', status: 'active', tasks: 156, lastSeen: Date.now() - 600000 },
-    { id: 4, name: 'Testing Agent', status: 'idle', tasks: 143, lastSeen: Date.now() - 1800000 },
-    { id: 5, name: 'Deployment Agent', status: 'active', tasks: 129, lastSeen: Date.now() - 120000 },
-    { id: 6, name: 'Monitoring Agent', status: 'active', tasks: 98, lastSeen: Date.now() - 60000 },
-    { id: 7, name: 'Security Agent', status: 'active', tasks: 89, lastSeen: Date.now() - 180000 },
-    { id: 8, name: 'Performance Agent', status: 'active', tasks: 76, lastSeen: Date.now() - 90000 },
-    { id: 9, name: 'Backup Agent', status: 'idle', tasks: 54, lastSeen: Date.now() - 3600000 },
-    { id: 10, name: 'Cache Agent', status: 'active', tasks: 43, lastSeen: Date.now() - 240000 },
-    { id: 11, name: 'Log Analysis Agent', status: 'idle', tasks: 32, lastSeen: Date.now() - 2400000 },
-    { id: 12, name: 'Email Agent', status: 'idle', tasks: 21, lastSeen: Date.now() - 1200000 }
-  ]
-};
-
-// Update AI agent metrics periodically
-setInterval(() => {
-  aiAgents.agents.forEach(agent => {
-    if (Math.random() > 0.9) {
-      agent.status = Math.random() > 0.3 ? 'active' : 'idle';
-      agent.lastSeen = Date.now();
-      if (agent.status === 'active') {
-        agent.tasks += Math.floor(Math.random() * 3) + 1;
-        aiAgents.tasksCompleted += Math.floor(Math.random() * 2) + 1;
-      }
-    }
-  });
-  
-  aiAgents.activeAgents = aiAgents.agents.filter(agent => agent.status === 'active').length;
-  aiAgents.avgResponseTime = (2.1 + Math.random() * 0.6).toFixed(1);
-  
-  if (Math.random() > 0.7) {
-    aiAgents.knowledgeBase += Math.floor(Math.random() * 10) + 1;
-  }
-}, 15000);
-
-// Update metrics
-setInterval(() => {
-  const memUsage = process.memoryUsage();
-  metrics.memory = memUsage;
-  metrics.lastUpdated = new Date().toISOString();
-  
-  if (Math.random() > 0.7) {
-    metrics.requests += 1;
-    metrics.totalDataTransferred += Math.floor(Math.random() * 1024);
-  }
-}, 10000);
-
-// Middleware
-app.use(express.json());
-
-// CORS middleware
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-});
-
-// Serve static files
-app.use(express.static(path.join(__dirname, 'website')));
-
-// Request tracking middleware
-app.use((req, res, next) => {
-  const startTime = Date.now();
+// Routes
+app.get('/', (req, res) => {
   metrics.requests++;
+  const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
   
-  perfMonitor.measureOperation(`http-${req.method}-${req.path}`, () => {
-    res.on('finish', () => {
-      const responseTime = Date.now() - startTime;
-      metrics.responseTimes.push(responseTime);
-      
-      if (metrics.responseTimes.length > 100) {
-        metrics.responseTimes.shift();
+  res.json({
+    name: 'LLM AI Bridge Server',
+    version: '2.5.1',
+    status: 'online',
+    uptime: Math.floor((Date.now() - metrics.uptime) / 1000),
+    features: {
+      aiDashboard: true,
+      browserHistory: isRealHistory ? 'real' : 'mock',
+      performanceMonitoring: true,
+      projectDeployment: true
+    },
+    endpoints: {
+      dashboard: '/knowledge-dashboard.html',
+      projects: '/projects-dashboard.html',
+      api: {
+        status: '/api/status',
+        stats: '/api/dashboard/stats',
+        agents: '/api/dashboard/agents',
+        deploy: '/api/deploy-project',
+        deployStatus: '/api/deploy-project/:id/status'
       }
-      
-      if (responseTime > 1000) {
-        metrics.slowRequests++;
-        console.log(`Slow request: ${req.method} ${req.path} took ${responseTime}ms`);
-      }
-      
-      metrics.totalDataTransferred += (res.get('Content-Length') || 0);
-    });
+    },
+    metrics: {
+      totalRequests: metrics.requests,
+      errors: metrics.errors,
+      errorRate: metrics.requests > 0 ? (metrics.errors / metrics.requests).toFixed(4) : 0
+    },
+    timestamp: new Date().toISOString()
   });
-  
-  next();
-});
-
-// Dashboard API endpoints
-app.get('/api/dashboard/stats', (req, res) => {
-  try {
-    const uptime = Math.floor((Date.now() - metrics.uptime) / 1000);
-    const uptimePercentage = Math.min(99.9, (uptime / (uptime + 100)) * 100).toFixed(1);
-    
-    res.json({
-      success: true,
-      data: {
-        totalAgents: aiAgents.totalAgents,
-        activeAgents: aiAgents.activeAgents,
-        tasksCompleted: aiAgents.tasksCompleted.toLocaleString(),
-        avgResponseTime: `${aiAgents.avgResponseTime}s`,
-        uptime: `${uptimePercentage}%`,
-        knowledgeBase: aiAgents.knowledgeBase.toLocaleString()
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    metrics.errors++;
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch dashboard stats',
-      message: error.message
-    });
-  }
-});
-
-app.get('/api/dashboard/agents', (req, res) => {
-  try {
-    const sortedAgents = [...aiAgents.agents]
-      .sort((a, b) => b.lastSeen - a.lastSeen)
-      .slice(0, 8);
-    
-    res.json({
-      success: true,
-      data: sortedAgents.map(agent => ({
-        id: agent.id,
-        name: agent.name,
-        status: agent.status,
-        tasks: agent.tasks,
-        lastSeen: new Date(agent.lastSeen).toLocaleString(),
-        lastSeenTimestamp: agent.lastSeen
-      })),
-      total: aiAgents.agents.length,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    metrics.errors++;
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch agents data',
-      message: error.message
-    });
-  }
 });
 
 // Health check
 app.get('/health', (req, res) => {
-  const uptime = Math.floor((Date.now() - metrics.uptime) / 1000);
-  const memUsage = process.memoryUsage();
-  const memoryPressure = Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100);
-  const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
-  
-  const avgResponseTime = metrics.responseTimes.length > 0 
-    ? metrics.responseTimes.reduce((a, b) => a + b, 0) / metrics.responseTimes.length 
-    : 0;
-  
-  const healthCheck = {
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    uptime: uptime,
-    browserHistory: {
-      available: true,
-      type: isRealHistory ? 'real' : 'mock'
-    },
-    aiAgents: {
-      total: aiAgents.totalAgents,
-      active: aiAgents.activeAgents,
-      tasksCompleted: aiAgents.tasksCompleted
-    },
-    memory: {
-      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
-      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
-      external: Math.round(memUsage.external / 1024 / 1024),
-      pressure: memoryPressure
-    },
-    performance: {
-      requests: metrics.requests,
-      errors: metrics.errors,
-      slowRequests: metrics.slowRequests,
-      avgResponseTime: Math.round(avgResponseTime),
-      errorRate: metrics.requests > 0 ? (metrics.errors / metrics.requests * 100).toFixed(2) : 0
-    },
-    version: '1.4.0',
-    monitoring: perfMonitor.getStats()
-  };
-  
-  const status = memoryPressure > 90 ? 503 : 200;
-  res.status(status).json(healthCheck);
-});
-
-// Root endpoint
-app.get('/', (req, res) => {
-  const uptime = Math.floor((Date.now() - metrics.uptime) / 1000);
-  const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
-  
   res.json({
-    status: 'ok',
-    message: 'LLM AI Bridge Server - Dashboard Enabled',
-    version: '1.4.0',
-    uptime: uptime,
-    browserHistory: {
-      enabled: true,
-      type: isRealHistory ? 'Real SQLite Access' : 'Mock Implementation'
-    },
-    aiDashboard: {
-      enabled: true,
-      totalAgents: aiAgents.totalAgents,
-      activeAgents: aiAgents.activeAgents,
-      tasksCompleted: aiAgents.tasksCompleted,
-      endpoints: ['/api/dashboard/stats', '/api/dashboard/agents']
-    },
-    endpoints: [
-      { path: '/health', method: 'GET', description: 'Health check endpoint' },
-      { path: '/api/status', method: 'GET', description: 'Detailed system status' },
-      { path: '/api/dashboard/stats', method: 'GET', description: 'Dashboard statistics' },
-      { path: '/api/dashboard/agents', method: 'GET', description: 'AI agents status' },
-      { path: '/history', method: 'GET', description: 'Browser history' },
-      { path: '/search', method: 'GET', description: 'Search browser history' }
-    ]
-  });
-});
-
-// System status endpoint
-app.get('/api/status', (req, res) => {
-  const uptime = Math.floor((Date.now() - metrics.uptime) / 1000);
-  const memUsage = process.memoryUsage();
-  const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
-  
-  res.json({
-    service: 'LLM AI Bridge Server',
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    version: '1.4.0',
-    uptime: uptime,
-    browserHistory: {
-      status: 'active',
-      implementation: isRealHistory ? 'Real SQLite' : 'Mock'
-    },
-    aiDashboard: {
-      status: 'active',
-      totalAgents: aiAgents.totalAgents,
-      activeAgents: aiAgents.activeAgents,
-      tasksCompleted: aiAgents.tasksCompleted
-    },
-    performance: {
-      totalRequests: metrics.requests,
-      totalErrors: metrics.errors,
-      slowRequests: metrics.slowRequests,
-      errorRate: metrics.requests > 0 ? (metrics.errors / metrics.requests * 100).toFixed(2) : 0,
-      memory: {
-        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
-        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024)
-      }
-    }
+    uptime: Math.floor((Date.now() - metrics.uptime) / 1000),
+    memory: process.memoryUsage(),
+    cpu: process.cpuUsage()
   });
 });
 
-// Browser history endpoints
+// API status endpoint
+app.get('/api/status', (req, res) => {
+  metrics.requests++;
+  const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
+  
+  res.json({
+    status: 'operational',
+    version: '2.5.1',
+    uptime: Math.floor((Date.now() - metrics.uptime) / 1000),
+    features: {
+      browserHistory: isRealHistory ? 'active' : 'mock',
+      aiDashboard: 'active',
+      performanceMonitoring: 'active',
+      projectDeployment: 'active'
+    },
+    metrics: {
+      requests: metrics.requests,
+      errors: metrics.errors,
+      errorRate: metrics.requests > 0 ? (metrics.errors / metrics.requests).toFixed(4) : 0
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Dashboard stats
+app.get('/api/dashboard/stats', (req, res) => {
+  metrics.requests++;
+  
+  res.json({
+    success: true,
+    data: {
+      totalProjects: 103,
+      activeDeployments: 2,
+      completedDeployments: 45,
+      systemUptime: Math.floor((Date.now() - metrics.uptime) / 1000),
+      performanceScore: 95.2,
+      memoryUsage: Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 100) / 100,
+      requestsToday: metrics.requests,
+      errorRate: metrics.requests > 0 ? (metrics.errors / metrics.requests).toFixed(4) : 0
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// AI Agents status
+app.get('/api/dashboard/agents', (req, res) => {
+  metrics.requests++;
+  
+  res.json({
+    success: true,
+    data: agentStats,
+    agents: [
+      {
+        id: 'comet-assistant-1',
+        name: 'Comet Assistant',
+        status: 'active',
+        currentTask: 'Project Deployment',
+        performance: 98.5,
+        lastActivity: new Date().toISOString()
+      },
+      {
+        id: 'deployment-agent-1',
+        name: 'Deployment Agent',
+        status: 'active',
+        currentTask: 'Nitric Integration',
+        performance: 97.2,
+        lastActivity: new Date(Date.now() - 120000).toISOString()
+      },
+      {
+        id: 'monitor-agent-1',
+        name: 'Performance Monitor',
+        status: 'idle',
+        currentTask: 'System Monitoring',
+        performance: 99.1,
+        lastActivity: new Date(Date.now() - 60000).toISOString()
+      },
+      {
+        id: 'security-agent-1',
+        name: 'Security Scanner',
+        status: 'idle',
+        currentTask: 'Code Analysis',
+        performance: 96.8,
+        lastActivity: new Date(Date.now() - 300000).toISOString()
+      }
+    ],
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Browser history endpoint
 app.get('/history', async (req, res) => {
+  metrics.requests++;
+  const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
+  
   try {
     const count = parseInt(req.query.count) || 50;
-    const history = await tool.getRecentHistory(count);
-    const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
+    const results = await tool.getRecentHistory(count);
     
     res.json({
       success: true,
-      count: history.length,
-      data: history,
+      count: results.length,
+      data: results,
       implementation: isRealHistory ? 'real' : 'mock'
     });
   } catch (error) {
@@ -380,26 +261,26 @@ app.get('/history', async (req, res) => {
   }
 });
 
+// Search history
 app.get('/search', async (req, res) => {
+  metrics.requests++;
+  const query = req.query.query;
+  const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
+  
+  if (!query) {
+    return res.status(400).json({
+      success: false,
+      error: 'Query parameter is required'
+    });
+  }
+  
   try {
-    const query = req.query.query || '';
-    if (!query) {
-      return res.status(400).json({
-        success: false,
-        error: 'Query parameter is required'
-      });
-    }
-
-    const count = parseInt(req.query.count) || 100;
-    const history = await tool.getRecentHistory(count);
-    const isRealHistory = tool.constructor.name !== 'MockBrowserHistoryTool';
-
-    const results = history.filter(
-      (item) =>
-        item.title?.toLowerCase().includes(query.toLowerCase()) ||
-        item.url?.toLowerCase().includes(query.toLowerCase())
+    const allResults = await tool.getRecentHistory(1000);
+    const results = allResults.filter(item => 
+      item.title.toLowerCase().includes(query.toLowerCase()) ||
+      item.url.toLowerCase().includes(query.toLowerCase())
     );
-
+    
     res.json({
       success: true,
       query: query,
@@ -434,7 +315,18 @@ app.use((req, res) => {
     error: 'Endpoint not found',
     path: req.path,
     method: req.method,
-    availableEndpoints: ['/', '/health', '/api/status', '/api/dashboard/stats', '/api/dashboard/agents', '/history', '/search']
+    availableEndpoints: [
+      '/', 
+      '/health', 
+      '/api/status', 
+      '/api/dashboard/stats', 
+      '/api/dashboard/agents',
+      '/api/deploy-project',
+      '/api/deploy-project/:id/status',
+      '/history', 
+      '/search',
+      '/projects-dashboard.html'
+    ]
   });
 });
 
@@ -456,6 +348,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`LLM AI Bridge server listening at http://0.0.0.0:${PORT}`);
   console.log('🚀 AI DASHBOARD ENABLED - Real-time agent monitoring');
   console.log('📊 Browser History:', isRealHistory ? 'Real SQLite Access' : 'Mock Implementation');
+  console.log('🎯 PROJECT DEPLOYMENT ENABLED - Nitric integration active');
   console.log('');
   console.log('Available endpoints:');
   console.log('  GET / - API information and system status');
@@ -463,12 +356,15 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log('  GET /api/status - Detailed system status');
   console.log('  GET /api/dashboard/stats - Dashboard statistics');
   console.log('  GET /api/dashboard/agents - AI agents status');
+  console.log('  POST /api/deploy-project - Deploy a project with Nitric');
+  console.log('  GET /api/deploy-project/:id/status - Get deployment status');
   console.log('  GET /history - Get recent browser history');
   console.log('  GET /search?query=term - Search browser history');
   console.log('  Static files served from /website directory');
   console.log('');
   console.log('🎯 Dashboard URL: http://localhost:' + PORT + '/knowledge-dashboard.html');
-  console.log('🚀 Server ready with AI dashboard and real-time monitoring');
+  console.log('🚀 Projects URL: http://localhost:' + PORT + '/projects-dashboard.html');
+  console.log('🚀 Server ready with AI dashboard, project deployment and real-time monitoring');
 });
 
 export default app;
