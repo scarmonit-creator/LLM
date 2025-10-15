@@ -1,12 +1,68 @@
 /**
  * Scarmonit Website - Modern JavaScript Implementation
  * Integrated with existing backend API and form handling
+ * Security-hardened with proper URL validation
  */
 
 class ScarmonitWebsite {
   constructor() {
     this.config = window.ScarmonitConfig || {};
+    // Security: Define allowed domains for URL validation
+    this.allowedDomains = [
+      'scarmonit.com',
+      'www.scarmonit.com',
+      'api.scarmonit.com',
+      'github.com',
+      'www.github.com'
+    ];
     this.init();
+  }
+
+  /**
+   * Secure URL validation to prevent SSRF and XSS attacks
+   */
+  isSecureUrl(urlString) {
+    try {
+      // Parse URL to validate structure
+      const url = new URL(urlString);
+      
+      // Only allow HTTPS and HTTP protocols
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        return false;
+      }
+      
+      // Check against allowed domains
+      const hostname = url.hostname.toLowerCase();
+      return this.allowedDomains.some(domain => {
+        return hostname === domain || hostname.endsWith('.' + domain);
+      });
+    } catch (error) {
+      // Invalid URL format
+      return false;
+    }
+  }
+
+  /**
+   * Sanitize and validate href attributes for security
+   */
+  sanitizeHref(href) {
+    if (!href || typeof href !== 'string') {
+      return '#';
+    }
+    
+    // Allow relative URLs (starting with # or /)
+    if (href.startsWith('#') || href.startsWith('/')) {
+      return href;
+    }
+    
+    // For absolute URLs, validate against allowed domains
+    if (this.isSecureUrl(href)) {
+      return href;
+    }
+    
+    // Default to safe anchor for invalid URLs
+    console.warn('Blocked potentially unsafe URL:', href);
+    return '#';
   }
 
   init() {
@@ -47,7 +103,7 @@ class ScarmonitWebsite {
     navLinks.forEach(link => {
       link.addEventListener('click', (e) => {
         const href = link.getAttribute('href');
-        if (href.startsWith('#')) {
+        if (href && href.startsWith('#')) {
           e.preventDefault();
           const target = document.querySelector(href);
           if (target) {
@@ -173,9 +229,17 @@ class ScarmonitWebsite {
   }
 
   async submitToBackend(data) {
-    const endpoint = this.config.api.baseUrl + this.config.api.endpoints.waitlist;
+    const baseUrl = this.config.api.baseUrl;
+    const endpoint = this.config.api.endpoints.waitlist;
     
-    const response = await fetch(endpoint, {
+    // Security: Validate API URL before making request
+    if (!this.isSecureUrl(baseUrl)) {
+      throw new Error('Invalid API URL configuration');
+    }
+    
+    const fullUrl = baseUrl + endpoint;
+    
+    const response = await fetch(fullUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -431,14 +495,24 @@ class ScarmonitWebsite {
       referrer: document.referrer
     });
 
-    // Track CTA clicks
+    // Track CTA clicks with secure URL validation
     const ctaButtons = document.querySelectorAll('.btn-primary');
     ctaButtons.forEach(button => {
-      button.addEventListener('click', () => {
+      button.addEventListener('click', (e) => {
+        const href = button.getAttribute('href');
+        const sanitizedHref = this.sanitizeHref(href);
+        
+        // Update href if it was sanitized for security
+        if (href !== sanitizedHref) {
+          e.preventDefault();
+          button.setAttribute('href', sanitizedHref);
+          console.warn('CTA href sanitized for security:', { original: href, sanitized: sanitizedHref });
+        }
+        
         this.trackEvent('cta_click', {
           text: button.textContent.trim(),
           location: this.getElementLocation(button),
-          href: button.getAttribute('href')
+          href: sanitizedHref
         });
       });
     });
@@ -505,13 +579,19 @@ class ScarmonitWebsite {
       console.log('Analytics Event:', eventName, eventData);
     }
 
-    // Send to backend if available
+    // Send to backend if available (with URL validation)
     if (this.config.api?.baseUrl && this.config.api?.endpoints?.analytics) {
-      fetch(this.config.api.baseUrl + this.config.api.endpoints.analytics, {
-        method: 'POST',
-        headers: this.defaultHeaders,
-        body: JSON.stringify({ event: eventName, data: eventData })
-      }).catch(err => console.warn('Analytics tracking failed:', err));
+      const analyticsUrl = this.config.api.baseUrl + this.config.api.endpoints.analytics;
+      
+      if (this.isSecureUrl(analyticsUrl)) {
+        fetch(analyticsUrl, {
+          method: 'POST',
+          headers: this.defaultHeaders,
+          body: JSON.stringify({ event: eventName, data: eventData })
+        }).catch(err => console.warn('Analytics tracking failed:', err));
+      } else {
+        console.warn('Analytics URL blocked for security:', analyticsUrl);
+      }
     }
   }
 
