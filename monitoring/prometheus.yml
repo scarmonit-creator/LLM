@@ -1,0 +1,159 @@
+# Prometheus Configuration for LLM Service with Traefik Integration
+# Monitors Traefik metrics, LLM service instances, and infrastructure
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'llm-cluster'
+    environment: 'production'
+
+rule_files:
+  - "rules/*.yml"
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Traefik metrics
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['traefik:8080']
+    scrape_interval: 10s
+    metrics_path: /metrics
+    scrape_timeout: 5s
+    honor_labels: true
+    params:
+      format: ['prometheus']
+
+  # LLM Service Instances (Auto-discovery via Docker)
+  - job_name: 'llm-services'
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 30s
+        filters:
+          - name: label
+            values: ["traefik.http.services.llm.loadbalancer.server.port"]
+    relabel_configs:
+      # Only scrape containers with the LLM service label
+      - source_labels: [__meta_docker_container_label_traefik_enable]
+        regex: 'true'
+        action: keep
+      - source_labels: [__meta_docker_container_label_traefik_http_services_llm_loadbalancer_server_port]
+        regex: '(.+)'
+        action: keep
+      # Use container name as instance label
+      - source_labels: [__meta_docker_container_name]
+        target_label: instance
+        regex: '/?(.+)'
+        replacement: '${1}'
+      # Use container port
+      - source_labels: [__address__, __meta_docker_container_label_traefik_http_services_llm_loadbalancer_server_port]
+        target_label: __address__
+        regex: '([^:]+)(?::\d+)?;(\d+)'
+        replacement: '${1}:${2}'
+      # Add service label
+      - target_label: service
+        replacement: 'llm-service'
+      # Add job label
+      - target_label: job
+        replacement: 'llm-services'
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  # LLM Service Health Endpoints
+  - job_name: 'llm-health'
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 30s
+        filters:
+          - name: label
+            values: ["traefik.http.services.llm.loadbalancer.server.port"]
+    relabel_configs:
+      - source_labels: [__meta_docker_container_label_traefik_enable]
+        regex: 'true'
+        action: keep
+      - source_labels: [__meta_docker_container_label_traefik_http_services_llm_loadbalancer_server_port]
+        regex: '(.+)'
+        action: keep
+      - source_labels: [__meta_docker_container_name]
+        target_label: instance
+        regex: '/?(.+)'
+        replacement: '${1}'
+      - source_labels: [__address__, __meta_docker_container_label_traefik_http_services_llm_loadbalancer_server_port]
+        target_label: __address__
+        regex: '([^:]+)(?::\d+)?;(\d+)'
+        replacement: '${1}:${2}'
+      - target_label: service
+        replacement: 'llm-health'
+      - target_label: job
+        replacement: 'llm-health'
+    scrape_interval: 10s
+    metrics_path: /health
+    scrape_timeout: 5s
+    # Convert JSON health responses to metrics
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'up'
+        target_label: health_status
+        replacement: '1'
+
+  # Static LLM Service Instances (fallback configuration)
+  - job_name: 'llm-static'
+    static_configs:
+      - targets:
+          - 'llm-service-1:8080'
+          - 'llm-service-2:8080'
+          - 'llm-service-3:8080'
+        labels:
+          service: 'llm-service'
+          deployment: 'docker-compose'
+    scrape_interval: 15s
+    metrics_path: /traefik/metrics
+    scrape_timeout: 10s
+    honor_labels: true
+
+  # Node Exporter (if available)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Docker metrics (if available)
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['docker-exporter:9323']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+      scheme: http
+      timeout: 10s
+      api_version: v1
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /prometheus
+    retention.time: 168h  # 7 days
+    retention.size: 10GB
+    wal-compression: true
+
+# Remote write (optional - for long-term storage)
+# remote_write:
+#   - url: "https://your-remote-storage/api/v1/write"
+#     queue_config:
+#       max_samples_per_send: 1000
+#       max_shards: 200
+#       capacity: 10000

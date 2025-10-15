@@ -1,0 +1,276 @@
+# Dynamic Middleware Configuration for LLM Service
+# This file provides advanced routing, security, and performance configurations
+
+http:
+  middlewares:
+    # HTTPS redirect middleware
+    https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+    # Security headers middleware
+    llm-security:
+      headers:
+        # Security headers
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000 # 1 year
+        
+        # Custom security headers
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+          X-Real-IP: ""
+        customResponseHeaders:
+          X-LLM-Version: "1.3.0"
+          X-Content-Type-Options: "nosniff"
+          X-Frame-Options: "DENY"
+          X-XSS-Protection: "1; mode=block"
+          Strict-Transport-Security: "max-age=31536000; includeSubDomains; preload"
+          Referrer-Policy: "strict-origin-when-cross-origin"
+          Content-Security-Policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; media-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; upgrade-insecure-requests;"
+
+    # CORS middleware
+    llm-cors:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+          - HEAD
+        accessControlAllowOriginList:
+          - "https://llm.localhost"
+          - "https://your-domain.com"
+        accessControlAllowHeaders:
+          - "Content-Type"
+          - "Authorization"
+          - "X-Requested-With"
+          - "Accept"
+          - "Origin"
+        accessControlExposeHeaders:
+          - "X-LLM-Instance"
+          - "X-LLM-Version"
+        accessControlMaxAge: 86400
+        addVaryHeader: true
+        accessControlAllowCredentials: true
+
+    # Compression middleware
+    llm-compress:
+      compress:
+        excludedContentTypes:
+          - "text/event-stream"
+          - "application/grpc"
+        minResponseBodyBytes: 1024
+
+    # Rate limiting middleware - General API
+    llm-rate-limit:
+      rateLimit:
+        average: 100 # requests per period
+        period: 1m
+        burst: 200 # burst capacity
+        sourceCriterion:
+          requestHeaderName: "X-Forwarded-For"
+
+    # Rate limiting middleware - Heavy operations (history, search)
+    llm-rate-limit-heavy:
+      rateLimit:
+        average: 20
+        period: 1m
+        burst: 40
+        sourceCriterion:
+          requestHeaderName: "X-Forwarded-For"
+
+    # Rate limiting middleware - Health checks (more lenient)
+    llm-rate-limit-health:
+      rateLimit:
+        average: 200
+        period: 1m
+        burst: 300
+        sourceCriterion:
+          requestHeaderName: "X-Forwarded-For"
+
+    # Circuit breaker middleware
+    llm-circuit-breaker:
+      circuitBreaker:
+        expression: "NetworkErrorRatio() > 0.30 || ResponseCodeRatio(500, 600, 0, 600) > 0.25"
+        checkPeriod: 10s
+        fallbackDuration: 30s
+        recoveryDuration: 30s
+
+    # Retry middleware
+    llm-retry:
+      retry:
+        attempts: 3
+        initialInterval: 100ms
+        multiplier: 2
+
+    # Request/response size limiting
+    llm-buffering:
+      buffering:
+        maxRequestBodyBytes: 10485760 # 10MB
+        maxResponseBodyBytes: 104857600 # 100MB
+        memRequestBodyBytes: 1048576 # 1MB
+        memResponseBodyBytes: 1048576 # 1MB
+
+    # IP allowlist (optional - for admin endpoints)
+    llm-admin-allowlist:
+      ipAllowList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "10.0.0.0/8"
+          - "172.16.0.0/12"
+          - "192.168.0.0/16"
+
+    # Request logging
+    llm-access-log:
+      accessLog:
+        filePath: "/var/log/llm-access.log"
+        format: json
+
+  # Custom routing rules for specific endpoints
+  routers:
+    # Health check routing with specific middleware
+    llm-health:
+      rule: "Host(`llm.localhost`) && (Path(`/health`) || Path(`/metrics`) || Path(`/api/status`))"
+      service: llm
+      middlewares:
+        - llm-security
+        - llm-rate-limit-health
+        - llm-compress
+      tls:
+        certResolver: letsencrypt
+
+    # Heavy operation routing (browser history, search)
+    llm-heavy-ops:
+      rule: "Host(`llm.localhost`) && (PathPrefix(`/history`) || PathPrefix(`/search`))"
+      service: llm
+      middlewares:
+        - llm-security
+        - llm-rate-limit-heavy
+        - llm-circuit-breaker
+        - llm-retry
+        - llm-compress
+        - llm-buffering
+      tls:
+        certResolver: letsencrypt
+
+    # API routing with circuit breaker
+    llm-api:
+      rule: "Host(`llm.localhost`) && PathPrefix(`/api/`)"
+      service: llm
+      middlewares:
+        - llm-security
+        - llm-cors
+        - llm-rate-limit
+        - llm-circuit-breaker
+        - llm-retry
+        - llm-compress
+      tls:
+        certResolver: letsencrypt
+
+    # Admin endpoints with IP restrictions
+    llm-admin:
+      rule: "Host(`llm.localhost`) && PathPrefix(`/admin/`)"
+      service: llm
+      middlewares:
+        - llm-admin-allowlist
+        - llm-security
+        - llm-rate-limit
+      tls:
+        certResolver: letsencrypt
+
+  # Service definitions
+  services:
+    # Main LLM service with advanced load balancing
+    llm:
+      loadBalancer:
+        # Sticky sessions for browser history consistency
+        sticky:
+          cookie:
+            name: llm-instance
+            secure: true
+            httpOnly: true
+            sameSite: strict
+            maxAge: 3600 # 1 hour
+        
+        # Health check configuration
+        healthCheck:
+          path: /health
+          port: 8080
+          interval: 10s
+          timeout: 3s
+          hostname: ""
+          scheme: http
+          headers:
+            User-Agent: "Traefik-HealthCheck"
+
+        # Servers (will be auto-discovered by Docker provider)
+        servers:
+          - url: "http://llm-service-1:8080"
+            weight: 1
+          - url: "http://llm-service-2:8080"
+            weight: 1
+          - url: "http://llm-service-3:8080"
+            weight: 1
+
+        # Response forwarding
+        responseForwarding:
+          flushInterval: 100ms
+
+    # Separate service for health checks (bypass sticky sessions)
+    llm-health-service:
+      loadBalancer:
+        # No sticky sessions for health checks
+        healthCheck:
+          path: /health
+          port: 8080
+          interval: 5s
+          timeout: 2s
+        servers:
+          - url: "http://llm-service-1:8080"
+          - url: "http://llm-service-2:8080" 
+          - url: "http://llm-service-3:8080"
+
+# TLS Configuration
+tls:
+  options:
+    # Modern TLS configuration
+    modern:
+      minVersion: "VersionTLS12"
+      maxVersion: "VersionTLS13"
+      cipherSuites:
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+        - "TLS_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_RSA_WITH_AES_128_GCM_SHA256"
+      sniStrict: true
+
+    # Intermediate TLS configuration (for broader compatibility)
+    intermediate:
+      minVersion: "VersionTLS11"
+      maxVersion: "VersionTLS13"
+      cipherSuites:
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+        - "TLS_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_RSA_WITH_AES_128_GCM_SHA256"
+        - "TLS_RSA_WITH_3DES_EDE_CBC_SHA"
+
+  # Certificate stores
+  stores:
+    default:
+      defaultGeneratedCert:
+        resolver: letsencrypt
+        domain:
+          main: "llm.localhost"
+          sans:
+            - "*.llm.localhost"
