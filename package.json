@@ -1,12 +1,13 @@
 {
   "name": "llm",
-  "version": "1.2.0",
-  "description": "LLM integration project with Claude, A2A, and browser history access - Production Optimized",
+  "version": "1.2.1",
+  "description": "LLM integration project with Claude, A2A, and browser history access - TypeScript Fixed",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "npm run build:tools && node server.js",
     "start:server": "npm run build:tools && node server.js",
+    "start:dev": "npm run build:tools && node --watch server.js",
     "start:bridge": "node src/ai-bridge.js",
     "start:optimized": "node src/ai-bridge-optimized.js",
     "start:orchestrator": "tsx orchestrator.ts",
@@ -19,8 +20,11 @@
     "agents:coordinator": "node src/agents/agent-coordinator.js",
     "build": "npm run build:tools && tsc",
     "build:tools": "node scripts/build-tools.js",
+    "build:fast": "node scripts/build-tools.js",
+    "build:watch": "tsc --watch",
     "build:optimized": "npm run build:tools && tsc --build --incremental",
-    "prebuild": "npm run build:tools",
+    "prebuild": "node scripts/build-tools.js",
+    "postinstall": "npm run build:tools",
     "optimize": "node scripts/optimize-project.js",
     "optimize:full": "npm run optimize && npm run lint && npm run format && npm run test:coverage",
     "optimize:text-selection": "node scripts/optimize-text-selection.js",
@@ -40,7 +44,7 @@
     "test:agents": "cross-env NODE_OPTIONS=--experimental-vm-modules node tests/agents/agent-coordinator.test.js",
     "test:orchestrator": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --loader=tsx\" node --test tests/orchestrator.test.js",
     "test:a2a": "tsx --test tests/a2a-agent-server.test.ts",
-    "test:history": "tsx --test tests/browser-history.test.js",
+    "test:history": "npm run build:tools && node --test tests/browser-history.test.js",
     "test:tools": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test tests/tools/ || echo 'No tool tests found'",
     "pretest:full": "npm run build --silent",
     "test:full": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --loader=tsx\" node --test tests || echo 'No tests found'",
@@ -67,6 +71,7 @@
     "verify:e2e": "npm run build && npm run test:e2e",
     "verify:all": "npm run build && npm run test:all",
     "clean": "rm -rf dist/ build/ coverage/ node_modules/.cache/ .eslintcache",
+    "clean:dist": "rm -rf dist/",
     "deps:check": "depcheck",
     "deps:update": "npm update && npm audit fix",
     "security:audit": "npm audit",
@@ -74,7 +79,7 @@
     "dev": "npm run build:tools && tsx --watch src/ai-bridge.ts",
     "dev:orchestrator": "tsx --watch orchestrator.ts",
     "dev:server": "npm run build:tools && node --watch server.js",
-    "postinstall": "npm run build:tools"
+    "fix:imports": "npm run build:tools && npm start"
   },
   "keywords": [
     "llm",
@@ -91,7 +96,9 @@
     "persistence",
     "error-handling",
     "monitoring",
-    "production-ready"
+    "production-ready",
+    "typescript",
+    "esm"
   ],
   "author": "scarmonit-creator",
   "license": "MIT",
