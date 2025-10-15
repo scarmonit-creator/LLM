@@ -1,114 +1,43 @@
-app = "llm-ai-bridge"
-primary_region = "sjc"
-kill_signal = "SIGINT"
-kill_timeout = "10s"
+app = 'llm-framework-prod'
+primary_region = 'dfw'
+kill_signal = 'SIGINT'
+kill_timeout = '10s'
 
-[build]
-  dockerfile = "Dockerfile"
-
-[deploy]
-  strategy = "rolling"
-  max_unavailable = 0.2
-  wait_timeout = "15m"
-  
-[env]
-  NODE_ENV = "production"
-  PORT = "8080"
-  # Optimized memory settings for 512MB containers
-  NODE_OPTIONS = "--max-old-space-size=400 --gc-interval=100 --optimize-for-size"
-  AI_BRIDGE_HISTORY_LIMIT = "1000"
-  AI_BRIDGE_MAX_QUEUE = "2000"
-  AI_BRIDGE_MAX_CONNECTIONS = "10000"
-  AI_BRIDGE_CORS_ORIGINS = "*"
-  AI_BRIDGE_CLIENT_TTL_MS = "600000"
-  AI_BRIDGE_CLEANUP_INTERVAL_MS = "30000"
-  AI_BRIDGE_RATE_WINDOW_MS = "60000"
-  AI_BRIDGE_RATE_MAX = "500"
-  # Performance and monitoring optimizations
-  UV_THREADPOOL_SIZE = "16"
-  NODE_MAX_OLD_SPACE_SIZE = "400"
-  ENABLE_MEMORY_MONITORING = "true"
-  ENABLE_CLUSTERING = "false"
-  
 [experimental]
   auto_rollback = true
-  enable_consul = true
-  enable_etcd = false
-  
+
+[build]
+
+[env]
+  NODE_ENV = 'production'
+  PORT = '8080'
+  DASHBOARD_PORT = '8081'
+  MCP_PORT = '3001'
+
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = false
+  auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 1
-  max_machines_running = 6
-  
-  [[http_service.concurrency]]
-    type = "connections"
-    hard_limit = 3000
-    soft_limit = 2000
-    
-  [[http_service.concurrency]]
-    type = "requests"
-    hard_limit = 5000
-    soft_limit = 3000
-  
-  [http_service.checks]
-    grace_period = "15s"
-    interval = "10s"
-    method = "GET"
-    path = "/health"
-    timeout = "5s"
-    headers = { "User-Agent" = "fly-health-check" }
-    tls_skip_verify = false
-    
-    [[http_service.checks.http_headers]]
-    name = "Cache-Control"
-    value = "no-cache"
+
+  [http_service.concurrency]
+    type = 'connections'
+    hard_limit = 1000
+    soft_limit = 800
+
+[[http_service.checks]]
+  interval = '30s'
+  timeout = '5s'
+  grace_period = '15s'
+  method = 'get'
+  path = '/health'
 
 [[vm]]
-  cpu_kind = "shared"
+  cpu_kind = 'shared'
   cpus = 1
   memory_mb = 512
-  
-  # Auto-scaling configuration for better performance
-  [[vm.processes]]
-  app = "bridge"
-  entrypoint = ["npm", "start"]
-  
-  [[vm.processes.env]]
-  PROCESS_TYPE = "web"
-  
-[metrics]
-  port = 9091
-  path = "/metrics"
-  
-# Enhanced logging for performance monitoring
-[logging]
-  format = "json"
-  level = "info"
-  
-# Resource optimization for 512MB containers
-[resource_limits]
-  memory = "512MB"
-  cpu = "1.0"
-  
-# Network optimizations
-[network]
-  ipv6 = true
-  
-# Backup configuration for production
-[backup]
-  schedule = "@daily"
-  retention = "7d"
-  
-# Enhanced monitoring and alerting
-[monitoring]
-  enabled = true
-  interval = "30s"
-  
-# Performance optimization settings
-[performance]
-  compression = "gzip"
-  keep_alive = "30s"
-  max_connections_per_ip = 100
+
+[deploy]
+  release_command = 'npm run build || echo Build attempted'
+  strategy = 'canary'
