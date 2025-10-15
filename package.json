@@ -3,7 +3,6 @@
   "version": "2.0.0-concurrent",
   "description": "LLM integration project with Claude, A2A, and browser history access - CONCURRENT OPTIMIZED with Python concurrent.futures integration",
   "main": "server.js",
-  "type": "module",
   "scripts": {
     "start": "npm run optimize:concurrent && npm run build:tools && node server.js",
     "start:enhanced": "npm run optimize:concurrent && node server-enhanced.js",
