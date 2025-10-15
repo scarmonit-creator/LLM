@@ -133,11 +133,11 @@ jobs:
         script: |
           const fs = require('fs');
           
-          let performanceComment = `## 🚀 Ultra Optimization CI Results
+          const performanceComment = `## 🚀 Ultra Optimization CI Results
           
-          **Node.js Version:** ${{ matrix.node-version }}  
-          **Optimization Mode:** ${{ matrix.optimization-mode }}  
-          **Performance Target:** ${{ env.OPTIMIZATION_TARGET }}%
+          **Node.js Version:** \${{ matrix.node-version }}  
+          **Optimization Mode:** \${{ matrix.optimization-mode }}  
+          **Performance Target:** \${{ env.OPTIMIZATION_TARGET }}%
           
           ### ✅ Optimization Systems Executed
           - ⚡ Ultra Optimization Nexus: **COMPLETED**
@@ -146,8 +146,8 @@ jobs:
           - 🔍 Comprehensive Testing: **PASSED**
           
           ### 📊 Performance Validation
-          - Performance Threshold: **${{ env.PERFORMANCE_THRESHOLD }}%**
-          - Cache Efficiency Target: **${{ env.CACHE_EFFICIENCY_TARGET }}%**
+          - Performance Threshold: **\${{ env.PERFORMANCE_THRESHOLD }}%**
+          - Cache Efficiency Target: **\${{ env.CACHE_EFFICIENCY_TARGET }}%**
           - System Health: **✅ VALIDATED**
           
           ### 🏁 Results
@@ -231,4 +231,4 @@ jobs:
         echo "✅ Security Hardening: VALIDATED"
         echo "✅ Production Readiness: VALIDATED"
         echo "🚀 SYSTEM READY FOR ENTERPRISE DEPLOYMENT!"
-        echo "========================================"
+        echo "========================================="
