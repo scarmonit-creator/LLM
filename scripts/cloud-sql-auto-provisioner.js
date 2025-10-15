@@ -2,11 +2,50 @@
 /**
  * Cloud SQL Auto-Setup for LLM Framework
  * Automatically provisions and configures Cloud SQL instance via REST API
+ * 
+ * SECURITY: Updated to fix CodeQL Alert #15 - Clear-text Logging of Sensitive Information
+ * Implements proper credential sanitization and secure logging practices
  */
 
 import { GoogleAuth } from 'google-auth-library';
 import fetch from 'node-fetch';
 import crypto from 'crypto';
+
+/**
+ * Sanitize credentials for safe logging (SECURITY FIX)
+ * Removes sensitive information from connection strings and objects
+ */
+function sanitizeCredentials(input) {
+  if (typeof input === 'string') {
+    // Remove passwords from connection strings
+    return input.replace(/:([^:@]+)@/g, ':***@')
+                .replace(/password=([^&;\s]+)/gi, 'password=***')
+                .replace(/pwd=([^&;\s]+)/gi, 'pwd=***')
+                .replace(/pass=([^&;\s]+)/gi, 'pass=***');
+  } else if (typeof input === 'object' && input !== null) {
+    const sanitized = { ...input };
+    if (sanitized.password) sanitized.password = '***';
+    if (sanitized.pwd) sanitized.pwd = '***';
+    if (sanitized.pass) sanitized.pass = '***';
+    if (sanitized.connectionString) {
+      sanitized.connectionString = sanitizeCredentials(sanitized.connectionString);
+    }
+    return sanitized;
+  }
+  return input;
+}
+
+/**
+ * Secure logging utility that automatically sanitizes sensitive data
+ */
+function secureLog(message, data = null) {
+  const sanitizedData = data ? sanitizeCredentials(data) : null;
+  if (sanitizedData) {
+    console.log(message, typeof sanitizedData === 'object' ? JSON.stringify(sanitizedData, null, 2) : sanitizedData);
+  } else {
+    console.log(message);
+  }
+}
 
 class CloudSQLAutoProvisioner {
   constructor(projectId = 'scarmonit-8bcee') {
@@ -203,7 +242,7 @@ class CloudSQLAutoProvisioner {
       // Create user
       await this.createUser();
       
-      // Generate connection config
+      // Generate connection config (SECURITY FIX - sanitized logging)
       const config = {
         instanceId: this.instanceId,
         ipAddress,
@@ -221,9 +260,10 @@ class CloudSQLAutoProvisioner {
       };
       
       console.log('\n📋 Connection Configuration:');
-      console.log(JSON.stringify(config, null, 2));
+      // SECURITY FIX: Use secure logging instead of direct console.log of sensitive data
+      secureLog('Database connection details:', config);
       
-      // Save to env file
+      // Save to env file (passwords will be in file but not in logs)
       const envContent = Object.entries(config.environmentVariables)
         .map(([key, value]) => `${key}=${value}`)
         .join('\n');
@@ -232,7 +272,8 @@ class CloudSQLAutoProvisioner {
       await fs.writeFile('.env.cloudsql', envContent);
       console.log('\n💾 Configuration saved to .env.cloudsql');
       
-      return config;
+      // Return sanitized config for further processing
+      return sanitizeCredentials(config);
       
     } catch (error) {
       console.error('❌ Provisioning failed:', error.message);
@@ -277,6 +318,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         console.log('1. Source the environment: source .env.cloudsql');
         console.log('2. Run the setup script: node scripts/cloud-sql-setup.js');
         console.log('3. Test connection with your LLM optimization scripts');
+        console.log('\n🔒 Security: Credentials are stored in .env.cloudsql (not in logs)');
       })
       .catch(error => {
         console.error('💥 Provisioning failed:', error.message);
