@@ -291,7 +291,7 @@ export default class BrowserHistoryTool implements Tool {
         try {
           // Dynamic import to handle missing dependency gracefully
           const Database = await import('better-sqlite3').then(m => m.default);
-          db = new Database(tempPath, { readonly: true });
+          db = new Database(tempPath, { readonly: true }) as any;
         } catch {
           console.warn('better-sqlite3 not available, using mock data');
           db = new MockSQLiteDatabase(tempPath);
