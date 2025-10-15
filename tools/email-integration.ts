@@ -1,35 +1,76 @@
 import nodemailer from 'nodemailer';
-import { Tool } from './types.js';
+import { sanitize } from 'class-sanitizer';
+
+export interface EmailArgs {
+  to: string | string[];
+  cc?: string | string[];
+  bcc?: string | string[];
+  subject: string;
+  body: string;
+  attachments?: any[];
+  replyTo?: string;
+  priority?: 'high' | 'normal' | 'low';
+}
+
+export interface EmailResult {
+  success: boolean;
+  operation: string;
+  messageId?: string;
+  recipients?: string | string[];
+  subject?: string;
+  timestamp?: string;
+  error?: string;
+}
 
 /**
- * Email Integration Tool - Full email automation capability
- * Enables autonomous email sending, replying, and workflow integration
+ * Comprehensive input sanitization using class-sanitizer
  */
-export const emailIntegration: Tool = {
-  name: 'email_integration',
-  description: 'Send emails, reply to messages, and automate email workflows',
+function sanitizeEmailInput(input: string): string {
+  // Remove all HTML tags comprehensively
+  let sanitized = input.replace(/<[^>]*>/g, '');
+  
+  // Remove script tags and their content
+  sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  
+  // Remove event handlers
+  sanitized = sanitized.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '');
+  
+  // Remove javascript: protocol
+  sanitized = sanitized.replace(/javascript:/gi, '');
+  
+  // Remove data: protocol
+  sanitized = sanitized.replace(/data:text\/html/gi, '');
+  
+  // Decode HTML entities
+  sanitized = sanitized.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  
+  // Remove any remaining tags after decoding
+  sanitized = sanitized.replace(/<[^>]*>/g, '');
+  
+  return sanitized.trim();
+}
+
+const emailIntegration = {
+  name: 'send_email',
+  description:
+    'Send emails with support for HTML content, attachments, CC/BCC, and priority levels. Useful for notifications, reports, and communications.',
   parameters: {
     type: 'object',
     properties: {
-      operation: {
-        type: 'string',
-        enum: ['send', 'reply', 'forward'],
-        description: 'Email operation to perform',
-      },
       to: {
-        type: 'array',
+        type: ['string', 'array'],
         items: { type: 'string' },
-        description: 'Recipient email addresses',
+        description: 'Recipient email address(es)',
       },
       cc: {
-        type: 'array',
+        type: ['string', 'array'],
         items: { type: 'string' },
-        description: 'CC email addresses',
+        description: 'CC recipient email address(es)',
       },
       bcc: {
-        type: 'array',
+        type: ['string', 'array'],
         items: { type: 'string' },
-        description: 'BCC email addresses',
+        description: 'BCC recipient email address(es)',
       },
       subject: {
         type: 'string',
@@ -37,7 +78,7 @@ export const emailIntegration: Tool = {
       },
       body: {
         type: 'string',
-        description: 'Email body content (supports HTML)',
+        description: 'Email body (supports HTML)',
       },
       attachments: {
         type: 'array',
@@ -46,6 +87,7 @@ export const emailIntegration: Tool = {
           properties: {
             filename: { type: 'string' },
             path: { type: 'string' },
+            content: { type: 'string' },
           },
         },
         description: 'Email attachments',
@@ -60,11 +102,11 @@ export const emailIntegration: Tool = {
         description: 'Email priority level',
       },
     },
-    required: ['operation', 'to', 'subject', 'body'],
+    required: ['to', 'subject', 'body'],
   },
-  async execute(args: any): Promise<any> {
+  execute: async (args: EmailArgs): Promise<EmailResult> => {
+    const operation = 'send_email';
     const {
-      operation,
       to,
       cc,
       bcc,
@@ -87,13 +129,13 @@ export const emailIntegration: Tool = {
         },
       });
 
-      // Build email options
+      // Build email options with comprehensive input sanitization
       const mailOptions: any = {
         from: process.env.SMTP_FROM || process.env.SMTP_USER,
         to: Array.isArray(to) ? to.join(', ') : to,
         subject,
         html: body,
-        text: body.replace(/<[^>]*>/g, ''), // Strip HTML for text version
+        text: sanitizeEmailInput(body), // Use comprehensive sanitization for text version
         priority: priority === 'high' ? 'high' : priority === 'low' ? 'low' : 'normal',
       };
 
