@@ -1,0 +1,223 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik-llm-proxy
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_EMAIL:-admin@example.com}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/certs/acme.json"
+      - "--metrics.prometheus=true"
+      - "--log.level=INFO"
+      - "--log.format=json"
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Traefik dashboard (secured)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - traefik-certs:/certs
+      - traefik-logs:/var/log
+    networks:
+      - llm-network
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DASHBOARD_HOST:-traefik.localhost}`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      # Dashboard auth (optional)
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_AUTH:-admin:$$2y$$10$$K8QfnmSWkC8H8O8nF8bFgOZHkV6Wn1Zv8O8nF8bFgO}"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+  llm-service-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-service-1
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - INSTANCE_ID=llm-1
+      - PERFORMANCE_MONITORING=true
+      - LOG_LEVEL=info
+    volumes:
+      - browser-data:/app/browser-data
+      - ./logs:/app/logs
+    networks:
+      - llm-network
+    labels:
+      - "traefik.enable=true"
+      # Main service routing
+      - "traefik.http.routers.llm.rule=Host(`${LLM_HOST:-llm.localhost}`)"
+      - "traefik.http.routers.llm.entrypoints=websecure"
+      - "traefik.http.routers.llm.tls.certresolver=letsencrypt"
+      - "traefik.http.services.llm.loadbalancer.server.port=8080"
+      # Health check configuration
+      - "traefik.http.services.llm.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.llm.loadbalancer.healthcheck.interval=10s"
+      - "traefik.http.services.llm.loadbalancer.healthcheck.timeout=3s"
+      # Sticky sessions for browser history consistency
+      - "traefik.http.services.llm.loadbalancer.sticky.cookie.name=llm-instance"
+      - "traefik.http.services.llm.loadbalancer.sticky.cookie.secure=true"
+      - "traefik.http.services.llm.loadbalancer.sticky.cookie.httponly=true"
+      # Middleware chain
+      - "traefik.http.routers.llm.middlewares=llm-security,llm-compress,llm-rate-limit"
+      # HTTPS redirect
+      - "traefik.http.routers.llm-http.rule=Host(`${LLM_HOST:-llm.localhost}`)"
+      - "traefik.http.routers.llm-http.entrypoints=web"
+      - "traefik.http.routers.llm-http.middlewares=https-redirect"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - traefik
+
+  llm-service-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-service-2
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - INSTANCE_ID=llm-2
+      - PERFORMANCE_MONITORING=true
+      - LOG_LEVEL=info
+    volumes:
+      - browser-data:/app/browser-data
+      - ./logs:/app/logs
+    networks:
+      - llm-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.llm.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - traefik
+
+  llm-service-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-service-3
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - INSTANCE_ID=llm-3
+      - PERFORMANCE_MONITORING=true
+      - LOG_LEVEL=info
+    volumes:
+      - browser-data:/app/browser-data
+      - ./logs:/app/logs
+    networks:
+      - llm-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.llm.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - traefik
+
+  # Optional: Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: llm-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - llm-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`${PROMETHEUS_HOST:-prometheus.localhost}`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+    depends_on:
+      - traefik
+
+  # Optional: Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: llm-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_DOMAIN=${GRAFANA_HOST:-grafana.localhost}
+      - GF_SERVER_ROOT_URL=https://${GRAFANA_HOST:-grafana.localhost}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning
+    networks:
+      - llm-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`${GRAFANA_HOST:-grafana.localhost}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  traefik-certs:
+    driver: local
+  traefik-logs:
+    driver: local
+  browser-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  llm-network:
+    driver: bridge
+    name: llm-network
