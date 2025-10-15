@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"
+      - "3000:3000"
+      - "8081:8081"
+    volumes:
+      - .:/workspace:cached
+      - /workspace/node_modules
+      - app-data:/workspace/data
+    environment:
+      - NODE_ENV=development
+      - NODE_OPTIONS=--max-old-space-size=2048
+      - DEBUG=llm:*
+    working_dir: /workspace
+    command: npm run start:dev:optimized
+    restart: unless-stopped
+    networks:
+      - llm-network
+    
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - llm-network
+    
+  database:
+    image: alpine:latest
+    volumes:
+      - ./data:/data
+      - db-data:/var/lib/db
+    command: tail -f /dev/null
+    networks:
+      - llm-network
+      
+  performance-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitor
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./logs:/workspace/logs:ro
+    environment:
+      - MONITOR_TARGET=http://app:8080
+    depends_on:
+      - app
+    networks:
+      - llm-network
+
+volumes:
+  app-data:
+  redis-data:
+  db-data:
+
+networks:
+  llm-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,56 @@
+{
+  "name": "LLM Development Environment - Optimized",
+  "image": "mcr.microsoft.com/vscode/devcontainers/javascript-node:18",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": true
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-typescript-next",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.vscode-json",
+        "ms-vscode.vscode-eslint",
+        "GitHub.copilot",
+        "GitHub.copilot-chat"
+      ],
+      "settings": {
+        "typescript.preferences.preferTypeOnlyAutoImports": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": true
+        },
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      }
+    }
+  },
+  "forwardPorts": [8080, 3000, 8081],
+  "portsAttributes": {
+    "8080": {
+      "label": "Main Application",
+      "onAutoForward": "openPreview"
+    },
+    "3000": {
+      "label": "Development Server",
+      "onAutoForward": "ignore"
+    },
+    "8081": {
+      "label": "Performance Dashboard",
+      "onAutoForward": "ignore"
+    }
+  },
+  "postCreateCommand": "npm install --prefer-offline && npm run build:optimized",
+  "postStartCommand": "echo '🚀 LLM Development Environment Ready! Access at http://localhost:8080'",
+  "remoteUser": "vscode",
+  "mounts": [
+    "source=${localWorkspaceFolder}/data,target=/workspace/data,type=bind,consistency=cached"
+  ]
+}
