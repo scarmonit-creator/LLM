@@ -1,0 +1,117 @@
+name: History API CI
+
+on:
+  push:
+    branches: [ main, feat/browser-history-api-complete ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-history-api:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run build
+        run: npm run build
+      
+      - name: Check for EADDRINUSE by starting server on PORT 3001
+        run: |
+          # Start the server in background with PORT=3001
+          PORT=3001 node server.js &
+          SERVER_PID=$!
+          
+          # Wait for server to start (max 10 seconds)
+          echo "Waiting for server to start on PORT 3001..."
+          for i in {1..10}; do
+            if curl -s http://localhost:3001/history > /dev/null 2>&1; then
+              echo "Server started successfully on PORT 3001"
+              break
+            fi
+            if [ $i -eq 10 ]; then
+              echo "Server failed to start within 10 seconds"
+              kill $SERVER_PID || true
+              exit 1
+            fi
+            sleep 1
+          done
+          
+          # Verify no EADDRINUSE error by checking process
+          if ! ps -p $SERVER_PID > /dev/null; then
+            echo "Server process died - checking for EADDRINUSE"
+            exit 1
+          fi
+          
+          # Test the /history endpoint
+          echo "Testing /history endpoint..."
+          RESPONSE=$(curl -s http://localhost:3001/history)
+          echo "Response: $RESPONSE"
+          
+          # Verify response is valid JSON array
+          if echo "$RESPONSE" | jq -e 'type == "array"' > /dev/null 2>&1; then
+            echo "/history endpoint returned valid JSON array"
+          else
+            echo "/history endpoint did not return a valid JSON array"
+            kill $SERVER_PID || true
+            exit 1
+          fi
+          
+          # Test graceful shutdown
+          echo "Testing graceful shutdown with SIGINT..."
+          kill -SIGINT $SERVER_PID
+          
+          # Wait for graceful shutdown (max 5 seconds)
+          for i in {1..5}; do
+            if ! ps -p $SERVER_PID > /dev/null 2>&1; then
+              echo "Server shut down gracefully"
+              exit 0
+            fi
+            sleep 1
+          done
+          
+          # Force kill if graceful shutdown failed
+          echo "Warning: Graceful shutdown took longer than expected"
+          kill -9 $SERVER_PID || true
+          exit 0
+      
+      - name: Run start:history script
+        run: |
+          # Test the npm script that runs build and starts server
+          timeout 30 npm run start:history &
+          SERVER_PID=$!
+          
+          # Wait for server to start
+          echo "Waiting for server via start:history script..."
+          for i in {1..10}; do
+            if curl -s http://localhost:3001/history > /dev/null 2>&1; then
+              echo "start:history script started server successfully"
+              kill $SERVER_PID || true
+              exit 0
+            fi
+            sleep 1
+          done
+          
+          echo "start:history script failed to start server"
+          kill $SERVER_PID || true
+          exit 1
+      
+      - name: Run history endpoint tests
+        run: npm test -- tests/history-endpoint.test.js
+        env:
+          NODE_OPTIONS: --experimental-vm-modules
