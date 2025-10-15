@@ -18,7 +18,7 @@
     "start:a2a": "tsx src/a2a-agent-server.ts",
     "start:production": "npm run concurrent:full && node --expose-gc server-enhanced.js",
     "start:ultra": "npm run concurrent:breakthrough && node --expose-gc --max-old-space-size=8192 server-enhanced.js",
-    "nitric:install": "npm install -g @nitric/cli",
+    "nitric:install": "curl -L https://nitric.io/install?version=latest | bash",
     "nitric:init": "cd src/nitric && npm install",
     "nitric:dev": "nitric start",
     "nitric:build": "nitric build",
@@ -176,7 +176,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
-    "@nitric/cli": "^1.0.0",
     "@types/better-sqlite3": "^7.6.12",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
