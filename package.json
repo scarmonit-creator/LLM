@@ -1,7 +1,7 @@
 {
   "name": "llm",
-  "version": "2.0.0-concurrent",
-  "description": "LLM integration project with Claude, A2A, and browser history access - CONCURRENT OPTIMIZED with Python concurrent.futures integration",
+  "version": "2.1.0-nitric",
+  "description": "LLM integration project with Claude, A2A, browser history access, and Nitric infrastructure from code - NITRIC OPTIMIZED with multi-cloud deployment",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -16,6 +16,8 @@
     "start:a2a": "tsx src/a2a-agent-server.ts",
     "start:production": "npm run concurrent:full && node --expose-gc server-enhanced.js",
     "start:ultra": "npm run concurrent:breakthrough && node --expose-gc --max-old-space-size=8192 server-enhanced.js",
+    "start:nitric": "nitric run",
+    "start:nitric-dev": "nitric run --debug",
     "concurrent:optimize": "node src/concurrent-node-optimizer.js",
     "concurrent:python": "python3 src/concurrent-performance-optimizer.py",
     "concurrent:full": "npm run concurrent:python && npm run concurrent:optimize",
@@ -23,6 +25,17 @@
     "concurrent:realtime": "curl -X POST http://localhost:8080/optimize/realtime -H 'Content-Type: application/json' -d '{\"action\":\"start\",\"duration\":300}'",
     "ultra:optimize": "node scripts/ultra-optimization-nexus.js",
     "breakthrough:optimize": "node scripts/breakthrough-system-optimizer.js",
+    "nitric:init": "nitric new --from template typescript-starter --name llm-framework",
+    "nitric:build": "nitric build",
+    "nitric:up": "nitric up",
+    "nitric:down": "nitric down",
+    "nitric:status": "nitric status",
+    "nitric:logs": "nitric logs",
+    "nitric:deploy": "npm run build && nitric up",
+    "nitric:deploy:dev": "npm run build && nitric up --env development",
+    "nitric:deploy:staging": "npm run build && nitric up --env staging",
+    "nitric:deploy:prod": "npm run build && nitric up --env production",
+    "nitric:demo": "node examples/nitric-deployment-demo.js",
     "chat": "node src/chat-launcher.js",
     "bridge:server": "node src/ai-bridge.js",
     "bridge:client": "node src/ai-bridge-client.js",
@@ -34,6 +47,7 @@
     "build:optimized": "npm run build:tools && tsc --build --incremental",
     "build:production": "npm run concurrent:optimize && npm run build:optimized",
     "build:ultra": "npm run concurrent:breakthrough && npm run build:optimized --max-old-space-size=8192",
+    "build:nitric": "tsc nitric.ts --target es2020 --module esnext --moduleResolution node",
     "prebuild": "npm run build:tools",
     "optimize": "node scripts/optimize-project.js",
     "optimize:autonomous": "node scripts/autonomous-performance-optimizer.js",
@@ -60,6 +74,7 @@
     "test:coverage": "cross-env NODE_OPTIONS=--experimental-vm-modules node --test --experimental-test-coverage tests",
     "test:performance": "npm run performance:concurrent && npm run test:coverage",
     "test:concurrent": "npm run concurrent:optimize && npm run test",
+    "test:nitric": "nitric run --test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{js,json,md}\"",
@@ -71,23 +86,32 @@
     "dev:optimized": "npm run optimize:autonomous && node --watch --expose-gc src/ai-bridge-optimized.js",
     "dev:performance": "npm run concurrent:optimize && node --watch --expose-gc server-enhanced.js",
     "dev:ultra": "npm run concurrent:breakthrough && node --watch --expose-gc --max-old-space-size=8192 server-enhanced.js",
+    "dev:nitric": "nitric run --debug",
     "clean": "rm -rf dist node_modules",
     "clean:cache": "rm -rf dist",
     "clean:reports": "rm -f *optimization*report*.json build-report.json reports/*.json",
     "clean:concurrent": "rm -f concurrent_*_report.json",
-    "clean:all": "npm run clean:cache && npm run clean:reports && npm run clean:concurrent",
+    "clean:nitric": "rm -rf .nitric/builds .nitric/deployments",
+    "clean:all": "npm run clean:cache && npm run clean:reports && npm run clean:concurrent && npm run clean:nitric",
     "reset": "npm run clean && npm install",
     "deploy:prepare": "npm run concurrent:full && npm run build:production",
     "deploy:ultra": "npm run concurrent:breakthrough && npm run build:ultra",
     "deploy:concurrent": "npm run concurrent:breakthrough && npm run deploy:ultra",
+    "deploy:nitric": "npm run nitric:deploy",
+    "deploy:nitric:aws": "NITRIC_PROVIDER=aws npm run nitric:deploy",
+    "deploy:nitric:gcp": "NITRIC_PROVIDER=gcp npm run nitric:deploy",
+    "deploy:nitric:azure": "NITRIC_PROVIDER=azure npm run nitric:deploy",
     "health:check": "curl -s http://localhost:8080/health | jq .",
     "health:concurrent": "curl -s http://localhost:8080/metrics/concurrent | jq .",
+    "health:nitric": "nitric status",
     "monitoring:start": "npm run performance:concurrent && npm run performance:monitor",
     "monitoring:concurrent": "watch -n 5 'npm run health:concurrent'",
+    "monitoring:nitric": "nitric logs --follow",
     "system:optimize": "npm run concurrent:breakthrough",
     "system:concurrent": "npm run concurrent:full && npm run monitoring:concurrent",
     "production:full": "npm run deploy:concurrent && npm run monitoring:start && npm run health:check",
-    "production:concurrent": "npm run start:ultra"
+    "production:concurrent": "npm run start:ultra",
+    "production:nitric": "npm run nitric:deploy:prod"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -117,13 +141,26 @@
     "python-integration",
     "concurrent-futures",
     "multi-threading",
-    "real-time-optimization"
+    "real-time-optimization",
+    "nitric",
+    "infrastructure-from-code",
+    "serverless",
+    "multi-cloud",
+    "aws",
+    "gcp",
+    "azure",
+    "cloud-native",
+    "deployment",
+    "scaling",
+    "websockets",
+    "message-queues"
   ],
   "author": "scarmonit-creator",
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "@nitric/sdk": "^1.27.4",
     "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -134,7 +171,8 @@
     "helmet": "^8.0.0",
     "express-rate-limit": "^7.4.1",
     "lru-cache": "^11.0.2",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
@@ -144,6 +182,8 @@
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.2",
     "@types/compression": "^1.7.5",
+    "@types/ws": "^8.5.12",
+    "@nitric/cli": "^1.27.4",
     "cross-env": "^7.0.3",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
@@ -172,7 +212,10 @@
       "response_time": "<100ms",
       "build_time": "<500ms",
       "concurrent_throughput": ">1000rps",
-      "parallel_efficiency": "95%"
+      "parallel_efficiency": "95%",
+      "deployment_time": "<300s",
+      "cold_start": "<2s",
+      "auto_scaling": "<30s"
     },
     "optimization": {
       "ultra_nexus": true,
@@ -184,7 +227,11 @@
       "python_integration": true,
       "real_time_monitoring": true,
       "parallel_processing": true,
-      "multi_threading": true
+      "multi_threading": true,
+      "nitric_integration": true,
+      "infrastructure_from_code": true,
+      "multi_cloud_deployment": true,
+      "serverless_scaling": true
     },
     "concurrent_features": {
       "python_concurrent_futures": "enabled",
@@ -196,7 +243,23 @@
       "file_system_optimization": "concurrent",
       "network_optimization": "concurrent",
       "database_optimization": "concurrent",
-      "build_system_optimization": "concurrent"
+      "build_system_optimization": "concurrent",
+      "nitric_deployment": "concurrent",
+      "multi_cloud_provisioning": "concurrent"
+    },
+    "nitric_features": {
+      "infrastructure_from_code": true,
+      "multi_cloud_support": ["aws", "gcp", "azure"],
+      "automatic_iam": true,
+      "serverless_scaling": true,
+      "websocket_support": true,
+      "message_queues": true,
+      "storage_buckets": true,
+      "nosql_collections": true,
+      "key_value_store": true,
+      "scheduled_functions": true,
+      "local_development": true,
+      "production_ready": true
     }
   },
   "concurrent": {
@@ -214,6 +277,39 @@
       "filesystem": "300s",
       "database": "600s",
       "full_suite": "3600s"
+    }
+  },
+  "nitric": {
+    "version": "1.27.4",
+    "providers": {
+      "aws": {
+        "regions": ["us-east-1", "us-west-2", "eu-west-1"],
+        "services": ["lambda", "apigateway", "s3", "dynamodb", "sqs", "sns"]
+      },
+      "gcp": {
+        "regions": ["us-central1", "us-east1", "europe-west1"],
+        "services": ["functions", "apigateway", "storage", "firestore", "pubsub"]
+      },
+      "azure": {
+        "regions": ["eastus", "westus2", "westeurope"],
+        "services": ["functions", "apimanagement", "storage", "cosmosdb", "servicebus"]
+      }
+    },
+    "deployment": {
+      "environments": ["development", "staging", "production"],
+      "auto_scaling": true,
+      "monitoring": true,
+      "security": {
+        "encryption": true,
+        "iam": "automatic",
+        "cors": "configurable"
+      }
+    },
+    "local_development": {
+      "hot_reload": true,
+      "cloud_simulation": true,
+      "debug_mode": true,
+      "port": 4001
     }
   }
 }
