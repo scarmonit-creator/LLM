@@ -1,0 +1,18 @@
+name: llm-ai-bridge
+description: LLM AI Bridge with Nitric Cloud-Native Optimization
+
+services:
+  - match: "src/nitric/**/*.js"
+    start: node $SERVICE_PATH
+    type: default
+  - match: "src/nitric/**/*.ts"  
+    start: npx tsx $SERVICE_PATH
+    type: default
+
+providers:
+  - nitric/aws@latest
+  - nitric/azure@latest
+  - nitric/gcp@latest
+
+preview:
+  - nitric/docker@latest
