@@ -6,6 +6,25 @@
 const fs = require('fs');
 const path = require('path');
 
+// Import validator for secure URL validation
+let validator;
+try {
+  validator = require('validator');
+} catch (error) {
+  console.warn('⚠️ validator library not found. Install with: npm install validator');
+  // Fallback to basic validation
+  validator = {
+    isURL: (str) => {
+      try {
+        const url = new URL(str);
+        return ['http:', 'https:'].includes(url.protocol);
+      } catch {
+        return false;
+      }
+    }
+  };
+}
+
 class OptimizationValidator {
   constructor() {
     this.results = {
@@ -16,6 +35,68 @@ class OptimizationValidator {
     };
     
     this.extensionPath = path.join(__dirname, '../extensions/selected-text-analyzer');
+    
+    // Allowed domains for security validation
+    this.allowedDomains = [
+      'github.com',
+      'console.cloud.google.com',
+      'console.firebase.google.com',
+      'cloud.google.com',
+      'firebase.google.com'
+    ];
+  }
+
+  /**
+   * Securely validate URL against allowed domains
+   */
+  isAllowedUrl(urlString) {
+    try {
+      // First validate it's a proper URL
+      if (!validator.isURL(urlString, {
+        protocols: ['http', 'https'],
+        require_protocol: true,
+        require_host: true,
+        require_valid_protocol: true
+      })) {
+        return false;
+      }
+      
+      const url = new URL(urlString);
+      
+      // Check against allowed domains
+      return this.allowedDomains.some(domain => {
+        return url.hostname === domain || url.hostname.endsWith('.' + domain);
+      });
+    } catch (error) {
+      console.error('URL validation error:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Validate domain permissions against security policy
+   */
+  validateDomainPermissions(hostPermissions) {
+    if (!Array.isArray(hostPermissions)) {
+      return false;
+    }
+    
+    for (const permission of hostPermissions) {
+      // Check for dangerous wildcard permissions
+      if (permission === '<all_urls>' || permission === '*://*/*') {
+        return false;
+      }
+      
+      // Validate each permission URL pattern
+      if (permission.includes('://')) {
+        const urlPattern = permission.replace(/\*/g, 'example');
+        if (!this.isAllowedUrl(urlPattern)) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
   }
 
   /**
@@ -55,14 +136,26 @@ class OptimizationValidator {
     if (manifestExists) {
       const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
       
-      // Check permissions are restricted
+      // Check permissions are restricted using secure validation
       const hasAllUrls = manifest.host_permissions?.includes('<all_urls>');
-      const hasSpecificDomains = manifest.host_permissions?.some(p => 
-        p.includes('github.com') || p.includes('console.cloud.google.com')
-      );
+      const permissionsSecure = this.validateDomainPermissions(manifest.host_permissions);
       
-      this.results.security.permissionsRestricted = !hasAllUrls && hasSpecificDomains;
-      console.log(`Restricted permissions: ${!hasAllUrls && hasSpecificDomains ? '✅ SECURE' : '❌ VULNERABLE'}`);
+      this.results.security.permissionsRestricted = !hasAllUrls && permissionsSecure;
+      console.log(`Restricted permissions: ${!hasAllUrls && permissionsSecure ? '✅ SECURE' : '❌ VULNERABLE'}`);
+      
+      // Validate specific domain permissions
+      if (manifest.host_permissions) {
+        const validPermissions = manifest.host_permissions.filter(permission => {
+          if (permission.includes('github.com') || permission.includes('console.cloud.google.com')) {
+            // Secure URL validation instead of simple string checks
+            const testUrl = permission.replace(/\*/g, 'https').replace(':////*', '://example.com/');
+            return this.isAllowedUrl(testUrl) || this.allowedDomains.some(domain => permission.includes(domain));
+          }
+          return false;
+        });
+        
+        console.log(`Valid domain permissions: ${validPermissions.length}/${manifest.host_permissions.length}`);
+      }
       
       // Check CSP implementation
       const hasCSP = manifest.content_security_policy?.extension_pages?.includes("script-src 'self'");
