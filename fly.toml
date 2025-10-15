@@ -1,98 +1,70 @@
-app = "llm-ai-bridge"
-primary_region = "sjc"
-kill_signal = "SIGINT"
-kill_timeout = "10s"
+app = 'llm-framework-prod'
+primary_region = 'dfw'
 
 [build]
-  dockerfile = "Dockerfile"
+  builder = 'heroku/buildpacks:20'
+  buildpacks = ['heroku/nodejs']
 
-[deploy]
-  strategy = "rolling"
-  max_unavailable = 0.33
-  wait_timeout = "10m"
-  
 [env]
-  NODE_ENV = "production"
-  PORT = "8080"
-  NODE_OPTIONS = "--max-old-space-size=450 --gc-interval=100 --optimize-for-size"
-  AI_BRIDGE_HISTORY_LIMIT = "1000"
-  AI_BRIDGE_MAX_QUEUE = "2000"
-  AI_BRIDGE_CORS_ORIGINS = "*"
-  AI_BRIDGE_CLIENT_TTL_MS = "900000"
-  AI_BRIDGE_CLEANUP_INTERVAL_MS = "60000"
-  AI_BRIDGE_RATE_WINDOW_MS = "60000"
-  AI_BRIDGE_RATE_MAX = "200"
-  # Performance optimizations
-  UV_THREADPOOL_SIZE = "16"
-  NODE_MAX_OLD_SPACE_SIZE = "450"
-  
-[experimental]
-  auto_rollback = true
-  enable_consul = true
-  
+  NODE_ENV = 'production'
+  PORT = '8080'
+  DASHBOARD_PORT = '8081'
+  MCP_PORT = '3001'
+  WS_PORT = '8082'
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 8080
+  processes = ['app']
+
+  [[services.ports]]
+    port = 80
+    handlers = ['http']
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ['http', 'tls']
+
+  [services.concurrency]
+    type = 'connections'
+    hard_limit = 1000
+    soft_limit = 800
+
+  [[services.tcp_checks]]
+    interval = '15s'
+    timeout = '2s'
+    grace_period = '10s'
+
+  [[services.http_checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '15s'
+    method = 'get'
+    path = '/health'
+    protocol = 'http'
+    tls_skip_verify = false
+
 [http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
-  min_machines_running = 0
-  max_machines_running = 3
-  
-  [[http_service.concurrency]]
-    type = "connections"
-    hard_limit = 1000
-    soft_limit = 500
-    
-  [[http_service.concurrency]]
-    type = "requests"
-    hard_limit = 2000
-    soft_limit = 1000
-  
-  [http_service.checks]
-    grace_period = "30s"
-    interval = "15s"
-    method = "GET"
-    path = "/health"
-    timeout = "10s"
-    headers = { "User-Agent" = "fly-health-check" }
-    tls_skip_verify = false
-    
-    [[http_service.checks.http_headers]]
-    name = "Cache-Control"
-    value = "no-cache"
+  min_machines_running = 1
+  processes = ['app']
 
 [[vm]]
-  cpu_kind = "shared"
-  cpus = 1
-  memory_mb = 512
-  
-  # Auto-scaling configuration
-  [[vm.processes]]
-  app = "bridge"
-  entrypoint = ["npm", "start"]
-  
-  [[vm.processes.env]]
-  PROCESS_TYPE = "web"
-  
+  cpu_kind = 'shared'
+  cpus = 2
+  memory_mb = 1024
+
 [metrics]
   port = 9091
-  path = "/metrics"
-  
-# Enhanced logging for performance monitoring
-[logging]
-  format = "json"
-  level = "info"
-  
-# Resource optimization
-[resource_limits]
-  memory = "512MB"
-  cpu = "1.0"
-  
-# Network optimizations
-[network]
-  ipv6 = false  # Disable if not needed for performance
-  
-# Backup configuration
-[backup]
-  schedule = "@daily"
-  retention = "7d"
+  path = '/metrics'
+
+[deploy]
+  release_command = 'npm run build'
+  strategy = 'canary'
+
+[processes]
+  app = 'npm start'
