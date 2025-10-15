@@ -2,10 +2,20 @@
  * Browser Extension Security Manager
  * Implements zero-trust security architecture with AES-256 encryption
  * and comprehensive audit logging for enterprise-grade protection
+ * 
+ * SECURITY: Updated to fix CodeQL Alert #61 - Bad HTML Filtering Regexp
+ * Uses DOMPurify for secure HTML sanitization instead of vulnerable regex patterns
  */
 
 import { createCipher, createDecipher, randomBytes } from 'crypto';
 import { SecurityConfig, SecurityEvent, AuditLog } from './types';
+import DOMPurify from 'dompurify';
+import { JSDOM } from 'jsdom';
+import validator from 'validator';
+
+// Configure DOMPurify for Node.js environment
+const window = new JSDOM('').window;
+const purify = DOMPurify(window as any);
 
 export class SecurityManager {
   private config: SecurityConfig;
@@ -70,7 +80,7 @@ export class SecurityManager {
       });
       
       return iv.toString('hex') + ':' + encrypted;
-    } catch (error) {
+    } catch (error: any) {
       this.auditLogger.logSecurityEvent({
         type: 'ENCRYPTION_FAILURE',
         timestamp: new Date(),
@@ -100,7 +110,7 @@ export class SecurityManager {
       });
       
       return decrypted;
-    } catch (error) {
+    } catch (error: any) {
       this.auditLogger.logSecurityEvent({
         type: 'DECRYPTION_FAILURE',
         timestamp: new Date(),
@@ -112,29 +122,107 @@ export class SecurityManager {
   }
 
   /**
-   * Validate and sanitize user input
+   * Secure HTML sanitization using DOMPurify (FIXED - Alert #61)
+   * Replaces vulnerable regex-based filtering with industry-standard library
+   */
+  public sanitizeHTML(input: string): string {
+    try {
+      // Configure DOMPurify for maximum security
+      const cleanHTML = purify.sanitize(input, {
+        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'span', 'div'],
+        ALLOWED_ATTR: ['class', 'id'],
+        FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input'],
+        FORBID_ATTR: ['onclick', 'onerror', 'onload', 'onmouseover'],
+        KEEP_CONTENT: false,
+        RETURN_DOM: false,
+        RETURN_DOM_FRAGMENT: false,
+        RETURN_DOM_IMPORT: false
+      });
+
+      this.auditLogger.logSecurityEvent({
+        type: 'HTML_SANITIZATION_SUCCESS',
+        timestamp: new Date(),
+        success: true,
+        metadata: { 
+          originalLength: input.length,
+          sanitizedLength: cleanHTML.length,
+          removed: input.length - cleanHTML.length
+        }
+      });
+
+      return cleanHTML;
+    } catch (error: any) {
+      this.auditLogger.logSecurityEvent({
+        type: 'HTML_SANITIZATION_FAILURE',
+        timestamp: new Date(),
+        success: false,
+        error: error.message
+      });
+      // Return empty string on failure for security
+      return '';
+    }
+  }
+
+  /**
+   * Validate and sanitize user input with comprehensive security checks
    */
   public validateInput(input: any, schema: any): boolean {
     try {
-      // Comprehensive input validation
+      // Type-based validation
       if (typeof input === 'string') {
-        // XSS prevention
-        const xssPattern = /<script[^>]*>.*?<\/script>/gi;
-        if (xssPattern.test(input)) {
+        // Use DOMPurify to detect and prevent XSS attempts
+        const originalLength = input.length;
+        const sanitized = this.sanitizeHTML(input);
+        
+        // If content was significantly reduced, it likely contained malicious code
+        if (sanitized.length < originalLength * 0.5 && originalLength > 10) {
           this.auditLogger.logSecurityEvent({
             type: 'XSS_ATTEMPT_BLOCKED',
             timestamp: new Date(),
             success: true,
-            metadata: { input: input.substring(0, 100) }
+            metadata: { 
+              originalLength,
+              sanitizedLength: sanitized.length,
+              input: input.substring(0, 100) + '...' 
+            }
           });
           return false;
         }
 
-        // SQL injection prevention
-        const sqlPattern = /(union|select|insert|update|delete|drop|create|alter|exec|execute)/gi;
-        if (sqlPattern.test(input)) {
+        // Enhanced SQL injection detection
+        const sqlPatterns = [
+          /('|(\-\-)|(;)|(\||\|)|(\*|\*))/i,
+          /(union|select|insert|update|delete|drop|create|alter|exec|execute)/gi,
+          /(script|javascript|vbscript|onload|onerror|onclick)/gi
+        ];
+        
+        for (const pattern of sqlPatterns) {
+          if (pattern.test(input)) {
+            this.auditLogger.logSecurityEvent({
+              type: 'SQL_INJECTION_BLOCKED',
+              timestamp: new Date(),
+              success: true,
+              metadata: { 
+                pattern: pattern.toString(),
+                input: input.substring(0, 100) + '...' 
+              }
+            });
+            return false;
+          }
+        }
+
+        // URL validation using validator library
+        if (schema?.type === 'url' && !validator.isURL(input, {
+          protocols: ['http', 'https'],
+          require_protocol: true,
+          require_host: true,
+          require_valid_protocol: true,
+          allow_underscores: false,
+          allow_trailing_dot: false,
+          allow_protocol_relative_urls: false
+        })) {
           this.auditLogger.logSecurityEvent({
-            type: 'SQL_INJECTION_BLOCKED',
+            type: 'INVALID_URL_BLOCKED',
             timestamp: new Date(),
             success: true,
             metadata: { input: input.substring(0, 100) }
@@ -143,9 +231,15 @@ export class SecurityManager {
         }
       }
 
-      // Schema validation would go here
+      // Additional schema validation would go here
+      this.auditLogger.logSecurityEvent({
+        type: 'INPUT_VALIDATION_SUCCESS',
+        timestamp: new Date(),
+        success: true
+      });
+      
       return true;
-    } catch (error) {
+    } catch (error: any) {
       this.auditLogger.logSecurityEvent({
         type: 'VALIDATION_ERROR',
         timestamp: new Date(),
@@ -197,6 +291,7 @@ export class SecurityManager {
       securityScore: this.calculateSecurityScore(events),
       threatsStopped: events.filter(e => e.type.includes('BLOCKED')).length,
       encryptionEvents: events.filter(e => e.type.includes('ENCRYPTION')).length,
+      sanitizationEvents: events.filter(e => e.type.includes('SANITIZATION')).length,
       recommendations: this.generateSecurityRecommendations(events)
     };
   }
@@ -227,6 +322,11 @@ export class SecurityManager {
       recommendations.push('Consider encrypting more sensitive data');
     }
     
+    const sanitizationEvents = events.filter(e => e.type.includes('SANITIZATION'));
+    if (sanitizationEvents.length === 0) {
+      recommendations.push('Implement HTML sanitization for user inputs');
+    }
+    
     return recommendations;
   }
 }
@@ -246,7 +346,7 @@ class AuditLogger {
     this.events.push(event);
     
     // In production, this would write to secure log storage
-    if (this.config.verbose) {
+    if (this.config?.verbose) {
       console.log('Security Event:', JSON.stringify(event, null, 2));
     }
   }
@@ -272,6 +372,7 @@ interface SecurityReport {
   securityScore: number;
   threatsStopped: number;
   encryptionEvents: number;
+  sanitizationEvents: number;
   recommendations: string[];
 }
 
