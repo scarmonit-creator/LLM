@@ -26,7 +26,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080" # Traefik dashboard (secured)
+      - "8080:8080" # Traefik dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
@@ -74,8 +74,8 @@ services:
       - "traefik.http.routers.llm.entrypoints=websecure"
       - "traefik.http.routers.llm.tls.certresolver=letsencrypt"
       - "traefik.http.services.llm.loadbalancer.server.port=8080"
-      # Health check configuration
-      - "traefik.http.services.llm.loadbalancer.healthcheck.path=/health"
+      # FIXED Health check configuration - use /ready endpoint
+      - "traefik.http.services.llm.loadbalancer.healthcheck.path=/ready"
       - "traefik.http.services.llm.loadbalancer.healthcheck.interval=10s"
       - "traefik.http.services.llm.loadbalancer.healthcheck.timeout=3s"
       # Sticky sessions for browser history consistency
@@ -89,7 +89,8 @@ services:
       - "traefik.http.routers.llm-http.entrypoints=web"
       - "traefik.http.routers.llm-http.middlewares=https-redirect"
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      # FIXED - Use /ready endpoint for container health
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/ready', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -118,7 +119,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.services.llm.loadbalancer.server.port=8080"
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/ready', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -147,7 +148,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.services.llm.loadbalancer.server.port=8080"
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/ready', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -155,7 +156,7 @@ services:
     depends_on:
       - traefik
 
-  # Optional: Prometheus for monitoring
+  # Prometheus for monitoring
   prometheus:
     image: prom/prometheus:latest
     container_name: llm-prometheus
@@ -181,7 +182,7 @@ services:
     depends_on:
       - traefik
 
-  # Optional: Grafana for dashboards
+  # Grafana for dashboards
   grafana:
     image: grafana/grafana:latest
     container_name: llm-grafana
