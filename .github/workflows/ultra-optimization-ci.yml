@@ -1,5 +1,4 @@
 name: 🚀 Ultra Optimization CI - Breakthrough Performance Validation
-
 on:
   push:
     branches: [ main, 'feature/**', 'optimization/**' ]
@@ -7,13 +6,11 @@ on:
     branches: [ main ]
   schedule:
     - cron: '0 */6 * * *' # Run every 6 hours for continuous optimization
-
 env:
   NODE_VERSION: '20.x'
   OPTIMIZATION_TARGET: '98'
   PERFORMANCE_THRESHOLD: '95'
   CACHE_EFFICIENCY_TARGET: '99.9'
-
 jobs:
   ultra-optimization-validation:
     name: 🏆 Ultra Optimization Validation
@@ -125,7 +122,7 @@ jobs:
         # Create performance summary
         mkdir -p reports
         
-        cat > reports/ci-performance-summary.json << EOF
+        cat > reports/ci-performance-summary.json <<-'EOF'
         {
           "timestamp": "$(date -Iseconds)",
           "node_version": "${{ matrix.node-version }}",
@@ -155,7 +152,7 @@ jobs:
             "production_ready": true
           }
         }
-EOF
+		EOF
         
         echo "✅ Performance report generated"
         cat reports/ci-performance-summary.json
@@ -210,7 +207,6 @@ EOF
             repo: context.repo.repo,
             body: performanceComment
           });
-
   security-validation:
     name: 🔒 Security Validation
     runs-on: ubuntu-latest
@@ -240,7 +236,6 @@ EOF
         echo "🔍 Checking dependencies..."
         npm ls --depth=0
         echo "✅ Dependency validation completed"
-
   deployment-readiness:
     name: 🏭 Deployment Readiness
     runs-on: ubuntu-latest
