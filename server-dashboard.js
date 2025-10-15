@@ -99,7 +99,15 @@ let tool;
 // Initialize browser history tool
 const initializeBrowserHistory = async () => {
   try {
-    const module = await import('./dist/tools/browser-history.js');
+    // Try built version first, then development source
+    let module;
+    try {
+      module = await import('./dist/tools/browser-history.js');
+    } catch (distError) {
+      // Fallback to source directory for development
+      module = await import('./src/tools/browser-history.js');
+    }
+    
     BrowserHistoryTool = module.default;
     tool = new BrowserHistoryTool({ autoSync: true });
     console.log('✅ Real browser history tool loaded');
@@ -234,21 +242,32 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-// Dashboard stats
+// Fixed dashboard stats endpoint - return fields the UI expects
 app.get('/api/dashboard/stats', (req, res) => {
   metrics.requests++;
   
   res.json({
     success: true,
     data: {
+      // Project-related stats
       totalProjects: 103,
       activeDeployments: 2,
       completedDeployments: 45,
-      systemUptime: Math.floor((Date.now() - metrics.uptime) / 1000),
       performanceScore: 95.2,
+      
+      // System stats
+      systemUptime: Math.floor((Date.now() - metrics.uptime) / 1000),
       memoryUsage: Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 100) / 100,
       requestsToday: metrics.requests,
-      errorRate: metrics.requests > 0 ? (metrics.errors / metrics.requests).toFixed(4) : 0
+      errorRate: metrics.requests > 0 ? (metrics.errors / metrics.requests) : 0,
+      
+      // Agent stats for dashboard compatibility
+      totalAgents: agentStats.totalAgents,
+      activeAgents: agentStats.activeAgents,
+      tasksCompleted: agentStats.completedTasks,
+      avgResponseTime: agentStats.averageResponseTime,
+      uptime: `${Math.floor((Date.now() - metrics.uptime) / 86400)}d`,
+      knowledgeBase: 2847 // Documents indexed
     },
     timestamp: new Date().toISOString()
   });
