@@ -1,6 +1,6 @@
 {
   "name": "llm",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "LLM integration project with Claude, A2A, and browser history access - Production Optimized",
   "main": "server.js",
   "type": "module",
@@ -21,6 +21,8 @@
     "build:tools": "node scripts/build-tools.js",
     "build:optimized": "npm run build:tools && tsc --build --incremental",
     "prebuild": "npm run build:tools",
+    "fix:tools": "node scripts/fix-tools-compilation.js",
+    "fix:complete": "npm run clean && npm run fix:tools && npm run build && npm run test:tools",
     "optimize": "node scripts/optimize-project.js",
     "optimize:full": "npm run optimize && npm run lint && npm run format && npm run test:coverage",
     "optimize:text-selection": "node scripts/optimize-text-selection.js",
@@ -91,7 +93,10 @@
     "persistence",
     "error-handling",
     "monitoring",
-    "production-ready"
+    "production-ready",
+    "typescript",
+    "esm",
+    "tools"
   ],
   "author": "scarmonit-creator",
   "license": "MIT",
