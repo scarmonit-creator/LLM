@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Projects Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>LLM Projects Dashboard</h1>
+    <input id="search" type="search" placeholder="Search projects by name, tags, or repo..." />
+  </header>
+
+  <main>
+    <section id="stats">
+      <span id="count">0</span> projects
+      <button id="refresh">Refresh</button>
+    </section>
+
+    <section id="list"></section>
+  </main>
+
+  <footer>
+    <small>Data source: Projects.json in this repository</small>
+  </footer>
+
+  <script src="./assets/app.js" type="module"></script>
+</body>
+</html>

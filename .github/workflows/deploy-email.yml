@@ -1,0 +1,30 @@
+name: Notify on Project Deployment
+
+on:
+  repository_dispatch:
+    types: [project-deployed]
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send mail
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "Deployment triggered: ${{ github.event.client_payload.name }}"
+          to: ${{ secrets.NOTIFY_EMAIL }}
+          from: "LLM Platform <${{ secrets.SMTP_FROM }}>"
+          content_type: text/html
+          body: |
+            <h3>Deployment triggered</h3>
+            <p><b>Project:</b> ${{ github.event.client_payload.name }}</p>
+            <p><b>Repo:</b> ${{ github.event.client_payload.repoUrl }}</p>
+            <p><b>Time:</b> ${{ github.event.client_payload.time }}</p>
+            <pre>${{ toJson(github.event.client_payload) }}</pre>

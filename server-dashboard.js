@@ -2,6 +2,8 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { PerformanceMonitor } from './src/performance-monitor.js';
+import cors from 'cors';
+import fs from 'fs';
 
 // Import deploy-project API router
 import deployProjectRouter from './api/deploy-project.js';
@@ -14,8 +16,9 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cors({ origin: true, credentials: true }));
 
 // Initialize performance monitor
 const perfMonitor = new PerformanceMonitor({
@@ -30,6 +33,64 @@ app.use(express.static(path.join(__dirname, 'website')));
 
 // Mount deploy-project API routes
 app.use('/api', deployProjectRouter);
+
+// Serve Projects.json (from repo root) for local/dev use
+app.get('/projects.json', (_req, res) => {
+  const p = path.join(__dirname, 'Projects.json');
+  if (!fs.existsSync(p)) return res.status(404).json({ error: 'Projects.json not found' });
+  res.setHeader('Content-Type', 'application/json');
+  fs.createReadStream(p).pipe(res);
+});
+
+// Wire to existing Nitric deploy API if available
+let deployProject = null;
+try {
+  // Try to load the deployment module
+  const deployModule = await import('./api/deploy-project.js');
+  if (deployModule && typeof deployModule.deployProject === 'function') {
+    deployProject = deployModule.deployProject;
+  }
+} catch (e) {
+  console.log('Deploy API module not found, using fallback');
+}
+
+// Enhanced deployment endpoint that integrates with existing API
+app.post('/api/deploy', async (req, res) => {
+  try {
+    const { repoUrl, project } = req.body || {};
+    if (!repoUrl) return res.status(400).json({ error: 'repoUrl is required' });
+    
+    if (deployProject) {
+      const out = await deployProject({ repoUrl, project });
+      return res.json({ ok: true, ...out, message: out?.message || 'Deployment started' });
+    }
+    
+    // Fallback: forward to existing deploy-project API
+    const deployResponse = await fetch('http://localhost:' + PORT + '/api/deploy-project', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        repoUrl,
+        name: project?.name || project?.title || 'Auto Deploy',
+        description: project?.description || 'Deployed from Projects Dashboard'
+      })
+    });
+    
+    if (deployResponse.ok) {
+      const result = await deployResponse.json();
+      return res.json({ ok: true, ...result, message: result?.message || 'Deployment started via API' });
+    }
+    
+    // Final fallback if not wired yet:
+    return res.status(501).json({ 
+      error: 'Deployment API not fully wired. Check api/deploy-project.js implementation.',
+      hint: 'The endpoint exists but may need configuration or the Nitric service may be unavailable.'
+    });
+  } catch (e) {
+    console.error('Deploy error:', e);
+    return res.status(500).json({ error: e.message || 'Internal error' });
+  }
+});
 
 // Browser History Tool - Dynamic import with fallback
 let BrowserHistoryTool;
@@ -124,7 +185,8 @@ app.get('/', (req, res) => {
         status: '/api/status',
         stats: '/api/dashboard/stats',
         agents: '/api/dashboard/agents',
-        deploy: '/api/deploy-project',
+        deploy: '/api/deploy',
+        deployProject: '/api/deploy-project',
         deployStatus: '/api/deploy-project/:id/status'
       }
     },
@@ -321,10 +383,12 @@ app.use((req, res) => {
       '/api/status', 
       '/api/dashboard/stats', 
       '/api/dashboard/agents',
+      '/api/deploy',
       '/api/deploy-project',
       '/api/deploy-project/:id/status',
       '/history', 
       '/search',
+      '/projects.json',
       '/projects-dashboard.html'
     ]
   });
@@ -349,6 +413,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log('🚀 AI DASHBOARD ENABLED - Real-time agent monitoring');
   console.log('📊 Browser History:', isRealHistory ? 'Real SQLite Access' : 'Mock Implementation');
   console.log('🎯 PROJECT DEPLOYMENT ENABLED - Nitric integration active');
+  console.log('🎯 PROJECTS DASHBOARD ENABLED - 103 AI/ML projects available');
   console.log('');
   console.log('Available endpoints:');
   console.log('  GET / - API information and system status');
@@ -356,10 +421,12 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log('  GET /api/status - Detailed system status');
   console.log('  GET /api/dashboard/stats - Dashboard statistics');
   console.log('  GET /api/dashboard/agents - AI agents status');
+  console.log('  POST /api/deploy - Deploy from Projects Dashboard');
   console.log('  POST /api/deploy-project - Deploy a project with Nitric');
   console.log('  GET /api/deploy-project/:id/status - Get deployment status');
   console.log('  GET /history - Get recent browser history');
   console.log('  GET /search?query=term - Search browser history');
+  console.log('  GET /projects.json - Projects index for dashboard');
   console.log('  Static files served from /website directory');
   console.log('');
   console.log('🎯 Dashboard URL: http://localhost:' + PORT + '/knowledge-dashboard.html');
