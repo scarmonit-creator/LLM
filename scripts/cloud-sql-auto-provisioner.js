@@ -2,6 +2,7 @@
 /**
  * Cloud SQL Auto-Setup for LLM Framework
  * Automatically provisions and configures Cloud SQL instance via REST API
+ * Security-hardened with credential sanitization
  */
 
 import { GoogleAuth } from 'google-auth-library';
@@ -18,6 +19,57 @@ class CloudSQLAutoProvisioner {
     this.dbName = 'optimization_db';
     this.username = 'llm_admin';
     this.password = crypto.randomBytes(12).toString('base64');
+  }
+
+  /**
+   * Security: Sanitize sensitive data for logging
+   */
+  sanitizeCredentials(data) {
+    if (typeof data === 'string') {
+      // Redact passwords, tokens, and connection strings
+      return data.replace(/password=[^&\s]+/gi, 'password=***REDACTED***')
+                 .replace(/:[^@]+@/g, ':***REDACTED***@')
+                 .replace(/Bearer [\w.-]+/gi, 'Bearer ***REDACTED***')
+                 .replace(/token"?:\s*"[^"]+"/gi, 'token": "***REDACTED***"');
+    }
+    
+    if (typeof data === 'object' && data !== null) {
+      const sanitized = { ...data };
+      
+      // Redact sensitive fields
+      const sensitiveFields = ['password', 'token', 'secret', 'key', 'connectionString'];
+      
+      for (const field of sensitiveFields) {
+        if (sanitized[field]) {
+          sanitized[field] = '***REDACTED***';
+        }
+      }
+      
+      // Handle nested objects
+      for (const [key, value] of Object.entries(sanitized)) {
+        if (typeof value === 'object' && value !== null) {
+          sanitized[key] = this.sanitizeCredentials(value);
+        }
+      }
+      
+      return sanitized;
+    }
+    
+    return data;
+  }
+
+  /**
+   * Security: Safe logging that redacts sensitive information
+   */
+  secureLog(message, data = null) {
+    if (data) {
+      const sanitizedData = this.sanitizeCredentials(data);
+      console.log(message, typeof sanitizedData === 'object' 
+        ? JSON.stringify(sanitizedData, null, 2) 
+        : sanitizedData);
+    } else {
+      console.log(message);
+    }
   }
 
   async getAccessToken() {
@@ -71,7 +123,7 @@ class CloudSQLAutoProvisioner {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Instance creation failed: ${response.status} ${error}`);
+      throw new Error(`Instance creation failed: ${response.status} ${this.sanitizeCredentials(error)}`);
     }
 
     const result = await response.json();
@@ -95,7 +147,7 @@ class CloudSQLAutoProvisioner {
       
       if (operation.status === 'DONE') {
         if (operation.error) {
-          throw new Error(`Operation failed: ${JSON.stringify(operation.error)}`);
+          throw new Error(`Operation failed: ${JSON.stringify(this.sanitizeCredentials(operation.error))}`);
         }
         console.log(`✅ Operation completed: ${operationName}`);
         return operation;
@@ -128,7 +180,7 @@ class CloudSQLAutoProvisioner {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Database creation failed: ${response.status} ${error}`);
+      throw new Error(`Database creation failed: ${response.status} ${this.sanitizeCredentials(error)}`);
     }
 
     const result = await response.json();
@@ -156,7 +208,7 @@ class CloudSQLAutoProvisioner {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`User creation failed: ${response.status} ${error}`);
+      throw new Error(`User creation failed: ${response.status} ${this.sanitizeCredentials(error)}`);
     }
 
     const result = await response.json();
@@ -173,7 +225,7 @@ class CloudSQLAutoProvisioner {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Failed to get instance details: ${response.status} ${error}`);
+      throw new Error(`Failed to get instance details: ${response.status} ${this.sanitizeCredentials(error)}`);
     }
 
     const instance = await response.json();
@@ -220,8 +272,9 @@ class CloudSQLAutoProvisioner {
         }
       };
       
+      // Security: Use sanitized logging for configuration display
       console.log('\n📋 Connection Configuration:');
-      console.log(JSON.stringify(config, null, 2));
+      this.secureLog('Configuration generated (sensitive data redacted):', config);
       
       // Save to env file
       const envContent = Object.entries(config.environmentVariables)
@@ -235,8 +288,10 @@ class CloudSQLAutoProvisioner {
       return config;
       
     } catch (error) {
-      console.error('❌ Provisioning failed:', error.message);
-      throw error;
+      // Security: Sanitize error messages before logging
+      const sanitizedError = this.sanitizeCredentials(error.message);
+      console.error('❌ Provisioning failed:', sanitizedError);
+      throw new Error(sanitizedError);
     }
   }
 
@@ -251,15 +306,17 @@ class CloudSQLAutoProvisioner {
 
       if (!response.ok) {
         const error = await response.text();
-        throw new Error(`Cleanup failed: ${response.status} ${error}`);
+        throw new Error(`Cleanup failed: ${response.status} ${this.sanitizeCredentials(error)}`);
       }
 
       console.log(`🗑️ Instance ${this.instanceId} deletion initiated`);
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('❌ Cleanup failed:', error.message);
-      throw error;
+      // Security: Sanitize error messages
+      const sanitizedError = this.sanitizeCredentials(error.message);
+      console.error('❌ Cleanup failed:', sanitizedError);
+      throw new Error(sanitizedError);
     }
   }
 }
