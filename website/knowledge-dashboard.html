@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Knowledge Enhancement System - Scarmonit</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        .refresh-btn {
+            background: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #667eea;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .refresh-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        .refresh-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .card-title {
+            font-size: 0.9rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .card-icon {
+            font-size: 1.5rem;
+        }
+        .card-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        .card-description {
+            font-size: 0.9rem;
+            color: #999;
+        }
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+            margin: 2rem 0;
+        }
+        .success-message {
+            background: #efe;
+            color: #3c3;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+            margin: 2rem 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: white;
+            font-size: 1.2rem;
+        }
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .agents-list {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        .agents-list h2 {
+            margin-bottom: 1rem;
+            color: #667eea;
+        }
+        .agent-item {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .agent-item:last-child {
+            border-bottom: none;
+        }
+        .agent-name {
+            font-weight: 600;
+            color: #333;
+        }
+        .agent-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .agent-status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .agent-status.idle {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 AI Knowledge Enhancement System</h1>
+            <p>Real-time insights into our multi-agent AI capabilities</p>
+        </div>
+
+        <div class="controls">
+            <button id="refreshBtn" class="refresh-btn">
+                <span id="refreshIcon">🔄</span>
+                <span id="refreshText">Refresh Data</span>
+            </button>
+        </div>
+
+        <div id="content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div>Loading dashboard data...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_ENDPOINTS = {
+            stats: '/api/dashboard/stats',
+            agents: '/api/dashboard/agents'
+        };
+
+        let refreshTimeout;
+
+        async function loadDashboardData() {
+            const contentDiv = document.getElementById('content');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const refreshIcon = document.getElementById('refreshIcon');
+            const refreshText = document.getElementById('refreshText');
+
+            try {
+                refreshBtn.disabled = true;
+                refreshIcon.textContent = '⏳';
+                refreshText.textContent = 'Refreshing...';
+
+                // Simulate API call with mock data for now
+                // Replace with actual API calls when backend is ready
+                const mockStats = await getMockStats();
+                const mockAgents = await getMockAgents();
+
+                displayDashboard(mockStats, mockAgents);
+
+                // Show success message briefly
+                const successMsg = document.createElement('div');
+                successMsg.className = 'success-message';
+                successMsg.textContent = 'Dashboard data loaded successfully!';
+                contentDiv.insertBefore(successMsg, contentDiv.firstChild);
+                setTimeout(() => successMsg.remove(), 3000);
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                contentDiv.innerHTML = `
+                    <div class="error-message">
+                        Failed to load dashboard data: ${error.message}
+                        <br><br>
+                        <strong>Troubleshooting:</strong>
+                        <ul style="text-align: left; max-width: 600px; margin: 1rem auto;">
+                            <li>Check if API endpoints are configured correctly</li>
+                            <li>Verify backend services are running</li>
+                            <li>Check browser console for detailed errors</li>
+                        </ul>
+                    </div>
+                `;
+            } finally {
+                refreshBtn.disabled = false;
+                refreshIcon.textContent = '🔄';
+                refreshText.textContent = 'Refresh Data';
+            }
+        }
+
+        function getMockStats() {
+            // Mock data - replace with actual API call
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve({
+                        totalAgents: 12,
+                        activeAgents: 8,
+                        tasksCompleted: 1547,
+                        avgResponseTime: '2.3s',
+                        uptime: '99.8%',
+                        knowledgeBase: '45,231'
+                    });
+                }, 800);
+            });
+        }
+
+        function getMockAgents() {
+            // Mock data - replace with actual API call
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    resolve([
+                        { name: 'Code Agent', status: 'active', tasks: 234 },
+                        { name: 'Data Analysis Agent', status: 'active', tasks: 187 },
+                        { name: 'Documentation Agent', status: 'active', tasks: 156 },
+                        { name: 'Testing Agent', status: 'idle', tasks: 143 },
+                        { name: 'Deployment Agent', status: 'active', tasks: 129 },
+                        { name: 'Monitoring Agent', status: 'active', tasks: 98 }
+                    ]);
+                }, 800);
+            });
+        }
+
+        function displayDashboard(stats, agents) {
+            const contentDiv = document.getElementById('content');
+            contentDiv.innerHTML = `
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Total Agents</div>
+                            <div class="card-icon">🤖</div>
+                        </div>
+                        <div class="card-value">${stats.totalAgents}</div>
+                        <div class="card-description">AI agents deployed</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Active Now</div>
+                            <div class="card-icon">⚡</div>
+                        </div>
+                        <div class="card-value">${stats.activeAgents}</div>
+                        <div class="card-description">Currently processing</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Tasks Completed</div>
+                            <div class="card-icon">✅</div>
+                        </div>
+                        <div class="card-value">${stats.tasksCompleted}</div>
+                        <div class="card-description">Total tasks completed</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Response Time</div>
+                            <div class="card-icon">⏱️</div>
+                        </div>
+                        <div class="card-value">${stats.avgResponseTime}</div>
+                        <div class="card-description">Average response</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">System Uptime</div>
+                            <div class="card-icon">📊</div>
+                        </div>
+                        <div class="card-value">${stats.uptime}</div>
+                        <div class="card-description">Last 30 days</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Knowledge Base</div>
+                            <div class="card-icon">📚</div>
+                        </div>
+                        <div class="card-value">${stats.knowledgeBase}</div>
+                        <div class="card-description">Documents indexed</div>
+                    </div>
+                </div>
+
+                <div class="agents-list">
+                    <h2>Active AI Agents</h2>
+                    ${agents.map(agent => `
+                        <div class="agent-item">
+                            <div>
+                                <div class="agent-name">${agent.name}</div>
+                                <div style="font-size: 0.85rem; color: #666; margin-top: 0.25rem;">
+                                    ${agent.tasks} tasks completed
+                                </div>
+                            </div>
+                            <span class="agent-status ${agent.status}">${agent.status.toUpperCase()}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Event listeners
+        document.getElementById('refreshBtn').addEventListener('click', loadDashboardData);
+
+        // Initial load
+        loadDashboardData();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadDashboardData, 30000);
+    </script>
+</body>
+</html>
