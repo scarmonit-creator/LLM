@@ -1,123 +1,112 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { Tool } from './types.js';
+import shellescape from 'shell-escape';
 
 const execAsync = promisify(exec);
 
-/**
- * Git Operations Tool - Comprehensive git workflow automation
- * Enables autonomous git operations: clone, commit, push, branch, merge, PR creation
- */
-export const gitOperations: Tool = {
+export interface GitArgs {
+  operation: 'init' | 'clone' | 'add' | 'commit' | 'push' | 'pull' | 'branch' | 'checkout' | 'merge' | 'log' | 'diff';
+  repoUrl?: string;
+  message?: string;
+  branch?: string;
+  files?: string[];
+  directory?: string;
+}
+
+export interface GitResult {
+  success: boolean;
+  operation: string;
+  output?: string;
+  error?: string | null;
+}
+
+const gitOperations = {
   name: 'git_operations',
-  description: 'Execute git operations for autonomous version control workflow',
+  description:
+    'Execute git operations including init, clone, add, commit, push, pull, branch, checkout, merge, log, and diff. Supports all common git workflows.',
   parameters: {
     type: 'object',
     properties: {
       operation: {
         type: 'string',
-        enum: [
-          'clone',
-          'status',
-          'add',
-          'commit',
-          'push',
-          'pull',
-          'branch',
-          'checkout',
-          'merge',
-          'log',
-          'diff',
-        ],
+        enum: ['init', 'clone', 'add', 'commit', 'push', 'pull', 'branch', 'checkout', 'merge', 'log', 'diff'],
         description: 'Git operation to perform',
       },
-      repository: {
+      repoUrl: {
         type: 'string',
-        description: 'Repository URL for clone operations',
-      },
-      branch: {
-        type: 'string',
-        description: 'Branch name for branch operations',
+        description: 'Repository URL (for clone operation)',
       },
       message: {
         type: 'string',
-        description: 'Commit message',
+        description: 'Commit message (for commit operation)',
+      },
+      branch: {
+        type: 'string',
+        description: 'Branch name (for branch, checkout, merge, push operations)',
       },
       files: {
         type: 'array',
         items: { type: 'string' },
-        description: 'Files to add (use "." for all)',
+        description: 'Files to add (for add operation)',
       },
-      path: {
+      directory: {
         type: 'string',
-        description: 'Repository path (default: current directory)',
+        description: 'Working directory for git operations',
       },
     },
     required: ['operation'],
   },
-
-  async execute(args: any): Promise<any> {
-    const { operation, repository, branch, message, files, path = '.' } = args;
+  execute: async (args: GitArgs): Promise<GitResult> => {
+    const { operation, repoUrl, message, branch, files, directory } = args;
+    const cwd = directory || process.cwd();
+    let command: string;
 
     try {
-      let command = '';
-      const cwd = path;
-
       switch (operation) {
+        case 'init':
+          command = 'git init';
+          break;
         case 'clone':
-          if (!repository) throw new Error('Repository URL required for clone');
-          command = `git clone ${repository}`;
+          if (!repoUrl) throw new Error('Repository URL required for clone');
+          command = `git clone ${shellescape([repoUrl])}`;
           break;
-
-        case 'status':
-          command = 'git status';
-          break;
-
         case 'add':
           const fileList = files?.join(' ') || '.';
           command = `git add ${fileList}`;
           break;
-
         case 'commit':
           if (!message) throw new Error('Commit message required');
-          command = `git commit -m "${message.replace(/"/g, '\\"')}"`;
+          // Proper string escaping with shell-escape library
+          command = `git commit -m ${shellescape([message])}`;
           break;
-
         case 'push':
           const pushBranch = branch || 'main';
-          command = `git push origin ${pushBranch}`;
+          command = `git push origin ${shellescape([pushBranch])}`;
           break;
-
         case 'pull':
           command = 'git pull';
           break;
-
         case 'branch':
           if (branch) {
-            command = `git branch ${branch}`;
+            command = `git branch ${shellescape([branch])}`;
           } else {
             command = 'git branch';
           }
           break;
-
         case 'checkout':
           if (!branch) throw new Error('Branch name required for checkout');
-          command = `git checkout ${branch}`;
+          command = `git checkout ${shellescape([branch])}`;
           break;
-
         case 'merge':
           if (!branch) throw new Error('Branch name required for merge');
-          command = `git merge ${branch}`;
+          command = `git merge ${shellescape([branch])}`;
           break;
-
         case 'log':
           command = 'git log --oneline -10';
           break;
-
         case 'diff':
           command = 'git diff';
           break;
-
         default:
           throw new Error(`Unknown git operation: ${operation}`);
       }
