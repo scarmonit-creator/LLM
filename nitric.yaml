@@ -9,18 +9,19 @@ services:
     start: npx tsx $SERVICE_PATH
     type: default
 
+# Website configuration with CDN, custom domain, and optimized build process
 websites:
   - name: llm-website
     basedir: website
     index: index.html
     error: 404.html
-    custom_domain: www.scarmonit.com
     build:
       command: npm run build:website
       output: ./website/dist
     dev:
       command: npm run dev:website -- --port 4322
       url: http://localhost:4322
+    custom_domain: www.scarmonit.com
 
 providers:
   - nitric/aws@latest
@@ -29,21 +30,3 @@ providers:
 
 preview:
   - nitric/docker@latest
-
-# Performance optimization settings
-config:
-  cdn:
-    enabled: true
-    cache_policy: "max-age=31536000"
-  ssl:
-    enabled: true
-    redirect_http: true
-  compression:
-    enabled: true
-    types: ["text/html", "text/css", "application/javascript", "application/json"]
-  security:
-    headers:
-      x-frame-options: "DENY"
-      x-content-type-options: "nosniff"
-      referrer-policy: "strict-origin-when-cross-origin"
-      content-security-policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
