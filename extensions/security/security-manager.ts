@@ -5,6 +5,7 @@
  */
 
 import { createCipher, createDecipher, randomBytes } from 'crypto';
+import DOMPurify from 'dompurify';
 import { SecurityConfig, SecurityEvent, AuditLog } from './types';
 
 export class SecurityManager {
@@ -112,34 +113,50 @@ export class SecurityManager {
   }
 
   /**
-   * Validate and sanitize user input
+   * Validate and sanitize user input using secure methods
    */
   public validateInput(input: any, schema: any): boolean {
     try {
       // Comprehensive input validation
       if (typeof input === 'string') {
-        // XSS prevention
-        const xssPattern = /<script[^>]*>.*?<\/script>/gi;
-        if (xssPattern.test(input)) {
+        // XSS prevention using DOMPurify instead of unsafe regex
+        const originalLength = input.length;
+        const sanitized = DOMPurify.sanitize(input, { 
+          ALLOWED_TAGS: [], 
+          ALLOWED_ATTR: [] 
+        });
+        
+        // If sanitization changed the input, it contained malicious content
+        if (sanitized !== input || sanitized.length !== originalLength) {
           this.auditLogger.logSecurityEvent({
             type: 'XSS_ATTEMPT_BLOCKED',
             timestamp: new Date(),
             success: true,
-            metadata: { input: input.substring(0, 100) }
+            metadata: { 
+              originalLength,
+              sanitizedLength: sanitized.length,
+              inputPreview: input.substring(0, 100) 
+            }
           });
           return false;
         }
 
-        // SQL injection prevention
-        const sqlPattern = /(union|select|insert|update|delete|drop|create|alter|exec|execute)/gi;
-        if (sqlPattern.test(input)) {
-          this.auditLogger.logSecurityEvent({
-            type: 'SQL_INJECTION_BLOCKED',
-            timestamp: new Date(),
-            success: true,
-            metadata: { input: input.substring(0, 100) }
-          });
-          return false;
+        // SQL injection prevention using safer detection
+        const suspiciousSqlPatterns = [
+          /('|(\-\-)|(;)|(\||\|)|(\*|\*))/, // Common SQL injection characters
+          /\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\s+/gi
+        ];
+        
+        for (const pattern of suspiciousSqlPatterns) {
+          if (pattern.test(input)) {
+            this.auditLogger.logSecurityEvent({
+              type: 'SQL_INJECTION_BLOCKED',
+              timestamp: new Date(),
+              success: true,
+              metadata: { inputPreview: input.substring(0, 100) }
+            });
+            return false;
+          }
         }
       }
 
@@ -153,6 +170,40 @@ export class SecurityManager {
         error: error.message
       });
       return false;
+    }
+  }
+
+  /**
+   * Sanitize HTML content safely
+   */
+  public sanitizeHtml(htmlContent: string): string {
+    try {
+      const sanitized = DOMPurify.sanitize(htmlContent, {
+        ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'u'],
+        ALLOWED_ATTR: ['class', 'id'],
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+        FORBID_ATTR: ['onclick', 'onerror', 'onload', 'onmouseover']
+      });
+      
+      this.auditLogger.logSecurityEvent({
+        type: 'HTML_SANITIZATION',
+        timestamp: new Date(),
+        success: true,
+        metadata: {
+          originalLength: htmlContent.length,
+          sanitizedLength: sanitized.length
+        }
+      });
+      
+      return sanitized;
+    } catch (error) {
+      this.auditLogger.logSecurityEvent({
+        type: 'SANITIZATION_ERROR',
+        timestamp: new Date(),
+        success: false,
+        error: error.message
+      });
+      throw new Error('HTML sanitization failed');
     }
   }
 
