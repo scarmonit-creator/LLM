@@ -96,12 +96,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/scarmonit-creator/LLM.git"
+    "url": "https://github.com/Scarmonit/LLM.git"
   },
   "bugs": {
-    "url": "https://github.com/scarmonit-creator/LLM/issues"
+    "url": "https://github.com/Scarmonit/LLM/issues"
   },
-  "homepage": "https://github.com/scarmonit-creator/LLM#readme",
+  "homepage": "https://github.com/Scarmonit/LLM#readme",
   "nitric": {},
   "optimization": {}
 }
