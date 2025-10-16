@@ -4,13 +4,55 @@
   "description": "LLM integration project with Ultra-Advanced Optimization Systems - BREAKTHROUGH PERFORMANCE + AI-DRIVEN OPTIMIZATION",
   "main": "server-optimized.js",
   "type": "module",
-  "scripts": {},
+  "scripts": {
+    "start": "node server.js",
+    "start:optimized": "node server-optimized.js",
+    "start:ultra": "node server-ultra-optimized.js",
+    "start:production": "NODE_ENV=production node server-optimized.js",
+    "dev": "NODE_ENV=development nodemon server.js",
+    "test": "cross-env NODE_ENV=test jest",
+    "test:coverage": "cross-env NODE_ENV=test jest --coverage",
+    "test:watch": "cross-env NODE_ENV=test jest --watch",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "build": "tsc",
+    "build:tools": "tsc -p tools/tsconfig.json",
+    "build:optimized": "cross-env NODE_ENV=production tsc",
+    "build:ultra": "cross-env NODE_ENV=production OPTIMIZATION_LEVEL=ultra tsc",
+    "build:website": "node scripts/build-website.js",
+    "ultra:optimize": "node scripts/ultra-optimization-nexus.js",
+    "breakthrough:optimize": "node scripts/breakthrough-system-optimizer.js",
+    "system:optimize": "node scripts/complete-system-optimization.js",
+    "performance:analyze": "node scripts/performance-optimizer.js",
+    "health:check": "node scripts/health-check.js",
+    "validate:ultra": "node scripts/validate-optimization.js",
+    "concurrent:optimize": "node scripts/concurrent-optimization.js",
+    "test:performance": "cross-env NODE_ENV=test node scripts/performance-tests.js",
+    "optimize": "node scripts/optimization-suite.js",
+    "optimize:full": "node scripts/full-optimization.js",
+    "deps:check": "npm audit && npm outdated",
+    "security:audit": "npm audit --audit-level=moderate",
+    "production:full": "cross-env NODE_ENV=production node server-ultra-optimized.js"
+  },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0",
     "python": ">=3.8.0"
   },
-  "keywords": [],
+  "keywords": [
+    "llm",
+    "ai",
+    "optimization",
+    "performance",
+    "claude",
+    "ollama",
+    "jules",
+    "rag",
+    "websocket",
+    "autonomous"
+  ],
   "author": "scarmonit-creator",
   "license": "ISC",
   "dependencies": {
@@ -46,7 +88,8 @@
     "jest": "^29.7.0",
     "prettier": "^3.4.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "nodemon": "^3.0.2"
   },
   "optionalDependencies": {
     "psutil": "*"
