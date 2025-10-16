@@ -6,7 +6,9 @@
 // contain a JSON object with a `response` field. No API key is required.
 // See documentation: https://www.apifreellm.com/docs#free-api
 
-import fetch from 'node-fetch';
+// Fix TypeScript errors by using proper global declarations
+declare const fetch: typeof import('undici').fetch;
+declare const console: Console;
 
 export interface ApiFreeLLMOptions {
   /** Additional model option. Currently ignored because the free API uses a default model. */
@@ -51,13 +53,12 @@ export async function chat(message: string, opts: ApiFreeLLMOptions = {}): Promi
 }
 
 // Example usage: run this file directly with ts-node to test the API.
-if (require.main === module) {
-  (async () => {
-    try {
-      const resp = await chat('Hello! Who are you?');
-      console.log(resp);
-    } catch (err) {
-      console.error(err);
-    }
-  })();
+// Note: Removing problematic require.main check that caused TypeScript errors
+export async function testApiFreeLLM(): Promise<void> {
+  try {
+    const resp = await chat('Hello! Who are you?');
+    console.log(resp);
+  } catch (err) {
+    console.error(err);
+  }
 }
