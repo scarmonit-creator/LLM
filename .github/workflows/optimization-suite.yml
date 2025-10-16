@@ -30,8 +30,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
-      - run: npm install ws
+      - name: Add ws to package.json
+        run: |
+          node -e "const fs=require('fs');const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));pkg.dependencies.ws='^8.18.0';fs.writeFileSync('package.json',JSON.stringify(pkg,null,2));"
+      - run: npm install
       - name: Run hardened bridge demo
         run: |
           echo "Running hardened bridge demo..."
