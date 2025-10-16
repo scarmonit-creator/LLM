@@ -160,7 +160,7 @@ jobs:
                 
                 # Add tsconfig.json if missing but TypeScript files exist
                 if [ ! -f "tsconfig.json" ] && find . -name "*.ts" -not -path "./node_modules/*" | grep -q .; then
-                  cat > tsconfig.json << 'EOF'
+                  cat > tsconfig.json <<EOF
 {
   "compilerOptions": {
     "target": "ES2020",
