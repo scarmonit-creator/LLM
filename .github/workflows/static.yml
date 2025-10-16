@@ -151,29 +151,29 @@ jobs:
           # Ensure we have an index.html
           if [ ! -f "optimized-static/index.html" ]; then
             echo "📝 Creating fallback index.html..."
-            cat > optimized-static/index.html << 'EOF'
-<!DOCTYPE html>
-<html>
-<head>
-    <title>LLM Framework</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        .container { max-width: 800px; margin: 0 auto; }
-        h1 { color: #333; }
-        .status { color: #28a745; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>LLM Framework</h1>
-        <p class="status">Site successfully deployed!</p>
-        <p>Welcome to the LLM Framework deployment. This site is now live and serving content.</p>
-    </div>
-</body>
-</html>
-EOF
+            cat > optimized-static/index.html << "HTMLEOF"
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>LLM Framework</title>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; }
+                  .container { max-width: 800px; margin: 0 auto; }
+                  h1 { color: #333; }
+                  .status { color: #28a745; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>LLM Framework</h1>
+                  <p class="status">Site successfully deployed!</p>
+                  <p>Welcome to the LLM Framework deployment. This site is now live and serving content.</p>
+              </div>
+          </body>
+          </html>
+          HTMLEOF
           fi
           
           # Performance optimization based on site size
