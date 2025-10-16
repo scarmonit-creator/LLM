@@ -17,7 +17,13 @@
  * - Custom error handling
  * - SSE stream error recovery
  */
-import { ReadableStreamDefaultReader } from 'stream/web';
+
+// Fix TypeScript errors by using proper Node.js globals and types
+declare const fetch: typeof import('undici').fetch;
+declare const AbortController: typeof globalThis.AbortController;
+declare const Response: typeof globalThis.Response;
+declare const RequestInit: typeof globalThis.RequestInit;
+declare const setTimeout: typeof globalThis.setTimeout;
 
 export type DuckModel =
   | 'gpt-4o-mini'
@@ -111,13 +117,13 @@ function validatePrompt(prompt: string): void {
 }
 
 /**
- * Fetch with timeout
+ * Fetch with timeout using proper types
  */
 async function fetchWithTimeout(
   url: string,
-  options: RequestInit,
+  options: any,
   timeout: number
-): Promise<Response> {
+): Promise<any> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
   
@@ -210,7 +216,7 @@ async function getVqdToken(timeout: number, maxRetries: number): Promise<string>
  * The stream ends when the data line is `[DONE]`.
  */
 async function parseSse(
-  reader: ReadableStreamDefaultReader<Uint8Array>
+  reader: any
 ): Promise<string> {
   const decoder = new TextDecoder();
   let buffer = '';
