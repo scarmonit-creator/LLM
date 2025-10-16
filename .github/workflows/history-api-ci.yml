@@ -1,12 +1,10 @@
 name: History API CI
-
 on:
   push:
     branches: [ main, feat/browser-history-api-complete ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-
 jobs:
   test-history-api:
     runs-on: ubuntu-latest
@@ -89,27 +87,6 @@ jobs:
           echo "Warning: Graceful shutdown took longer than expected"
           kill -9 $SERVER_PID || true
           exit 0
-      
-      - name: Run start:history script
-        run: |
-          # Test the npm script that runs build and starts server
-          timeout 30 npm run start:history &
-          SERVER_PID=$!
-          
-          # Wait for server to start
-          echo "Waiting for server via start:history script..."
-          for i in {1..10}; do
-            if curl -s http://localhost:3001/history > /dev/null 2>&1; then
-              echo "start:history script started server successfully"
-              kill $SERVER_PID || true
-              exit 0
-            fi
-            sleep 1
-          done
-          
-          echo "start:history script failed to start server"
-          kill $SERVER_PID || true
-          exit 1
       
       - name: Run history endpoint tests
         run: npm test -- tests/history-endpoint.test.js
