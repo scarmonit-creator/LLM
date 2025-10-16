@@ -33,8 +33,9 @@ jobs:
       - name: Install dependencies
         run: |
           npm ci
-          npm install --save-dev ws
       - name: Run hardened bridge demo
+        env:
+          NODE_OPTIONS: "--experimental-modules"
         run: |
           echo "Running hardened bridge demo..."
           node examples/bridge-demo-hardened.js | tee bridge-results.json
