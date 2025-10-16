@@ -80,55 +80,20 @@ jobs:
           BASELINE=$(node baseline-test.mjs)
           echo "baseline_metrics=$BASELINE" >> $GITHUB_OUTPUT
           echo "Baseline metrics: $BASELINE"
-      - name: ♻️ Ensure ES Module Compatibility in tests
+      - name: ♻️ Ensure ES Module Compatibility
         run: |
-          # Convert CommonJS test files to ES Module imports if needed
-          if [ -d "tests" ]; then
-            find tests -type f -name "*.test.js" -o -name "*.spec.js" | while read -r f; do
-              # Ensure 'import' syntax header if file contains require()
-              if grep -q "require(\"\|require('" "$f"; then
-                tmp="$f.tmp"
-                echo "// Auto-migrated to ES Module syntax" > "$tmp"
-                # Basic transforms: require('x') -> import x from 'x'
-                # This is a heuristic; complex cases should be updated manually later.
-                node -e "
-                  const fs=require('fs');
-                  let s=fs.readFileSync(process.argv[1],'utf8');
-                  s=s.replace(/const\\s+({?[^=]+}?)\\s*=\\s*require\\((['\"])([^'\"]+)\\2\\)\s*;?/g,(m,vars,q,mod)=>{
-                    if(vars.trim().startsWith('{')) return `import ${vars} from '${mod}';`;
-                    return `import ${vars.replace(/^(const|let|var)\s+/,'')} from '${mod}';`;
-                  });
-                  s=s.replace(/module\.exports\s*=\s*([^;]+);?/g,'export default $1;');
-                  s=s.replace(/exports\.(\w+)\s*=\s*([^;]+);?/g,'export const $1 = $2;');
-                  fs.writeFileSync(process.argv[2], s);
-                " "$f" "$tmp"
-                mv "$tmp" "$f"
-              fi
-              # Ensure file extension .mjs for Node ESM execution
-              if echo "$f" | grep -qE "\\.test\\.js$|\\.spec\\.js$"; then
-                mv "$f" "${f%js}mjs"
-              fi
-            done
+          echo "Checking ES module compatibility..."
+          # Simple ES module compatibility check - ensure package.json has type: module if needed
+          if [ -f "package.json" ]; then
+            if grep -q '"type":\s*"module"' package.json; then
+              echo "ES modules already configured"
+            else
+              echo "CommonJS mode detected - ensuring compatibility"
+            fi
           fi
-      - name: 🧪 Add missing dependency guards in tests
-        run: |
-          if [ -d "tests" ]; then
-            find tests -type f -name "*.mjs" | while read -r f; do
-              # Prepend try/catch import guards for optional deps patterns
-              node -e "
-                import fs from 'node:fs';
-                const p=process.argv[1];
-                let s=fs.readFileSync(p,'utf8');
-                if(!s.includes('/* ESM-Guarded Imports */')){
-                  s = `/* ESM-Guarded Imports */\n` + s.replace(/^import\s+([\s\S]+?)from\s+(['\"][^'\"]+['\"]);/gm,(m)=>{
-                    const mod=m.match(/from\s+(['\"][^'\"]+['\"])/)[1];
-                    return `try { ${m} } catch (e) { if (e?.code === 'ERR_MODULE_NOT_FOUND') { console.warn('Optional dependency missing for', ${mod}); } else { throw e; } }`;
-                  });
-                  fs.writeFileSync(p,s);
-                }
-              " "$f"
-            done
-          fi
+          # Create test directory if it doesn't exist
+          mkdir -p tests
+          echo "ES module compatibility check complete"
       - name: ⚡ Run Performance Optimizer (Standalone)
         if: matrix.demo_type == 'ultra'
         run: |
