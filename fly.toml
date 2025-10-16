@@ -1,43 +1,97 @@
 app = 'llm-framework-prod'
 primary_region = 'dfw'
 kill_signal = 'SIGINT'
-kill_timeout = '10s'
+kill_timeout = '5s'
 
 [experimental]
   auto_rollback = true
+  enable_consul = true
+  enable_etcd = true
 
 [build]
+  builder = 'heroku/buildpacks:20'
 
 [env]
   NODE_ENV = 'production'
   PORT = '8080'
   DASHBOARD_PORT = '8081'
   MCP_PORT = '3001'
+  # Performance optimizations
+  NODE_OPTIONS = '--expose-gc --max-old-space-size=1024 --optimize-for-size --max-semi-space-size=64'
+  UV_THREADPOOL_SIZE = '8'
+  MALLOC_ARENA_MAX = '2'
+  # Caching optimizations
+  ENABLE_REDIS_CACHE = 'true'
+  CACHE_TTL = '3600'
+  # Database optimizations
+  SQLITE_CACHE_SIZE = '10000'
+  SQLITE_JOURNAL_MODE = 'WAL'
+  SQLITE_SYNCHRONOUS = 'NORMAL'
+  # Monitoring
+  ENABLE_DETAILED_METRICS = 'true'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = false
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 2
+  max_machines_running = 6
 
   [http_service.concurrency]
     type = 'connections'
-    hard_limit = 1000
-    soft_limit = 800
+    hard_limit = 2000
+    soft_limit = 1500
 
-[[http_service.checks]]
-  interval = '30s'
-  timeout = '5s'
-  grace_period = '15s'
-  method = 'get'
-  path = '/health'
+  # Enhanced health checks
+  [[http_service.checks]]
+    interval = '15s'
+    timeout = '3s'
+    grace_period = '10s'
+    method = 'get'
+    path = '/health'
+    headers = { "User-Agent" = "Fly-Health-Check" }
 
+  # Performance check endpoint
+  [[http_service.checks]]
+    interval = '60s'
+    timeout = '5s'
+    grace_period = '15s'
+    method = 'get'
+    path = '/metrics'
+
+# Upgraded VM configuration for better performance
 [[vm]]
-  cpu_kind = 'shared'
-  cpus = 1
-  memory_mb = 512
+  cpu_kind = 'performance'
+  cpus = 2
+  memory_mb = 1024
+  # Enable swap for memory optimization
+  swap_size_mb = 512
 
 [deploy]
-  release_command = 'npm run build || echo Build attempted'
-  strategy = 'canary'
+  release_command = 'npm run deploy:prepare && npm run optimize:concurrent'
+  strategy = 'rolling'
+  max_unavailable = 1
+
+# Network optimizations
+[metrics]
+  port = 9091
+  path = "/metrics"
+
+# File system optimizations
+[mounts]
+  source = "data_volume"
+  destination = "/app/data"
+  initial_size = "1gb"
+
+# Process groups for better resource management
+[processes]
+  app = "npm run start:production"
+  worker = "npm run concurrent:optimize"
+  monitor = "npm run monitoring:concurrent"
+
+# Restart policy
+[restart]
+  policy = "on-failure"
+  max_restarts = 3
+  delay = "5s"
