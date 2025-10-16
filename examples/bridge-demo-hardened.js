@@ -1,11 +1,8 @@
 #!/usr/bin/env node
-"use strict";
 
-// Hardened bridge demo runner with circular metrics buffer, WS heartbeat, and request queue
-const { setTimeout: sleep } = require('timers/promises');
-const crypto = require('crypto');
-const WebSocket = require('ws');
-const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
+import { setTimeout as sleep } from 'timers/promises';
+import crypto from 'crypto';
+import WebSocket from 'ws';
 
 const CONFIG = Object.freeze({
   WS_ENDPOINT: process.env.WS_ENDPOINT || 'ws://localhost:8070/ws',
@@ -26,7 +23,6 @@ class Circular {
 const metrics = { start: Date.now(), req: 0, err: 0, dur: new Circular(CONFIG.METRICS_BUFFER) };
 
 function record(ms){ metrics.dur.push(ms); }
-
 function p95(a){ if(!a.length) return 0; const s=[...a].sort((x,y)=>x-y); return s[Math.floor(s.length*0.95)]; }
 
 // WS client with heartbeat and auto-reconnect
@@ -51,8 +47,7 @@ class Queue {
   constructor(n){ this.n=n; this.q=[]; this.active=0; }
   push(task){ return new Promise((resolve,reject)=>{ this.q.push({task,resolve,reject}); this._drain(); }); }
   async _drain(){
-    while(this.active<this.n && this.q.length){ const it=this.q.shift(); this.active++; try{ const v=await it.task(); it.resolve(v); }catch(e){ it.reject(e); } finally{ this.active--; }
-    }
+    while(this.active<this.n && this.q.length){ const it=this.q.shift(); this.active++; try{ const v=await it.task(); it.resolve(v); }catch(e){ it.reject(e); } finally{ this.active--; }}
   }
 }
 
@@ -60,7 +55,6 @@ async function main(){
   const ws = new WSClient(CONFIG.WS_ENDPOINT);
   await ws.connect();
   const queue = new Queue(CONFIG.MAX_CONCURRENCY);
-
   async function runOnce(prompt){
     const cid = crypto.randomBytes(4).toString('hex');
     const started = Date.now();
@@ -75,23 +69,17 @@ async function main(){
     ws.send({type:'result', cid, ok, err, dur});
     return {ok, err, dur};
   }
-
   const prompts = [
     'Resilient orchestration benefits',
     'Fallback design for multi-agent systems',
     'Circuit breaker vs retry patterns',
     'Queue-based backpressure in Node.js'
   ];
-
   const results = await Promise.all(prompts.map(p=> queue.push(()=>runOnce(p)) ));
-
   const vals = metrics.dur.values();
   const avg = vals.length? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0;
   console.log(JSON.stringify({ ok: results.reduce((a,b)=>a+b.ok,0), err: results.reduce((a,b)=>a+b.err,0), avg_ms: avg, p95_ms: p95(vals) }));
-
   ws.close();
 }
 
-if (require.main === module){
-  main().catch(e=>{ console.error('fatal', e.message); process.exit(1); });
-}
+main().catch(e=>{ console.error('fatal', e.message); process.exit(1); });
