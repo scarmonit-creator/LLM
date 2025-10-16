@@ -33,8 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           npm ci
-          rm -f package-lock.json
-          npm install ws
+          npm install --save-dev ws
       - name: Run hardened bridge demo
         run: |
           echo "Running hardened bridge demo..."
