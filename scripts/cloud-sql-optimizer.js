@@ -2,9 +2,8 @@
  * Cloud SQL Optimizer
  * Provides comprehensive SQL optimization, connection pooling, and performance monitoring
  */
-
-const { Pool } = require('pg');
-const { performance } = require('perf_hooks');
+import { Pool } from 'pg';
+import { performance } from 'perf_hooks';
 
 class CloudSQLOptimizer {
   constructor(config = {}) {
@@ -21,7 +20,6 @@ class CloudSQLOptimizer {
       maxUses: config.maxUses || 7500,
       ssl: config.ssl || false
     };
-
     this.pool = null;
     this.metrics = {
       totalQueries: 0,
@@ -37,7 +35,6 @@ class CloudSQLOptimizer {
         errors: 0
       }
     };
-
     this.slowQueryThreshold = config.slowQueryThreshold || 1000; // ms
     this.cacheEnabled = config.cacheEnabled !== false;
     this.cacheTTL = config.cacheTTL || 300000; // 5 minutes
@@ -49,28 +46,28 @@ class CloudSQLOptimizer {
   async initialize() {
     try {
       this.pool = new Pool(this.config);
-
+      
       // Pool event handlers
       this.pool.on('connect', () => {
         this.metrics.connectionStats.created++;
         console.log('[CloudSQL] New client connected');
       });
-
+      
       this.pool.on('remove', () => {
         this.metrics.connectionStats.closed++;
         console.log('[CloudSQL] Client removed from pool');
       });
-
+      
       this.pool.on('error', (err) => {
         this.metrics.connectionStats.errors++;
         console.error('[CloudSQL] Pool error:', err.message);
       });
-
+      
       // Test connection
       const client = await this.pool.connect();
       await client.query('SELECT NOW()');
       client.release();
-
+      
       console.log('[CloudSQL] Connection pool initialized successfully');
       return true;
     } catch (error) {
@@ -84,22 +81,22 @@ class CloudSQLOptimizer {
    */
   optimizeQuery(query) {
     let optimized = query.trim();
-
+    
     // Remove unnecessary whitespace
     optimized = optimized.replace(/\s+/g, ' ');
-
+    
     // Add LIMIT if not present for SELECT queries
     if (optimized.toUpperCase().startsWith('SELECT') && 
         !optimized.toUpperCase().includes('LIMIT')) {
       optimized += ' LIMIT 1000';
     }
-
+    
     // Suggest indexes for WHERE clauses
     const whereMatch = optimized.match(/WHERE\s+(\w+)/i);
     if (whereMatch) {
       console.log(`[CloudSQL] Consider adding index on: ${whereMatch[1]}`);
     }
-
+    
     return optimized;
   }
 
@@ -109,9 +106,9 @@ class CloudSQLOptimizer {
   async query(sql, params = [], options = {}) {
     const startTime = performance.now();
     const queryId = this.generateQueryId(sql, params);
-
+    
     this.metrics.totalQueries++;
-
+    
     try {
       // Check cache
       if (this.cacheEnabled && !options.skipCache) {
@@ -121,31 +118,31 @@ class CloudSQLOptimizer {
           return cached;
         }
       }
-
+      
       // Optimize query
       const optimizedSQL = options.skipOptimization ? sql : this.optimizeQuery(sql);
-
+      
       // Execute query
       const result = await this.pool.query(optimizedSQL, params);
-
+      
       const endTime = performance.now();
       const duration = endTime - startTime;
-
+      
       // Update metrics
       this.metrics.successfulQueries++;
       this.metrics.totalQueryTime += duration;
       this.metrics.avgQueryTime = this.metrics.totalQueryTime / this.metrics.successfulQueries;
-
+      
       if (duration > this.slowQueryThreshold) {
         this.metrics.slowQueries++;
         console.warn(`[CloudSQL] Slow query detected (${duration.toFixed(2)}ms):`, optimizedSQL);
       }
-
+      
       // Cache result
       if (this.cacheEnabled && sql.toUpperCase().startsWith('SELECT')) {
         this.addToCache(queryId, result);
       }
-
+      
       console.log(`[CloudSQL] Query executed in ${duration.toFixed(2)}ms`);
       return result;
     } catch (error) {
@@ -160,6 +157,7 @@ class CloudSQLOptimizer {
    */
   async transaction(callback) {
     const client = await this.pool.connect();
+    
     try {
       await client.query('BEGIN');
       const result = await callback(client);
@@ -181,7 +179,7 @@ class CloudSQLOptimizer {
   async batchQuery(queries) {
     const results = [];
     const client = await this.pool.connect();
-
+    
     try {
       for (const { sql, params } of queries) {
         const result = await client.query(sql, params);
@@ -214,13 +212,13 @@ class CloudSQLOptimizer {
   getFromCache(key) {
     const cached = this.metrics.queryCache.get(key);
     if (!cached) return null;
-
+    
     const age = Date.now() - cached.timestamp;
     if (age > this.cacheTTL) {
       this.metrics.queryCache.delete(key);
       return null;
     }
-
+    
     return cached.value;
   }
 
@@ -291,6 +289,7 @@ class CloudSQLOptimizer {
    */
   async analyzeQuery(sql, params = []) {
     const explainQuery = `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sql}`;
+    
     try {
       const result = await this.pool.query(explainQuery, params);
       const plan = result.rows[0]['QUERY PLAN'][0];
@@ -323,25 +322,27 @@ class CloudSQLOptimizer {
 // Export singleton instance and class
 let instance = null;
 
-module.exports = {
-  CloudSQLOptimizer,
-  getInstance: (config) => {
-    if (!instance) {
-      instance = new CloudSQLOptimizer(config);
-    }
-    return instance;
-  },
-  createOptimizer: (config) => new CloudSQLOptimizer(config)
+export { CloudSQLOptimizer };
+
+export const getInstance = (config) => {
+  if (!instance) {
+    instance = new CloudSQLOptimizer(config);
+  }
+  return instance;
 };
 
+export const createOptimizer = (config) => new CloudSQLOptimizer(config);
+
+export default CloudSQLOptimizer;
+
 // CLI usage
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   (async () => {
     const optimizer = new CloudSQLOptimizer({
       database: process.env.DB_NAME || 'testdb',
       user: process.env.DB_USER || 'postgres'
     });
-
+    
     try {
       await optimizer.initialize();
       
