@@ -1,0 +1,31 @@
+{
+  "name": "Selected Text → LLM Optimizer",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "description": "Capture selected text and send to LLM service for autonomous optimization and analysis",
+  "action": {
+    "default_title": "Send selected text to LLM for optimization",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "host_permissions": [
+    "http://localhost:*/*",
+    "https://localhost:*/*"
+  ]
+}
