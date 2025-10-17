@@ -1,7 +1,20 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import http from 'http';
+import https from 'https';
 import { PerformanceMonitor } from './src/performance-monitor.js';
+
+// Configure keep-alive for outbound HTTP/HTTPS connections
+http.globalAgent.keepAlive = true;
+http.globalAgent.keepAliveMsecs = 60000;
+http.globalAgent.maxSockets = 1024;
+http.globalAgent.maxFreeSockets = 256;
+
+https.globalAgent.keepAlive = true;
+https.globalAgent.keepAliveMsecs = 60000;
+https.globalAgent.maxSockets = 1024;
+https.globalAgent.maxFreeSockets = 256;
 
 // ESM compatibility
 const __filename = fileURLToPath(import.meta.url);
@@ -136,6 +149,11 @@ app.use((req, res, next) => {
   });
   
   next();
+});
+
+// Lightweight health check endpoint
+app.get('/healthz', (req, res) => {
+  res.status(200).send('ok');
 });
 
 // Health check endpoint optimized for Fly.io

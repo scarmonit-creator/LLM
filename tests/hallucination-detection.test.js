@@ -5,7 +5,7 @@ import {
   calculateSemanticEntropy,
   performSelfCheckGPT,
   getHallucinationScore,
-} from '../src/hallucination-detection.js';
+} from '../../src/hallucination-detection.js';
 
 test('detectHallucination identifies high confidence responses', async () => {
   const response = 'The capital of France is Paris.';

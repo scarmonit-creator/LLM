@@ -1,6 +1,7 @@
 version: 2
+
 updates:
-  # Maintain dependencies for npm
+  # Enable version updates for npm
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -14,12 +15,32 @@ updates:
       - "scarmonit-creator"
     commit-message:
       prefix: "deps"
+      prefix-development: "deps-dev"
       include: "scope"
     labels:
       - "dependencies"
       - "npm"
-    
-  # Maintain dependencies for GitHub Actions
+    versioning-strategy: increase
+    groups:
+      production-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "@types/*"
+          - "eslint*"
+          - "prettier"
+          - "jest"
+          - "typescript"
+      dev-dependencies:
+        dependency-type: "development"
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "prettier"
+          - "jest"
+          - "typescript"
+
+  # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -37,3 +58,23 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+      - "ci/cd"
+
+  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "scarmonit-creator"
+    assignees:
+      - "scarmonit-creator"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docker"

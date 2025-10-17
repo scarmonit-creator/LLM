@@ -1,12 +1,26 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import http from 'http';
+import https from 'https';
 import { PerformanceMonitor } from './src/performance-monitor.js';
 import { NodePerformanceOptimizer } from './src/concurrent-node-optimizer.js';
+import { metricsMiddleware, setupSelectionRoutes, getMetrics } from './src/selection-middleware.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import cluster from 'cluster';
 import { cpus } from 'os';
+
+// Configure keep-alive for outbound HTTP/HTTPS connections
+http.globalAgent.keepAlive = true;
+http.globalAgent.keepAliveMsecs = 60000;
+http.globalAgent.maxSockets = 1024;
+http.globalAgent.maxFreeSockets = 256;
+
+https.globalAgent.keepAlive = true;
+https.globalAgent.keepAliveMsecs = 60000;
+https.globalAgent.maxSockets = 1024;
+https.globalAgent.maxFreeSockets = 256;
 
 // ESM compatibility
 const __filename = fileURLToPath(import.meta.url);
@@ -61,10 +75,13 @@ class EnhancedLLMServer {
     
     // Setup routes
     this.setupRoutes();
-    
+
     // Setup concurrent optimization routes
     this.setupOptimizationRoutes();
-    
+
+    // Setup selection API routes (new)
+    setupSelectionRoutes(this.app);
+
     // Setup error handling
     this.setupErrorHandling();
     
@@ -122,33 +139,34 @@ class EnhancedLLMServer {
   setupMiddleware() {
     // JSON parsing
     this.app.use(express.json());
-    
+
+    // FIXED: Metrics middleware with safe BigInt byte accounting
+    this.app.use(metricsMiddleware);
+
     // Performance tracking middleware
     this.app.use((req, res, next) => {
       const startTime = Date.now();
       this.metrics.requests++;
-      
+
       this.perfMonitor.measureOperation(`http-${req.method}-${req.path}`, () => {
         res.on('finish', () => {
           const responseTime = Date.now() - startTime;
           this.metrics.responseTimes.push(responseTime);
-          
+
           if (this.metrics.responseTimes.length > 100) {
             this.metrics.responseTimes.shift();
           }
-          
+
           if (responseTime > 1000) {
             this.metrics.slowRequests++;
             console.log(`Slow request: ${req.method} ${req.path} took ${responseTime}ms`);
           }
-          
-          this.metrics.totalDataTransferred += (res.get('Content-Length') || 0);
         });
       });
-      
+
       next();
     });
-    
+
     // Update metrics periodically
     setInterval(() => {
       this.metrics.memory = process.memoryUsage();
@@ -157,6 +175,11 @@ class EnhancedLLMServer {
   }
   
   setupRoutes() {
+    // Lightweight health check endpoint
+    this.app.get('/healthz', (req, res) => {
+      res.status(200).send('ok');
+    });
+
     // Enhanced health check
     this.app.get('/health', (req, res) => {
       const uptime = Math.floor((Date.now() - this.metrics.uptime) / 1000);
@@ -227,7 +250,8 @@ class EnhancedLLMServer {
           memory: {
             heapUsed: Math.round(this.metrics.memory.heapUsed / 1024 / 1024),
             heapTotal: Math.round(this.metrics.memory.heapTotal / 1024 / 1024)
-          }
+          },
+          ...getMetrics() // FIXED: Safe byte metrics without overflow
         },
         endpoints: [
           { path: '/health', method: 'GET', description: 'Enhanced health check with concurrent metrics' },
@@ -236,7 +260,10 @@ class EnhancedLLMServer {
           { path: '/optimize/realtime', method: 'POST', description: 'Start/stop real-time optimization' },
           { path: '/metrics/concurrent', method: 'GET', description: 'Concurrent optimization metrics' },
           { path: '/history', method: 'GET', description: 'Browser history with concurrent processing' },
-          { path: '/performance/enhanced', method: 'GET', description: 'Enhanced performance metrics' }
+          { path: '/performance/enhanced', method: 'GET', description: 'Enhanced performance metrics' },
+          { path: '/api/selection', method: 'POST', description: 'Save selected text (requires auth)' },
+          { path: '/api/selection/latest', method: 'GET', description: 'Get recent selections' },
+          { path: '/api/selection/search', method: 'GET', description: 'Search selections' }
         ]
       });
     });
@@ -542,7 +569,7 @@ class EnhancedLLMServer {
   
   start() {
     const server = this.app.listen(this.PORT, '0.0.0.0', () => {
-      const isRealHistory = this.browserHistoryTool.constructor.name !== 'MockBrowserHistoryTool';
+      const isRealHistory = this.browserHistoryTool?.constructor?.name !== 'MockBrowserHistoryTool';
       
       console.log('🚀 LLM AI Bridge Server - CONCURRENT OPTIMIZED EDITION');
       console.log('=' .repeat(80));

@@ -5,7 +5,7 @@ import VerifyRectifyLoop, {
   verifyResponse,
   rectifyResponse,
   runVerificationLoop,
-} from '../src/verify-rectify-loop.js';
+} from '../../src/verify-rectify-loop.js';
 
 test('ClaimVerifier basic verification flow', async () => {
   const verifier = new ClaimVerifier();

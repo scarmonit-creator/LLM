@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import RAGPipeline from '../src/rag-pipeline.js';
+import RAGPipeline from '../../src/rag-pipeline.js';
 
 test('RAG pipeline operates with in-memory vector store fallback', async () => {
   const previous = process.env.LLM_VECTOR_STORE;

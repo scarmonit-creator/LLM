@@ -189,6 +189,23 @@ class ErrorManager {
 
 const errorManager = new ErrorManager();
 
+/**
+ * Helper function to find most common errors
+ */
+function getMostCommonErrors(errors: ErrorReport[]): Array<{ message: string; count: number }> {
+  const errorCounts: Record<string, number> = {};
+
+  errors.forEach(error => {
+    const key = error.message.substring(0, 100); // Truncate for grouping
+    errorCounts[key] = (errorCounts[key] || 0) + 1;
+  });
+
+  return Object.entries(errorCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([message, count]) => ({ message, count }));
+}
+
 export const errorHandler: Tool = {
   name: 'error_handler',
   description: 'Comprehensive error handling, logging, and recovery system',
@@ -281,7 +298,7 @@ export const errorHandler: Tool = {
             },
             resolved: errors.filter(e => e.resolved).length,
             unresolved: errors.filter(e => !e.resolved).length,
-            mostCommonErrors: this.getMostCommonErrors(errors),
+            mostCommonErrors: getMostCommonErrors(errors),
             recentErrors: errors.slice(-10)
           };
           
@@ -318,20 +335,6 @@ export const errorHandler: Tool = {
         timestamp: new Date().toISOString()
       };
     }
-  },
-  
-  getMostCommonErrors(errors: ErrorReport[]): Array<{ message: string; count: number }> {
-    const errorCounts: Record<string, number> = {};
-    
-    errors.forEach(error => {
-      const key = error.message.substring(0, 100); // Truncate for grouping
-      errorCounts[key] = (errorCounts[key] || 0) + 1;
-    });
-    
-    return Object.entries(errorCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
-      .map(([message, count]) => ({ message, count }));
   }
 };
 

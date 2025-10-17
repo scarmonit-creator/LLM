@@ -5,7 +5,7 @@ import ReActAgent, {
   executeToolCall,
   runReActLoop,
   formatToolResponse,
-} from '../src/react-tool-reasoning.js';
+} from '../../src/react-tool-reasoning.js';
 
 test('ReActAgent returns final answer when LLM provides finish output', async () => {
   const llm = { generate: async () => 'Final Answer: done' };

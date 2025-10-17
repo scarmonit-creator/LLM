@@ -1,5 +1,5 @@
 import { strict as assert } from 'assert';
-import TabSelectionManager from '../src/selection/tab-selection-manager.js';
+import TabSelectionManager from '../../src/selection/tab-selection-manager.js';
 
 (async () => {
   const manager = new TabSelectionManager();

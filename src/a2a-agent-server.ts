@@ -1,5 +1,5 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 
 // Agent status types
@@ -286,10 +286,10 @@ export function createA2AServer(config: {
   if (config.enableWebSocket) {
     const wss = new WebSocketServer({ server });
 
-    wss.on('connection', (ws) => {
+    wss.on('connection', (ws: WebSocket) => {
       console.log('WebSocket connection established');
 
-      ws.on('message', (message) => {
+      ws.on('message', (message: Buffer) => {
         console.log('Received:', message.toString());
         ws.send(JSON.stringify({ status: 'received', message: message.toString() }));
       });

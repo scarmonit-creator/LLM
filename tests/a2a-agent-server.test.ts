@@ -22,7 +22,7 @@ import {
   clearAgentCache,
   A2AAgent as _A2AAgent,
   agentCache,
-} from '../src/a2a-agent-server';
+} from '../../dist/src/a2a-agent-server.js';
 
 // Helper function to mimic expect API
 const expect = (actual: any) => ({

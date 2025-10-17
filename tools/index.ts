@@ -26,17 +26,17 @@ export interface ToolDefinition extends Tool {
 }
 
 export interface ToolRegistry {
-  [key: string]: () => Promise<ToolDefinition>;
+  [key: string]: () => Promise<Tool | ToolDefinition>;
 }
 
 export interface ToolCache {
-  [key: string]: ToolDefinition;
+  [key: string]: Tool | ToolDefinition;
 }
 
 // Tool registry with lazy loading
 const toolRegistry: ToolRegistry = {
   // Browser and history tools
-  browserHistory: () => import('./browser-history.js').then(m => m.default),
+  browserHistory: () => import('./browser-history.js').then(m => new m.default()),
   
   // Git and version control
   gitOperations: () => import('./git-operations.js').then(m => m.default),
@@ -238,7 +238,7 @@ const toolCache: ToolCache = {};
 /**
  * Load a tool with caching and error handling
  */
-export async function loadTool(toolName: string): Promise<ToolDefinition> {
+export async function loadTool(toolName: string): Promise<Tool | ToolDefinition> {
   // Return cached tool if available
   if (toolCache[toolName]) {
     return toolCache[toolName];
@@ -288,9 +288,9 @@ export function getToolInfo(toolName: string): { name: string; available: boolea
 /**
  * Load multiple tools in parallel
  */
-export async function loadTools(toolNames: string[]): Promise<Record<string, ToolDefinition>> {
-  const tools: Record<string, ToolDefinition> = {};
-  
+export async function loadTools(toolNames: string[]): Promise<Record<string, Tool | ToolDefinition>> {
+  const tools: Record<string, Tool | ToolDefinition> = {};
+
   const loadPromises = toolNames.map(async (name) => {
     try {
       tools[name] = await loadTool(name);
@@ -346,7 +346,7 @@ export const workflowTools = {
 /**
  * Load tools for a specific workflow
  */
-export async function loadWorkflowTools(workflow: keyof typeof workflowTools): Promise<Record<string, ToolDefinition>> {
+export async function loadWorkflowTools(workflow: keyof typeof workflowTools): Promise<Record<string, Tool | ToolDefinition>> {
   const toolNames = workflowTools[workflow] || [];
   return await loadTools(toolNames);
 }

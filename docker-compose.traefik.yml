@@ -14,6 +14,8 @@ services:
       - "--providers.file.watch=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http3=true"
+      - "--entrypoints.websecure.http3.advertisedPort=443"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_EMAIL:-admin@example.com}"
@@ -23,9 +25,11 @@ services:
       - "--log.format=json"
       - "--accesslog=true"
       - "--accesslog.format=json"
+      - "--experimental.http3=true"
     ports:
       - "80:80"
-      - "443:443"
+      - "443:443/tcp"
+      - "443:443/udp" # For HTTP/3 QUIC
       - "8080:8080" # Traefik dashboard (secured)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -56,12 +60,21 @@ services:
       dockerfile: Dockerfile
     container_name: llm-service-1
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     environment:
       - NODE_ENV=production
       - PORT=8080
       - INSTANCE_ID=llm-1
       - PERFORMANCE_MONITORING=true
       - LOG_LEVEL=info
+      - WEB_CONCURRENCY=4
     volumes:
       - browser-data:/app/browser-data
       - ./logs:/app/logs
@@ -69,10 +82,12 @@ services:
       - llm-network
     labels:
       - "traefik.enable=true"
-      # Main service routing
+      # Main service routing with HTTP/3 and TLS
       - "traefik.http.routers.llm.rule=Host(`${LLM_HOST:-llm.localhost}`)"
       - "traefik.http.routers.llm.entrypoints=websecure"
+      - "traefik.http.routers.llm.tls=true"
       - "traefik.http.routers.llm.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.llm.tls.options=modern@file"
       - "traefik.http.services.llm.loadbalancer.server.port=8080"
       # Health check configuration
       - "traefik.http.services.llm.loadbalancer.healthcheck.path=/health"
@@ -103,12 +118,21 @@ services:
       dockerfile: Dockerfile
     container_name: llm-service-2
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     environment:
       - NODE_ENV=production
       - PORT=8080
       - INSTANCE_ID=llm-2
       - PERFORMANCE_MONITORING=true
       - LOG_LEVEL=info
+      - WEB_CONCURRENCY=4
     volumes:
       - browser-data:/app/browser-data
       - ./logs:/app/logs
@@ -132,12 +156,21 @@ services:
       dockerfile: Dockerfile
     container_name: llm-service-3
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     environment:
       - NODE_ENV=production
       - PORT=8080
       - INSTANCE_ID=llm-3
       - PERFORMANCE_MONITORING=true
       - LOG_LEVEL=info
+      - WEB_CONCURRENCY=4
     volumes:
       - browser-data:/app/browser-data
       - ./logs:/app/logs

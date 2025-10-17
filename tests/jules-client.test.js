@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { JulesClient } from '../src/jules-client.js';
+import { JulesClient } from '../../src/jules-client.js';
 import dotenv from 'dotenv';
 
 dotenv.config();

@@ -17,6 +17,8 @@ services:
       - NODE_ENV=development
       - NODE_OPTIONS=--max-old-space-size=2048
       - DEBUG=llm:*
+      - SELECTION_API_TOKEN=${SELECTION_API_TOKEN}
+      - SELECTION_DB_PATH=/workspace/data/selections.db
     working_dir: /workspace
     command: npm run start:dev:optimized
     restart: unless-stopped

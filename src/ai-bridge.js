@@ -4,7 +4,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { randomUUID } from 'node:crypto';
-import { once } from 'node:events';
+import { once, EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -46,8 +46,9 @@ class CircularBuffer {
   }
 }
 
-export class AIBridge {
+export class AIBridge extends EventEmitter {
   constructor({ logger = console, historyLimit = DEFAULT_HISTORY_LIMIT } = {}) {
+    super();
     this.logger = logger;
     this.historyLimit = historyLimit;
     this.clients = new Map(); // clientId -> { ws, meta }
@@ -101,6 +102,9 @@ export class AIBridge {
       `[Bridge] Registered ${clientId} (${meta.role}) – ${this.clients.size} connected`
     );
 
+    // Emit event for coordinators
+    this.emit('clientRegistered', meta);
+
     const queued = this.messageQueue.get(clientId);
     if (queued?.length) {
       queued.splice(0, MAX_QUEUE_PER_CLIENT).forEach((envelope) => {
@@ -116,6 +120,9 @@ export class AIBridge {
     if (!this.clients.has(clientId)) return;
     this.clients.delete(clientId);
     this.logger.log(`[Bridge] Client disconnected: ${clientId} (${this.clients.size} remaining)`);
+
+    // Emit event for coordinators
+    this.emit('clientDisconnected', clientId);
   }
 
   listClients() {
@@ -174,6 +181,9 @@ export class AIBridge {
           enriched.to || 'broadcast'
         }: ${previewPayload(enriched.payload)}`
       );
+
+      // Emit event for coordinators
+      this.emit('envelopeProcessed', enriched);
 
       return enriched;
     } catch (error) {
@@ -424,7 +434,8 @@ export async function createAIBridgeServer({
 
   wss.on('connection', (ws, req) => {
     const origin = req.headers.origin;
-    if (!this?._isOriginAllowed?.(origin)) {
+    if (!bridge._isOriginAllowed(origin)) {
+      logger.warn(`[Bridge] Origin not allowed: ${origin}`);
       ws.close(1008, 'Origin not allowed');
       return;
     }

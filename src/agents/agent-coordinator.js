@@ -1,39 +1,45 @@
 // Agent Prompting and Coordination Router
 // Adds new intents and routing logic on top of the optimized bridge
 
-import { createAIBridgeServer } from '../ai-bridge-optimized.js';
+import { createAIBridgeServer } from '../ai-bridge.js';
 import { AgentRegistry, TaskGuard } from './agent-registry.js';
 
-export async function startAgentCoordinator() {
-  const server = await createAIBridgeServer();
+export async function startAgentCoordinator(options = {}) {
+  const server = await createAIBridgeServer(options);
   const { bridge } = server;
 
   const registry = new AgentRegistry();
   const guard = new TaskGuard({ maxHops: 5 });
 
-  // Register clients on connect
-  bridge.on('clientRegistered', (meta) => {
-    const reg = registry.register({
-      id: meta.id,
-      role: meta.role,
-      skills: Array.from(meta.labels || []),
-      intents: Array.from(meta.intents || [])
-    });
-    bridge.logger?.log?.(`[Coordinator] Registered ${reg.id} role=${reg.role}`);
-  });
+  // Register clients on connect - emit event after registration
+  const originalRegisterClient = bridge.registerClient.bind(bridge);
+  bridge.registerClient = function(ws, registration) {
+    const meta = originalRegisterClient(ws, registration);
+    if (meta && meta.id) {
+      const reg = registry.register({
+        id: meta.id,
+        role: meta.role,
+        skills: Array.from(meta.labels || []),
+        intents: Array.from(meta.intents || [])
+      });
+      bridge.logger?.log?.(`[Coordinator] Registered ${reg.id} role=${reg.role}`);
+      bridge.emit('clientRegistered', meta);
+    }
+    return meta;
+  };
 
+  // Handle client disconnection
   bridge.on('clientDisconnected', (clientId) => {
     registry.unregister(clientId);
   });
 
+  // Intercept envelope processing to handle routing and load tracking
   bridge.on('envelopeProcessed', (envelope) => {
     // Update perceived load based on message count (simple heuristic)
     const meta = bridge.clients.get(envelope.to || envelope.from)?.meta;
     if (meta) registry.setLoad(meta.id, meta.messageCount || 0);
-  });
 
-  // Core coordination: intercept prompts and route
-  bridge.on('envelopeProcessed', (envelope) => {
+    // Core coordination: intercept prompts and route
     try {
       if (!guard.allow(envelope)) return;
 

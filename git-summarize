@@ -1,0 +1,101 @@
+#!/usr/bin/env node
+/**
+ * Git Repository Summarizer
+ * Analyzes git repos and generates intelligent summaries
+ */
+
+import { execSync } from 'child_process';
+import { existsSync, readFileSync } from 'fs';
+
+function run(cmd) {
+  try {
+    return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+  } catch (e) {
+    return '';
+  }
+}
+
+function analyzeRepo() {
+  console.log('📊 Git Repository Analysis\n');
+  console.log('=' .repeat(70));
+
+  // Basic info
+  const branch = run('git branch --show-current');
+  const remote = run('git remote get-url origin');
+  const commits = run('git rev-list --count HEAD');
+
+  console.log(`\n🌿 Branch: ${branch || 'detached HEAD'}`);
+  console.log(`🔗 Remote: ${remote || 'none'}`);
+  console.log(`📝 Total commits: ${commits || '0'}`);
+
+  // Recent activity
+  console.log('\n📅 Recent Activity (last 10 commits):');
+  const log = run('git log --oneline -10');
+  if (log) {
+    log.split('\n').forEach(line => console.log(`  ${line}`));
+  }
+
+  // Contributors
+  console.log('\n👥 Contributors:');
+  const authors = run('git shortlog -sn --all');
+  if (authors) {
+    authors.split('\n').slice(0, 5).forEach(line => console.log(`  ${line}`));
+  }
+
+  // Current changes
+  const status = run('git status --short');
+  if (status) {
+    console.log('\n📝 Uncommitted changes:');
+    const lines = status.split('\n');
+    console.log(`  ${lines.length} files modified`);
+    lines.slice(0, 10).forEach(line => console.log(`  ${line}`));
+  } else {
+    console.log('\n✅ Working tree clean');
+  }
+
+  // File statistics
+  const files = run('git ls-files | wc -l');
+  const jsFiles = run('git ls-files "*.js" "*.ts" | wc -l');
+
+  console.log('\n📁 Repository contents:');
+  console.log(`  Total files: ${files || '0'}`);
+  console.log(`  JS/TS files: ${jsFiles || '0'}`);
+
+  // Lines of code (approximate)
+  const loc = run('git ls-files "*.js" "*.ts" | xargs wc -l 2>/dev/null | tail -1');
+  if (loc) {
+    const total = loc.trim().split(/\s+/)[0];
+    console.log(`  Lines of code: ~${total}`);
+  }
+
+  // Recent branches
+  console.log('\n🔀 Recent branches:');
+  const branches = run('git branch -a --sort=-committerdate');
+  if (branches) {
+    branches.split('\n').slice(0, 5).forEach(line => {
+      console.log(`  ${line.trim()}`);
+    });
+  }
+
+  // Package info
+  if (existsSync('package.json')) {
+    const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+    console.log('\n📦 Package:');
+    console.log(`  Name: ${pkg.name || 'unknown'}`);
+    console.log(`  Version: ${pkg.version || '0.0.0'}`);
+    if (pkg.description) {
+      console.log(`  Description: ${pkg.description}`);
+    }
+  }
+
+  console.log('\n' + '='.repeat(70));
+  console.log('✅ Analysis complete!\n');
+}
+
+// Check if in git repo
+if (!existsSync('.git')) {
+  console.error('❌ Not a git repository');
+  process.exit(1);
+}
+
+analyzeRepo();

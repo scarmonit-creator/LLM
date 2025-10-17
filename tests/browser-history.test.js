@@ -45,7 +45,7 @@ test('BrowserHistoryTool - History Retrieval', async (t) => {
   });
 
   await t.test('should get recent history', async () => {
-    const result = await historyTool.getHistory(undefined, 10);
+    const result = await historyTool.getHistory({ maxResults: 10 });
     assert.ok(Array.isArray(result));
   });
 
@@ -55,11 +55,13 @@ test('BrowserHistoryTool - History Retrieval', async (t) => {
   });
 
   await t.test('should get history with filters', async () => {
-    const result = await historyTool.execute({
+    const resultStr = await historyTool.execute({
       action: 'get_history',
-      limit: 10,
+      maxResults: 10,
     });
-    assert.ok(Array.isArray(result));
+    const result = JSON.parse(resultStr);
+    assert.ok(result.success);
+    assert.ok(Array.isArray(result.data));
   });
 });
 
@@ -77,60 +79,67 @@ test('BrowserHistoryTool - Tool Execution', async (t) => {
   });
 
   await t.test('should execute get_history action', async () => {
-    const result = await historyTool.execute({ action: 'get_history', limit: 5 });
-    assert.ok(Array.isArray(result));
+    const resultStr = await historyTool.execute({ action: 'get_history', maxResults: 5 });
+    const result = JSON.parse(resultStr);
+    assert.ok(result.success);
+    assert.ok(Array.isArray(result.data));
   });
 
-  await t.test('should execute search_history action', async () => {
-    const result = await historyTool.execute({
-      action: 'search_history',
+  await t.test('should execute search action', async () => {
+    const resultStr = await historyTool.execute({
+      action: 'search',
       query: 'test',
-      limit: 5,
+      maxResults: 5,
     });
-    assert.ok(Array.isArray(result));
+    const result = JSON.parse(resultStr);
+    assert.ok(result.success);
+    assert.ok(Array.isArray(result.data));
   });
 
-  await t.test('should execute start_sync action', async () => {
-    const result = await historyTool.execute({ action: 'start_sync' });
+  await t.test('should execute sync action', async () => {
+    const resultStr = await historyTool.execute({ action: 'sync' });
+    const result = JSON.parse(resultStr);
     assert.ok(result.success);
   });
 
-  await t.test('should execute stop_sync action', async () => {
-    const result = await historyTool.execute({ action: 'stop_sync' });
+  await t.test('should execute stats action', async () => {
+    const resultStr = await historyTool.execute({ action: 'stats' });
+    const result = JSON.parse(resultStr);
     assert.ok(result.success);
+    assert.ok(result.stats);
   });
 
-  await t.test('should require query for search_history', async () => {
-    await assert.rejects(
-      async () => {
-        await historyTool.execute({ action: 'search_history' });
-      },
-      { message: 'Query parameter required for search_history' }
-    );
+  await t.test('should require query for search', async () => {
+    const resultStr = await historyTool.execute({ action: 'search' });
+    const result = JSON.parse(resultStr);
+    assert.ok(!result.success);
+    assert.ok(result.error);
   });
 
   await t.test('should handle unknown action', async () => {
-    await assert.rejects(
-      async () => {
-        await historyTool.execute({ action: 'invalid_action' });
-      },
-      { message: /Unknown action/ }
-    );
+    const resultStr = await historyTool.execute({ action: 'invalid_action' });
+    const result = JSON.parse(resultStr);
+    assert.ok(!result.success);
+    assert.match(result.error, /Unknown action/);
   });
 });
 
 test('BrowserHistoryTool - Auto-sync', async (t) => {
-  await t.test('should stop auto-sync via execute', async () => {
-    const historyTool = new BrowserHistoryTool({ autoSync: true, syncInterval: 1000 });
-    const result = await historyTool.execute({ action: 'stop_sync' });
+  await t.test('should handle sync manually', async () => {
+    const historyTool = new BrowserHistoryTool({ autoSync: false });
+    const resultStr = await historyTool.execute({ action: 'sync' });
+    const result = JSON.parse(resultStr);
     assert.ok(result.success);
     historyTool.destroy();
   });
 
-  await t.test('should start auto-sync via execute', async () => {
-    const historyTool = new BrowserHistoryTool({ autoSync: false });
-    const result = await historyTool.execute({ action: 'start_sync' });
+  await t.test('should get stats about sync state', async () => {
+    const historyTool = new BrowserHistoryTool({ autoSync: true, syncInterval: 60000 });
+    const resultStr = await historyTool.execute({ action: 'stats' });
+    const result = JSON.parse(resultStr);
     assert.ok(result.success);
+    assert.strictEqual(result.stats.autoSync, true);
+    assert.strictEqual(result.stats.syncInterval, 60000);
     historyTool.destroy();
   });
 });

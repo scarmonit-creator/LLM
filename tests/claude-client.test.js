@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { ClaudeClient } from '../src/claude-client.js';
+import { ClaudeClient } from '../../src/claude-client.js';
 
 test('ClaudeClient initialization', () => {
   process.env.ANTHROPIC_API_KEY = 'test-key';

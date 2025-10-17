@@ -23,9 +23,12 @@ import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 
 // Import existing framework modules
+// @ts-ignore - JS module without types
 import ClaudeClient from '../claude-client.js';
-import { JulesClient } from '../clients/jules-client.js';
-import { BrowserHistoryTool } from '../tools/browser-history.js';
+// Jules client not yet implemented - placeholder for future
+// import { JulesClient } from '../clients/jules-client.js';
+import BrowserHistoryToolClass from '../../tools/browser-history.js';
+const BrowserHistoryTool = new BrowserHistoryToolClass();
 
 /**
  * 🔧 MCP Server Configuration
@@ -248,7 +251,7 @@ export class LLMFrameworkMCPServer extends EventEmitter {
         
         // Initialize browser history tool
         if (this.config.tools.get_browser_history.enabled) {
-            this.toolInstances.set('get_browser_history', new BrowserHistoryTool());
+            this.toolInstances.set('get_browser_history', BrowserHistoryTool);
         }
         
         // Additional tools would be initialized here
@@ -283,7 +286,7 @@ export class LLMFrameworkMCPServer extends EventEmitter {
      * Get tool schema for MCP protocol
      */
     private getToolSchema(toolName: string): any {
-        const schemas = {
+        const schemas: Record<string, any> = {
             claude_chat: {
                 name: 'claude_chat',
                 description: 'Direct access to Claude AI conversations with context management',
@@ -687,7 +690,7 @@ export class LLMFrameworkMCPServer extends EventEmitter {
      */
     private emitMetrics(): void {
         const avgResponseTime = this.performanceMetrics.responseTime.length > 0
-            ? this.performanceMetrics.responseTime.reduce((a, b) => a + b) / this.performanceMetrics.responseTime.length
+            ? this.performanceMetrics.responseTime.reduce((a: number, b: number) => a + b) / this.performanceMetrics.responseTime.length
             : 0;
         
         const uptime = Date.now() - this.performanceMetrics.startTime;

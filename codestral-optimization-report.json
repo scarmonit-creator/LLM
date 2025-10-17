@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-10-16T00:08:37.267Z",
+  "duration": "0.06s",
+  "summary": {
+    "filesAnalyzed": 50,
+    "issuesFound": 36,
+    "optimizationsApplied": 4,
+    "performanceGain": "60%"
+  },
+  "performance": {
+    "memory": {
+      "heapUsed": 9,
+      "heapTotal": 13
+    }
+  }
+}

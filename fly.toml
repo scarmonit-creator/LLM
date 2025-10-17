@@ -31,7 +31,10 @@ kill_timeout = '10s'
   timeout = '5s'
   grace_period = '15s'
   method = 'get'
-  path = '/health'
+  path = '/healthz'
+
+[processes]
+  app = "node server-enhanced.js"
 
 [[vm]]
   cpu_kind = 'shared'
